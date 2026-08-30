@@ -1,16 +1,29 @@
 /**
- * Benny's Ballista — input, meters, ammo list.
- *
- * No menus, no pause overlay, no minimap yet (later work-order steps). The
- * game starts straight into aiming against the test castle from js/game.js.
+ * Benny's Ballista — input, meters, ammo list, and the results/out-of-bolts
+ * overlay. Still no pause menu or minimap (later polish) — the game starts
+ * straight into aiming against whichever level the save file resumes at.
  *
  * Input only responds while the camera director (js/game.js) is in its AIM
- * phase — canAct() below. Once a shot fires, the director owns FLIGHT
- * through RESULTS on its own timing, and the next shot's meters reset the
- * moment it returns to AIM (see the edge-detect in tick()), not the instant
- * Return is pressed. There's no pause menu yet to interrupt that with
- * (AGENTS.md wants Return-hold to open Pause from every screen, including
- * mid-flight — noted as a gap until steps 6-7 build the menu system).
+ * phase, or while it's holding one of the two overlay phases (RESULTS_MENU,
+ * OUTOFBOLTS) — canAct()/overlayPhase() below. Once a shot fires, the
+ * director owns FLIGHT through RESULTS on its own timing; the next shot's
+ * meters reset the moment it returns to AIM (see the edge-detect in tick()),
+ * and the overlay opens/closes on the same kind of edge-detect rather than
+ * being driven from whatever fired the shot. There's still no pause menu to
+ * interrupt any of this with (AGENTS.md wants Return-hold to open Pause from
+ * every screen, including mid-flight — noted as a gap until that menu system
+ * exists).
+ *
+ * The overlay reuses the ammo list's own scan-list machinery
+ * (scanStep()/inScanList()/resetAutoScan()) rather than a parallel
+ * implementation — overlayPhase() just makes those functions treat "focus
+ * within the overlay's item list" as one more list to scan, so Space-hold-
+ * to-scan-backward and Auto Scan both work on it for free. The one trap this
+ * created: meterStage() has to explicitly exclude overlayPhase(), or
+ * whatever `state.stage` was left over from the shot that triggered the
+ * overlay (usually 'range') makes Space silently resume the hidden meter
+ * instead of moving overlay focus — caught by testing the actual Space/
+ * Return input path, not just calling the action functions directly.
  *
  * Reuses the exact hold-timer discipline the 2D version used (recovered from
  * git history at commit 695472a, `index.html:2196-2244` there) rather than
@@ -27,9 +40,11 @@ RT.ui = (function () {
   const U = RT.util;
   const D = RT.data;
   const G = RT.game;
+  const LV = RT.levels;
   const CFG = D.CFG;
 
   let els = null;
+  let overlayIx = -1;   // focus within the results/out-of-bolts panel; -1 = deadzone
 
   const state = {
     stage: 'ammo',              // 'ammo' | 'aim' | 'range'
@@ -63,6 +78,111 @@ RT.ui = (function () {
   function autoScanOn() { const m = U.sm(); return m ? m.getSettings().autoScan : false; }
   function scanInterval() { const m = U.sm(); return m ? m.getScanInterval() : 2000; }
 
+  /* ── Results / out-of-bolts overlay ──────────────────────────────────────
+   * The one place js/game.js's camera director takes input away from the
+   * meters for something other than a cinematic — CAM.phase is
+   * 'RESULTS_MENU' after a level is cleared, or 'OUTOFBOLTS' after the last
+   * bolt with Endless Bolts off (on by default, so this is mostly dormant
+   * until a future settings menu can actually turn it off). Reuses the same
+   * #overlay/#panel markup the pause/settings menus will eventually use.
+   */
+  function overlayPhase() { return G.CAM.phase === 'RESULTS_MENU' || G.CAM.phase === 'OUTOFBOLTS'; }
+
+  function overlayItems() {
+    if (G.CAM.phase === 'RESULTS_MENU') {
+      const nextIx = (G.levelIx + 1) % LV.LEVELS.length;
+      return [{ label: 'Next Level', sub: LV.LEVELS[nextIx].name, action: G.confirmResults }];
+    }
+    if (G.CAM.phase === 'OUTOFBOLTS') {
+      return [
+        { label: 'Try Again', sub: level().name, action: G.retryLevel },
+        { label: 'Turn On Endless Bolts', sub: 'Never run out again', action: G.enableEndlessAndContinue }
+      ];
+    }
+    return [];
+  }
+
+  function overlaySpeech() {
+    if (G.CAM.phase === 'RESULTS_MENU') {
+      const r = G.lastResult || { stars: 0, earned: 0, newAmmo: null };
+      const par = level().par;
+      const starsSpoken = r.stars === 3 ? 'three stars' : r.stars === 2 ? 'two stars' : 'one star';
+      let s = `Castle destroyed! ${starsSpoken}. You used ${G.boltsUsed} ${G.boltsUsed === 1 ? 'bolt' : 'bolts'}, `
+        + `and the target for this level is ${par}. You scored ${r.earned} points.`;
+      if (r.newAmmo) s += ` New ammunition unlocked: ${r.newAmmo.name}. ${r.newAmmo.sub}.`;
+      return s + ' Press space then return to move to the next level.';
+    }
+    const lvl = level();
+    return `Out of bolts. You used all ${lvl.bolts} without destroying every crown. `
+      + 'Press space to choose: try again, or turn on endless bolts so you never run out.';
+  }
+
+  function renderOverlay() {
+    if (!overlayPhase()) { els.overlay.classList.remove('on'); return; }
+
+    if (G.CAM.phase === 'RESULTS_MENU') {
+      const r = G.lastResult || { stars: 0, earned: 0, newAmmo: null };
+      const par = level().par;
+      const starStr = '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars);
+      els.panelTitle.textContent = 'Level Cleared!';
+      els.panelSub.innerHTML = `<span class="stars">${starStr}</span> &nbsp; ${G.boltsUsed} `
+        + `${G.boltsUsed === 1 ? 'bolt' : 'bolts'} used (par ${par}) &middot; <b>${r.earned}</b> points`
+        + (r.newAmmo ? `<br>New ammunition unlocked: <b>${r.newAmmo.name}</b> — ${r.newAmmo.sub}.` : '');
+      els.panelNote.innerHTML = `Total score: <b>${G.save.totalScore}</b> &middot; `
+        + `Levels cleared: <b>${Object.keys(G.save.stars).length}</b> of ${LV.LEVELS.length}`;
+    } else {
+      const lvl = level();
+      els.panelTitle.textContent = 'Out of Bolts';
+      els.panelSub.innerHTML = `You used all ${lvl.bolts} bolts on "${lvl.name}" without destroying every crown.`;
+      els.panelNote.innerHTML = 'Endless Bolts lets you keep firing forever — it only affects '
+        + 'your star rating, never whether you can finish.';
+    }
+
+    const holder = els.panelList;
+    holder.innerHTML = '';
+    overlayItems().forEach((it, i) => {
+      const b = document.createElement('button');
+      b.className = 'mi' + (i === overlayIx ? ' focus' : '');
+      b.type = 'button';
+      b.innerHTML = it.sub ? `${it.label}<span class="mval">${it.sub}</span>` : it.label;
+      b.addEventListener('click', () => {
+        if (!overlayPhase()) return;
+        overlayIx = i; renderOverlay(); overlaySelect();
+      });
+      holder.appendChild(b);
+    });
+
+    els.overlay.classList.add('on');
+  }
+
+  function overlayScanStep(dir) {
+    const n = overlayItems().length;
+    let v = (overlayIx === -1) ? n : overlayIx;
+    v = (v + dir + (n + 1)) % (n + 1);
+    overlayIx = (v === n) ? -1 : v;
+    renderOverlay();
+    if (overlayIx === -1) { sfx('hover', 0.25); return; }
+    sfx('hover', 0.5);
+    const it = overlayItems()[overlayIx];
+    if (it) U.speak(`${it.label}. ${it.sub}`);
+  }
+
+  function overlaySelect() {
+    if (overlayIx === -1) { U.speak('Nothing highlighted. Press space to keep scanning.'); return; }
+    const it = overlayItems()[overlayIx];
+    if (!it) return;
+    sfx('select', 0.6);
+    stopAutoScan();
+    it.action();
+  }
+
+  function enterOverlay() {
+    overlayIx = -1;
+    renderOverlay();
+    resetAutoScan();
+    U.speak(overlaySpeech());
+  }
+
   /* ── Ammo list ────────────────────────────────────────────────────────── */
   function laneItems() { return unlockedAmmo().map((a, i) => ({ label: a.name, sub: a.sub, ix: i })); }
   function laneLen() { return laneItems().length; }
@@ -92,6 +212,7 @@ RT.ui = (function () {
   }
 
   function scanStep(dir) {
+    if (overlayPhase()) { overlayScanStep(dir); return; }
     if (state.stage !== 'ammo') return;
     const n = laneLen();
     let v = (state.scan === -1) ? n : state.scan;
@@ -108,7 +229,10 @@ RT.ui = (function () {
   }
 
   /* ── Meters ───────────────────────────────────────────────────────────── */
-  function meterStage() { return state.stage === 'aim' || state.stage === 'range'; }
+  // Never true while an overlay is open, regardless of whatever `state.stage`
+  // was left over from before the shot that triggered it — otherwise Space
+  // resumes the (hidden) aim/range meter instead of moving overlay focus.
+  function meterStage() { return !overlayPhase() && (state.stage === 'aim' || state.stage === 'range'); }
 
   function renderMeters() {
     const h = yawHalfDeg();
@@ -272,6 +396,7 @@ RT.ui = (function () {
   }
 
   function commit() {
+    if (overlayPhase()) return overlaySelect();
     if (state.stage === 'ammo') return commitAmmo();
     if (state.stage === 'aim') return lockAim();
     if (state.stage === 'range') return confirmShot();
@@ -324,6 +449,7 @@ RT.ui = (function () {
   }
 
   function backOut() {
+    if (overlayPhase()) { U.speak('Nothing to go back to here — press space then return to choose.'); return; }
     const order = stageOrder();
     const i = order.indexOf(state.stage);
     if (i <= 0) {
@@ -351,7 +477,7 @@ RT.ui = (function () {
    * in the aim/range stages — scoping it by stage is what lets both be true
    * without either one surprising the player.
    */
-  function inScanList() { return state.stage === 'ammo'; }
+  function inScanList() { return state.stage === 'ammo' || overlayPhase(); }
   function scanNext() { scanStep(1); resetAutoScan(); }
   function scanPrev() { scanStep(-1); }
   function selectCurrent() { commit(); }
@@ -379,7 +505,7 @@ RT.ui = (function () {
 
   /* ── Input ────────────────────────────────────────────────────────────── */
   function onKeyDown(e) {
-    if (e.repeat || !canAct()) return;
+    if (e.repeat || (!canAct() && !overlayPhase())) return;
     if (e.code === 'Space') {
       e.preventDefault();
       if (input.spaceDown) return;
@@ -445,7 +571,9 @@ RT.ui = (function () {
       valAim: U.$('valAim'), btnLockAim: U.$('btnLockAim'),
       lanePower: U.$('lanePower'), meterPower: U.$('meterPower'), fillPower: U.$('fillPower'),
       valPower: U.$('valPower'), btnFire: U.$('btnFire'),
-      ftrMode: U.$('ftrMode'), ftrTarget: U.$('ftrTarget')
+      ftrMode: U.$('ftrMode'), ftrTarget: U.$('ftrTarget'),
+      overlay: U.$('overlay'), panelTitle: U.$('panelTitle'), panelSub: U.$('panelSub'),
+      panelList: U.$('panelList'), panelNote: U.$('panelNote')
     };
 
     bindMeter(els.meterAim, 'aim');
@@ -468,11 +596,21 @@ RT.ui = (function () {
    *  meters are ready — edge-detected here rather than timed independently,
    *  so this always matches what the player is actually looking at. */
   let wasActable = true;
+  /** Same idea for the results/out-of-bolts overlay: render and announce it
+   *  exactly once, the frame CAM.phase actually becomes one of those two,
+   *  not the instant the underlying win/out-of-bolts condition is true (the
+   *  SETTLE/RESULTS cinematic still gets to play out first). */
+  let wasOverlay = false;
   function tick(dt) {
     stepMeters(dt);
     const actable = canAct();
     if (actable && !wasActable) enterShot(false);
     wasActable = actable;
+
+    const inOverlay = overlayPhase();
+    if (inOverlay && !wasOverlay) enterOverlay();
+    else if (!inOverlay && wasOverlay) renderOverlay();   // takes the early-return branch, clears '.on'
+    wasOverlay = inOverlay;
   }
 
   return {
@@ -480,6 +618,8 @@ RT.ui = (function () {
     __test: {
       state() { return JSON.parse(JSON.stringify(state)); },
       previewPhrase, canAct,
+      overlayPhase, overlayItems,
+      overlayIx() { return overlayIx; },
       pressSpace() { onKeyDown({ code: 'Space', preventDefault() {} }); },
       releaseSpace() { onKeyUp({ code: 'Space', preventDefault() {} }); },
       pressReturn() { onKeyDown({ code: 'Enter', preventDefault() {} }); },

@@ -9,11 +9,14 @@
  * fire()/traceShot() API at the bottom of this file; everything about the
  * world, the live castle and the camera stays here.
  *
- * Still no results/pause overlay, no stars, no bolt limit and no save
- * persistence (later polish) — clearing a level currently just moves
- * straight on to the next one (see the RESULTS phase in update()), and
- * RESULTS itself is a camera hold over the wreckage with no panel drawn
- * over it yet.
+ * Also owns progress: stars, score, ammo unlocks and the results/out-of-
+ * bolts overlays (RESULTS_MENU / OUTOFBOLTS, two more CAM phases alongside
+ * the camera director's own six), and the save file itself — one combined
+ * object under RT.util's `rt-ballista` key, same shape as FishMaster's save.
+ * Endless Bolts defaults on (the hub's no-fail default), so OUTOFBOLTS is
+ * mostly dormant until a future settings menu can actually turn it off —
+ * `__test.setEndlessBolts(false)` is the only way there for now. Still no
+ * pause menu, minimap, or per-material audio (later polish).
  */
 RT.game = (function () {
   'use strict';
@@ -38,6 +41,33 @@ RT.game = (function () {
   // computes yaw/range windows against currentLevel() before physics (and so
   // loadLevel()) has run at all, and needs something real to read.
   let liveLevel = LV.LEVELS[0];
+  let boltsUsed = 0;    // this level, since loadLevel() — resets to 0 there
+  let levelScore = 0;   // this level's points, folded into save.totalScore on a win
+  let lastResult = null; // { stars, earned, bonus, newAmmo } for the results overlay
+
+  /* ── Save / progress ──────────────────────────────────────────────────────
+   * One combined object (progress + the one setting that affects rules),
+   * same shape as FishMaster's save — not the bare `bennysballista_*` keys
+   * the 2D version used, since this game is RT-based now and RT.util's
+   * load()/save() already namespace everything under one `rt-` prefix.
+   */
+  const SAVE_KEY = 'ballista';
+  const SAVE_VERSION = 1;
+  let save = null;
+  function defaultSave() {
+    return {
+      version: SAVE_VERSION,
+      level: 0,          // furthest level reached (index) — also where a fresh boot resumes
+      stars: {},         // levelIx -> best stars earned (1-3)
+      totalScore: 0,
+      endlessBolts: true // recommended default, matches the hub's no-fail philosophy
+    };
+  }
+  function loadSave() {
+    const raw = U.load(SAVE_KEY, null);
+    save = (raw && raw.version === SAVE_VERSION) ? Object.assign(defaultSave(), raw) : defaultSave();
+  }
+  function persistSave() { U.save(SAVE_KEY, save); }
 
   /** Auto-enabled under prefers-reduced-motion, same as FishMaster's
    *  reducedMotion(). Exposed mutable so a future settings menu (steps 6-7)
@@ -130,9 +160,14 @@ RT.game = (function () {
     mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
   }
 
+  /** Points for a kill are 500 for a crown, 100 for anything else — ported
+   *  from the 2D version's damageBlock(), folded in here since every kill
+   *  (a direct hit via applyHit(), or collateral via
+   *  stepPhysicsWithImpacts()) already funnels through this one function. */
   function destroyBlockRec(b) {
     if (!b.alive) return;
     b.alive = false;
+    levelScore += b.mat.crown ? 500 : 100;
     scene.remove(b.mesh);
     disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);
@@ -169,6 +204,9 @@ RT.game = (function () {
     for (const s of shots) scene.remove(s.mesh);
     shots = [];
     levelWon = false;
+    boltsUsed = 0;
+    levelScore = 0;
+    lastResult = null;
 
     levelIx = ((ix % LV.LEVELS.length) + LV.LEVELS.length) % LV.LEVELS.length;
     liveLevel = LV.LEVELS[levelIx];
@@ -247,13 +285,14 @@ RT.game = (function () {
   }
 
   /** Runs both audits (each leaves the last level it built live in the
-   *  scene) and, once both pass, loads level 0 for real play. A failure
-   *  throws synchronously to the caller — see loadAttract() for how that
-   *  gets surfaced instead of just hanging silently. */
+   *  scene) and, once both pass, resumes at the furthest level the save
+   *  file has reached. A failure throws synchronously to the caller — see
+   *  loadAttract() for how that gets surfaced instead of just hanging
+   *  silently. */
   function runBootAudits() {
     auditLevels();
     auditReach();
-    loadLevel(0);
+    loadLevel(save.level);
   }
 
   /* ── Shot pipeline ──────────────────────────────────────────────────────
@@ -326,6 +365,7 @@ RT.game = (function () {
   function fire(ammo, yawRad, rangePct) {
     const trace = traceShot(ammo, yawRad, rangePct);
     if (!trace) return null;
+    boltsUsed++;
     const mesh = A.buildBolt(ammo.r);
     mesh.position.copy(trace.points[0]);
     scene.add(mesh);
@@ -349,7 +389,46 @@ RT.game = (function () {
     if (levelWon) return;
     if (!blocks.some((b) => b.alive && b.mat.crown)) {
       levelWon = true;
-      U.speak('Level cleared! All crowns destroyed.');
+      finishLevel();
+    }
+  }
+
+  /** Stars/score/unlock, computed once the instant the last crown dies —
+   *  not deferred to whenever the results overlay happens to open, so nothing
+   *  is lost if that transition is ever interrupted. Formula ported from the
+   *  2D version's levelComplete(). */
+  function finishLevel() {
+    const par = liveLevel.par;
+    const stars = boltsUsed <= par ? 3 : (boltsUsed <= par + 2 ? 2 : 1);
+    const bonus = save.endlessBolts ? 0 : Math.max(0, liveLevel.bolts - boltsUsed) * 150;
+    const earned = levelScore + bonus;
+
+    save.totalScore += earned;
+    const prevStars = save.stars[levelIx] || 0;
+    if (stars > prevStars) save.stars[levelIx] = stars;
+    const nextIx = levelIx + 1;
+    if (nextIx < LV.LEVELS.length && save.level < nextIx) save.level = nextIx;
+    const newAmmo = D.AMMO.find((a) => a.unlockAt === save.level && a.unlockAt !== 0);
+    persistSave();
+
+    lastResult = { stars: stars, earned: earned, bonus: bonus, newAmmo: newAmmo || null };
+    // Not spoken here — js/ui.js announces it once the results overlay
+    // actually opens (after the SETTLE/RESULTS camera hold plays out), not
+    // the instant the crown dies mid-cinematic.
+  }
+
+  /** What comes after a shot's cinematic (or its immediate miss) finishes:
+   *  the results overlay on a win, the out-of-bolts overlay if this was the
+   *  last bolt and Endless Bolts is off, or straight back to aiming. Shared
+   *  by the clean-miss branch in updateShots() and the RESULTS timeout in
+   *  update() below, so the two paths can't drift apart on this check. */
+  function advanceAfterShot() {
+    if (levelWon) {
+      CAM.phase = 'RESULTS_MENU';
+    } else if (!save.endlessBolts && boltsUsed >= liveLevel.bolts) {
+      CAM.phase = 'OUTOFBOLTS';
+    } else {
+      CAM.phase = 'AIM';
     }
   }
 
@@ -369,7 +448,7 @@ RT.game = (function () {
           applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel);
           beginImpact(impactPos, s.trace.impactVel);
         } else {
-          CAM.phase = 'AIM';   // a clean miss has nothing worth a cinematic cut for
+          advanceAfterShot();   // a clean miss has nothing worth a cinematic cut for, but bolts still ran out
         }
       }
     }
@@ -418,6 +497,7 @@ RT.game = (function () {
   }
 
   function loadAttract() {
+    if (!save) loadSave();   // before ui.js's synchronous init() reads unlockedAmmo()/liveLevel
     if (!world) buildWorldAndBallista();
     if (!physicsReady) {
       // Ammo's module factory resolves asynchronously (see js/physics.js) —
@@ -613,14 +693,17 @@ RT.game = (function () {
     } else if (CAM.phase === 'RESULTS') {
       CAM.resultsT += dt;
       positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);   // hold the SETTLE framing
-      if (CAM.resultsT > CFG.WIN_PAUSE) {
-        // No results panel or star rating yet (later polish) — clearing a
-        // level's only visible effect for now is moving straight on to the
-        // next one, wrapping after the last. A miss/partial hit just keeps
-        // shooting at the same wreckage.
-        if (levelWon) loadLevel(levelIx + 1);
-        CAM.phase = 'AIM';
-      }
+      if (CAM.resultsT > CFG.WIN_PAUSE) advanceAfterShot();
+    } else if (CAM.phase === 'RESULTS_MENU') {
+      // js/ui.js owns input now (the results overlay) — keep holding the
+      // same wrecked-castle framing underneath it until confirmResults()
+      // moves on to the next level.
+      positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);
+    } else if (CAM.phase === 'OUTOFBOLTS') {
+      // Usually reached from a clean miss, so there's no wreckage worth
+      // holding a shot of — the out-of-bolts overlay just sits over the
+      // ordinary aim framing.
+      updateAim();
     } else {
       CAM.phase = 'AIM';
       updateAim();
@@ -634,14 +717,31 @@ RT.game = (function () {
     updateShake(dt);
   }
 
-  /**
-   * All four ammo, always unlocked. `unlockAt` gating by `save.level` needs
-   * save persistence, which doesn't exist yet (later polish) — there's a
-   * real level system now (levelIx advances on a win, see update()), just
-   * nothing saved across a reload yet.
-   */
-  function unlockedAmmo() { return D.AMMO; }
+  /** Every ammo whose `unlockAt` is at or below the furthest level reached —
+   *  same gate as the 2D version's unlockedAmmo(). */
+  function unlockedAmmo() { return D.AMMO.filter((a) => a.unlockAt === 0 || save.level >= a.unlockAt); }
   function currentLevel() { return liveLevel; }
+
+  /* ── Results / out-of-bolts overlays ──────────────────────────────────────
+   * js/ui.js renders these (the #overlay markup already in index.html) and
+   * calls back into whichever of these the player picks. Both just resolve
+   * CAM.phase back to 'AIM', which is what lets js/ui.js's existing
+   * canAct()-edge-detect (enterShot() on the phase becoming 'AIM') pick the
+   * meters back up exactly like it does after any other cinematic.
+   */
+  function confirmResults() {
+    loadLevel(levelIx + 1);
+    CAM.phase = 'AIM';
+  }
+  function retryLevel() {
+    loadLevel(levelIx);
+    CAM.phase = 'AIM';
+  }
+  function enableEndlessAndContinue() {
+    save.endlessBolts = true;
+    persistSave();
+    CAM.phase = 'AIM';   // same wreckage, no rebuild — just allowed to keep firing
+  }
 
   /**
    * Console-driven checks — no results panel or narration for a miss/hit
@@ -696,14 +796,31 @@ RT.game = (function () {
     },
     isSteadyCamera() { return steadyCamera; },
     setSteadyCamera(on) { steadyCamera = !!on; },
-    isReducedMotion() { return REDUCED_MOTION; }
+    isReducedMotion() { return REDUCED_MOTION; },
+    boltsUsed() { return boltsUsed; },
+    levelScore() { return levelScore; },
+    save() { return save; },
+    lastResult() { return lastResult; },
+    setEndlessBolts(on) {
+      // No settings menu exists yet to reach this by hand — Endless Bolts
+      // defaults on (see defaultSave()), so this is here purely so the
+      // out-of-bolts path can be exercised/verified before that menu exists.
+      save.endlessBolts = !!on;
+      persistSave();
+    },
+    resetSave() { save = defaultSave(); persistSave(); }
   };
 
   return {
     init, loadAttract, update,
     onThemeChanged, isFlat,
     unlockedAmmo, currentLevel, fire, traceShot,
+    confirmResults, retryLevel, enableEndlessAndContinue,
     get CAM() { return CAM; },
+    get levelIx() { return levelIx; },
+    get lastResult() { return lastResult; },
+    get boltsUsed() { return boltsUsed; },
+    get save() { return save; },
     __test: __test
   };
 })();
