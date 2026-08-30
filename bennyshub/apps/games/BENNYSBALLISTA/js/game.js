@@ -35,7 +35,7 @@ RT.game = (function () {
    * yawLimit()/castleBounds() read, so the meters scale correctly against
    * this hand-made castle the same way they will against a real level.
    */
-  const TEST_LEVEL = { name: 'Test Castle', dist: 20, _cols: 1, _depth: 1 };
+  const TEST_LEVEL = { name: 'Test Castle', dist: 20, _cols: 2.2, _depth: 1.6 };
 
   /* ── Theming ──────────────────────────────────────────────────────────────
    * getComputedStyle is far too slow to call per frame, so the palette is
@@ -119,12 +119,21 @@ RT.game = (function () {
   }
 
   /**
-   * One hand-made castle: a deliberately thin, top-heavy tower — knock the
-   * stone base out and the wood above it should come down, per the design
-   * philosophy carried over from the 2D levels ("knocking the legs out from
-   * under a spindly structure is more fun than hitting the crown directly").
-   * Real levels (ASCII layers) arrive in step 6; this one is just enough to
-   * prove the physics adapter works.
+   * A baseline structure, built before any camera work, per Bryan's reference
+   * screenshots (Angry Birds' wooden/stone towers): long thin support
+   * members, wide flat floors spanning between them, several differently
+   * sized blocks as loose set-dressing debris. The single-cell-cube tower
+   * this replaced never exercised non-cubic proportions at all — this is
+   * the shape the physics and the paper-craft art actually have to handle
+   * once real levels (ASCII layers, step 6) exist. Deliberately much
+   * simpler than the references: two tiers, one crown, a handful of loose
+   * debris — enough to judge stability and legibility, not a finished level.
+   *
+   *   tier 2 roof  (wood, wide+flat)         <- crown sits on this
+   *   tier 2 legs  (2 thin wood columns)
+   *   tier 1 floor (stone, wide+flat)        <- the main "knock this out" target
+   *   tier 1 legs  (4 thin wood columns)
+   *   ground       loose debris scattered around the base, not load-bearing
    */
   function buildTestCastle() {
     clearBlocks();
@@ -132,10 +141,41 @@ RT.game = (function () {
     shots = [];
     levelWon = false;
     const cz = -TEST_LEVEL.dist;
-    spawnBlock('S', 0, 0.5, cz, 1, 1, 1);
-    spawnBlock('W', 0, 1.5, cz, 1, 1, 1);
-    spawnBlock('W', 0, 2.5, cz, 1, 1, 1);
-    spawnBlock('K', 0, 3.45, cz, 0.8, 0.8, 0.8);
+
+    // Tier 1: four thin corner columns holding up a wide, flat stone floor.
+    const legW = 0.22, legH = 2.4, legD = 0.22;
+    const legY = legH / 2;
+    [[-0.85, -0.6], [0.85, -0.6], [-0.85, 0.6], [0.85, 0.6]].forEach(([dx, dz]) => {
+      spawnBlock('W', dx, legY, cz + dz, legW, legH, legD);
+    });
+
+    const floor1Y = legH + 0.11;
+    spawnBlock('S', 0, floor1Y, cz, 2.0, 0.22, 1.4);
+
+    // Tier 2: two thinner, shorter columns on the floor, holding a smaller
+    // wood roof. Fewer legs and a narrower span than tier 1 on purpose — a
+    // real level would taper a tower the same way for the same reason: it
+    // reads as "this part is easier to knock over."
+    const floor1Top = floor1Y + 0.11;
+    const leg2W = 0.2, leg2H = 1.0, leg2D = 0.2;
+    const leg2Y = floor1Top + leg2H / 2;
+    [[-0.4, 0], [0.4, 0]].forEach(([dx, dz]) => {
+      spawnBlock('W', dx, leg2Y, cz + dz, leg2W, leg2H, leg2D);
+    });
+
+    const roofY = floor1Top + leg2H + 0.09;
+    spawnBlock('W', 0, roofY, cz, 1.2, 0.18, 0.9);
+
+    const roofTop = roofY + 0.09;
+    spawnBlock('K', 0, roofTop + 0.3, cz, 0.6, 0.6, 0.6);
+
+    // Loose debris: not attached to the structure, just resting on the
+    // ground around it — set dressing, and extra rubble once things start
+    // flying. Deliberately several different sizes/materials.
+    spawnBlock('s', -1.6, 0.2, cz + 1.0, 0.4, 0.4, 0.4);
+    spawnBlock('w', 1.5, 0.175, cz - 1.2, 0.35, 0.35, 0.35);
+    spawnBlock('i', -1.3, 0.15, cz - 1.3, 0.3, 0.3, 0.3);
+    spawnBlock('S', 1.7, 0.3, cz + 0.8, 0.6, 0.6, 0.6);
   }
 
   /* ── Shot pipeline ──────────────────────────────────────────────────────
