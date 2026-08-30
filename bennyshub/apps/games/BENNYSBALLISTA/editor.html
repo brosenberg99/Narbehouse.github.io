@@ -96,6 +96,7 @@ button:disabled{opacity:.5;cursor:default}
 <script src="js/three.min.js"></script>
 <script src="js/ammo.js"></script>
 <script src="js/util.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/data.js"></script>
 <script src="js/levels.js"></script>
 <script src="js/art.js"></script>
@@ -182,7 +183,10 @@ button:disabled{opacity:.5;cursor:default}
   function spawnBlock(matId, x, y, z, w, h, d) {
     const mat = D.MAT[matId];
     if (!mat) return;
-    const mesh = A.buildBlock(w, h, d, mat.crown ? 0xffc93c : cssFor(matId), { glow: !!mat.crown });
+    // Same shape lookup the game uses, or a powder keg previews as a box here
+    // and as a barrel in play — the editor has to show what will be built.
+    const mesh = A.buildBlock(w, h, d, mat.crown ? 0xffc93c : cssFor(matId),
+                              { glow: !!mat.crown, shape: mat.shape });
     mesh.position.set(x, y, z);
     scene.add(mesh);
     const mass = mat.static ? 0 : w * h * d;

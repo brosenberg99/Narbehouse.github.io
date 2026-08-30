@@ -20,12 +20,23 @@ RT.world = (function () {
   const GROUND_SIZE = 400;
 
   /**
+   * Distance haze, except in the High Contrast profile, which drops it
+   * entirely. Fog works by fading geometry toward the sky colour — in that
+   * profile the sky is near-black, so a far castle would fade toward the
+   * background rather than staying legible. Contrast has to be constant with
+   * distance there, which means no fog at all rather than a subtler fog.
+   */
+  function setFog(scene, pal) {
+    scene.fog = pal.flat ? null : new THREE.Fog(pal.sky2, 40, 260);
+  }
+
+  /**
    * @param {THREE.Scene} scene
    * @param {object} pal  { sky1, sky2, ground, dirt, sunColor }
    * @returns {object} handles for refresh()/later tuning
    */
   function build(scene, pal) {
-    scene.fog = new THREE.Fog(pal.sky2, 40, 260);
+    setFog(scene, pal);
     scene.background = new THREE.Color(pal.sky2);
 
     const skyMat = new THREE.MeshBasicMaterial({
@@ -74,14 +85,25 @@ RT.world = (function () {
     return { sky: sky, skyMat: skyMat, ground: ground, groundMat: groundMat, hemi: hemi, amb: amb, sun: sun };
   }
 
-  /** Repaint an existing world for a new theme, without rebuilding geometry. */
-  function refresh(handles, pal) {
+  /** Repaint an existing world for a new theme, without rebuilding geometry.
+   *  Takes a scene now as well, because switching profile can change whether
+   *  there is fog at all, not just what colour it is. */
+  function refresh(handles, pal, scene) {
     handles.skyMat.map = A.skyTexture(pal.sky1, pal.sky2, pal.sky2);
     handles.skyMat.map.needsUpdate = true;
-    handles.groundMat.color.set(pal.ground);
     handles.hemi.color.set(pal.sky1);
     handles.hemi.groundColor.set(pal.ground);
     handles.sun.color.set(pal.sunColor || 0xfff4dc);
+    /* The ground material is one of art.js's cached ones, and the cache is
+       dropped on a profile change — so take a fresh one rather than tinting
+       the old object, which may no longer be the material class this profile
+       wants (lit vs unlit). */
+    handles.groundMat = A.paper(pal.ground, { roughness: 1 });
+    handles.ground.material = handles.groundMat;
+    if (scene) {
+      setFog(scene, pal);
+      scene.background = new THREE.Color(pal.sky2);
+    }
   }
 
   /** Re-centres the shadow frustum on a level's actual distance, now that

@@ -17,6 +17,11 @@
   --focus:#ffd400; --good:#3ddc84; --bad:#ff5470;
   --sky1:#1b2a4a; --sky2:#3d5a80; --hill:#22304a; --ground:#3a5a40; --dirt:#2b3f30;
   --wood:#a9682f; --stone:#8d939c; --glass:#7fe6ff; --barrel:#c9442f; --crown:#ffc93c; --steel:#4a5160;
+  /* The outline colour every 3D model and the minimap are drawn with. It used
+     to be a hardcoded constant in two files, which meant High Contrast kept
+     inking in dark brown on a black background — i.e. the outlines that buy
+     most of the contrast disappeared in the profile that needs them most. */
+  --ink:#2f231a;
 }
 /* "Ben Default" is the bare :root block above — the hub's brand colours.
    "Dark" is the same darkness without the orange/cyan branding, for anyone who
@@ -28,6 +33,7 @@ body[data-theme="dark"]{
   --focus:#e0af68; --good:#9ece6a; --bad:#f7768e;
   --sky1:#12161d; --sky2:#2a3140; --hill:#1a1f29; --ground:#39433a; --dirt:#282f29;
   --wood:#96683c; --stone:#8a909a; --glass:#8fd3e8; --barrel:#b8574a; --crown:#e0af68; --steel:#454b57;
+  --ink:#12151a;
 }
 body[data-theme="light"]{
   --bg:#eef1f6; --panel:#ffffff; --panel2:#e6eaf2; --line:#c3cad8;
@@ -38,6 +44,7 @@ body[data-theme="light"]{
   --focus:#e08900; --good:#137a44; --bad:#b3123a;
   --sky1:#bfe0ff; --sky2:#e8f4ff; --hill:#9dc0a6; --ground:#6aa06f; --dirt:#4d7350;
   --wood:#b8763a; --stone:#a9b0ba; --glass:#6fd0ea; --barrel:#d1503a; --crown:#e3a900; --steel:#6b7385;
+  --ink:#2a2018;
 }
 body[data-theme="contrast"]{
   --bg:#000000; --panel:#000000; --panel2:#111111; --line:#ffffff;
@@ -46,6 +53,9 @@ body[data-theme="contrast"]{
   --focus:#ffff00; --good:#00ff66; --bad:#ff3b3b;
   --sky1:#000000; --sky2:#101010; --hill:#202020; --ground:#303030; --dirt:#181818;
   --wood:#ffa500; --stone:#ffffff; --glass:#00ffff; --barrel:#ff3b3b; --crown:#ffff00; --steel:#8a8a8a;
+  /* Black ink on a black ground is no outline at all. Here the edging has to
+     invert: white, matching --line, so every block still has a hard border. */
+  --ink:#ffffff;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -306,6 +316,7 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
 <script src="js/three.min.js"></script>
 <script src="js/ammo.js"></script>
 <script src="js/util.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/data.js"></script>
 <script src="js/levels.js"></script>
 <script src="js/art.js"></script>

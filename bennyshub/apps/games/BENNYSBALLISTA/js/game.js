@@ -14,9 +14,16 @@
  * alongside the camera director's own six), and the save file itself — one
  * combined object under RT.util's `rt-ballista` key, same shape as
  * FishMaster's save. Endless Bolts defaults on (the hub's no-fail default);
- * it, Steady Camera and minimap size are all reachable from the MENU phase's
- * Settings screen, which js/ui.js renders. Still no per-material audio, and
- * no way to open MENU mid-cinematic (see js/ui.js's header).
+ * it, Steady Camera, Sound and minimap size are all reachable from the MENU
+ * phase's Settings screen, which js/ui.js renders.
+ *
+ * Destruction audio is wired through this file into js/audio.js — see the
+ * "Audio" block below `disposeBlockMesh()` for the two helpers everything
+ * routes through, and note that `auditing` is what keeps the boot audits
+ * silent while they settle twelve castles and fire real test shots.
+ *
+ * Still outstanding: no way to open MENU mid-cinematic (see js/ui.js's
+ * header).
  */
 RT.game = (function () {
   'use strict';
@@ -27,6 +34,7 @@ RT.game = (function () {
   const D = RT.data;
   const LV = RT.levels;
   const P = RT.physics;
+  const AU = RT.audio;
   const CFG = D.CFG;
 
   let scene, camera, renderer;
@@ -77,6 +85,7 @@ RT.game = (function () {
       totalScore: 0,
       endlessBolts: true, // recommended default, matches the hub's no-fail philosophy
       minimapSize: 'large', // 'large' | 'medium' | 'none' — js/ui.js's Settings screen
+      theme: 'ben',      // 'ben' | 'dark' | 'light' | 'contrast' — the four colour profiles
       // null = follow the OS's prefers-reduced-motion; true/false = the player
       // overrode it in Settings. Kept tri-state rather than baking the OS value
       // in at first save, so someone who later turns reduced-motion on still
@@ -116,7 +125,7 @@ RT.game = (function () {
    * black (getPropertyValue returns '').
    */
   const PALETTE_VARS = [
-    'sky1', 'sky2', 'ground', 'focus',
+    'sky1', 'sky2', 'ground', 'focus', 'ink',
     'wood', 'stone', 'glass', 'barrel', 'crown', 'steel'
   ];
   let PAL = {};
@@ -131,9 +140,16 @@ RT.game = (function () {
   function css(name) { return PAL[name] || '#888'; }
 
   /** True for the High Contrast profile, which wants unlit flat geometry
-   *  rather than the paper-craft shading — not yet wired to art.js (that's
-   *  polish-step work per the plan), but callers can already check this. */
+   *  rather than the paper-craft shading. */
   function isFlat() { return document.body.dataset.theme === 'contrast'; }
+
+  /** Push the two things art.js can't work out for itself — which material
+   *  class this profile wants, and what colour the ink is. art.js never reads
+   *  the DOM (same rule as world.js), so it has to be told. */
+  function applyProfileToArt() {
+    A.setInk(css('ink'));
+    return A.setFlat(isFlat());     // true when the material class actually changed
+  }
 
   /* ── Camera phases ────────────────────────────────────────────────────── */
   const CAM = {
@@ -154,11 +170,19 @@ RT.game = (function () {
   const AIM_POS = new THREE.Vector3(0, 3.6, 7.5);
   const AIM_LOOKAT = new THREE.Vector3(0, 2.0, -20);
 
+  /** The palette bundle world.js and art.js are handed. Built here in one
+   *  place so build-time and theme-change-time can never drift apart. */
+  function worldPalette() {
+    return {
+      sky1: css('sky1'), sky2: css('sky2'), ground: css('ground'),
+      flat: isFlat()
+    };
+  }
+
   function buildWorldAndBallista() {
     refreshPalette();
-    world = W.build(scene, {
-      sky1: css('sky1'), sky2: css('sky2'), ground: css('ground')
-    });
+    applyProfileToArt();
+    world = W.build(scene, worldPalette());
     ballista = A.buildBallista(css('wood'), css('steel'));
     ballista.pivot.rotation.order = 'YXZ';   // yaw about world-up first, then pitch — a turret, not a gimbal
     scene.add(ballista.root);
@@ -229,7 +253,7 @@ RT.game = (function () {
   function spawnBlock(matId, x, y, z, w, h, d) {
     const mat = D.MAT[matId];
     const color = css(mat.css.replace('--', ''));
-    const mesh = A.buildBlock(w, h, d, color, { glow: !!mat.crown });
+    const mesh = A.buildBlock(w, h, d, color, { glow: !!mat.crown, shape: mat.shape });
     mesh.position.set(x, y, z);
     scene.add(mesh);
 
@@ -252,14 +276,45 @@ RT.game = (function () {
     mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
   }
 
+  /* ── Audio ────────────────────────────────────────────────────────────────
+   * Sound is never load-bearing: every call goes through these two helpers so
+   * a missing or broken js/audio.js can only ever cost noise, never gameplay.
+   */
+
+  /** Set while the boot audits run. They fire real test shots that genuinely
+   *  destroy blocks and can win a level — none of which the player should
+   *  hear, any more than the save file should record it. */
+  let auditing = false;
+
+  const _panV = new THREE.Vector3();
+  /** Where a world point sits across the screen, -1 (hard left) to 1 (hard
+   *  right), so an impact arrives in the ear it happened on. Points behind the
+   *  camera project with a flipped sign, so those fall back to centre rather
+   *  than being confidently wrong. */
+  function panFor(pos) {
+    if (!camera || !pos) return 0;
+    _panV.copy(pos).project(camera);
+    if (!isFinite(_panV.x) || _panV.z > 1) return 0;
+    return U.clamp(_panV.x, -1, 1);
+  }
+
+  function sfx(fn, a, b, c) {
+    if (auditing || !AU) return;
+    try { AU[fn](a, b, c); } catch (e) { /* audio is never load-bearing */ }
+  }
+
   /** Points for a kill are 500 for a crown, 100 for anything else — ported
    *  from the 2D version's damageBlock(), folded in here since every kill
    *  (a direct hit via applyHit(), or collateral via
-   *  stepPhysicsWithImpacts()) already funnels through this one function. */
+   *  stepPhysicsWithImpacts()) already funnels through this one function.
+   *  Destruction audio funnels through here for the same reason: a crown
+   *  toppled by collateral collapse has to sound exactly as final as one
+   *  shot off its perch. */
   function destroyBlockRec(b) {
     if (!b.alive) return;
     b.alive = false;
     levelScore += b.mat.crown ? 500 : 100;
+    sfx('destroy', b.mat, b._lastHitSpeed || 24, panFor(b.mesh.position));
     scene.remove(b.mesh);
     disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);
@@ -325,6 +380,16 @@ RT.game = (function () {
    *  itself, so this is exercising the exact path the player's first look
    *  at each level goes through, not a parallel code path. */
   function auditLevels() {
+    const wasAuditing = auditing;
+    auditing = true;              // settling twelve castles is not a thing to hear
+    try {
+      auditLevelsInner();
+    } finally {
+      auditing = wasAuditing;
+    }
+  }
+
+  function auditLevelsInner() {
     const steps = Math.ceil(4 / CFG.DT);
     for (let ix = 0; ix < LV.LEVELS.length; ix++) {
       loadLevel(ix);
@@ -368,6 +433,16 @@ RT.game = (function () {
    * rather than running the full settle window to the end.
    */
   function auditReach() {
+    const wasAuditing = auditing;
+    auditing = true;              // tier 2 fires real shots; none of them are heard
+    try {
+      auditReachInner();
+    } finally {
+      auditing = wasAuditing;
+    }
+  }
+
+  function auditReachInner() {
     const YAW_STEPS = 6, RANGE_STEPS = 8;
     for (let ix = 0; ix < LV.LEVELS.length; ix++) {
       loadLevel(ix);
@@ -446,6 +521,8 @@ RT.game = (function () {
     // auditReach()'s simulated tier fires real test shots (see below) which
     // can legitimately win a level and touch `save` — snapshot/restore it so
     // none of that leaks into the player's actual progress, win or throw.
+    // (Silence is handled by the audits themselves — each sets `auditing`, so
+    // calling one on its own from the console is just as quiet as booting.)
     const saveSnapshot = JSON.parse(JSON.stringify(save));
     suppressSaveWrites = true;
     try {
@@ -540,6 +617,8 @@ RT.game = (function () {
     mesh.position.copy(trace.points[0]);
     scene.add(mesh);
     shots.push({ mesh: mesh, trace: trace, t: 0, resolved: false });
+    sfx('fireShot', ammo);
+    sfx('startFlight');
     CAM.phase = 'FLIGHT';
     return trace;
   }
@@ -547,6 +626,11 @@ RT.game = (function () {
   function applyHit(b, ammo, impactVel, impactPos) {
     if (!b.alive) return;
     const dmg = D.damageFor(ammo, b.mat);
+    const speed = impactVel ? impactVel.length() : 24;
+    b._lastHitSpeed = speed;
+    /* The hit itself. If this kills the block, destroyBlockRec() adds the
+       heavier kill layer on top a few lines down. */
+    sfx('impact', b.mat, speed, panFor(impactPos || b.mesh.position));
     b.hp -= dmg;
     if (!b.mat.static) {
       P.addVelocity(b.body, impactVel.x * CFG.KNOCK_SCALE, impactVel.y * CFG.KNOCK_SCALE, impactVel.z * CFG.KNOCK_SCALE);
@@ -571,6 +655,11 @@ RT.game = (function () {
       const dist = other.mesh.position.distanceTo(impactPos);
       if (dist > radius) continue;
       const falloff = 1 - dist / radius;
+      /* Blast-driven hits are quieter than a direct strike and there can be a
+         lot of them at once, so they lean on audio.js's voice cap to fold the
+         tail of the ring into one rumble rather than a burst of clicks. */
+      other._lastHitSpeed = ammo.speed * falloff;
+      sfx('impact', other.mat, ammo.speed * falloff, panFor(other.mesh.position));
       other.hp -= D.damageFor(ammo, other.mat) * (ammo.splashDmgScale || 1) * falloff;
       if (!other.mat.static) {
         _splashDir.subVectors(other.mesh.position, impactPos).normalize();
@@ -636,14 +725,25 @@ RT.game = (function () {
       s.t += dt;
       const idx = Math.min(s.trace.points.length - 1, Math.floor(s.t / dtStep));
       s.mesh.position.copy(s.trace.points[idx]);
+      /* Whoosh follows the bolt: pitch from how fast it is actually moving
+         along the traced path, stereo position from where it is on screen. */
+      if (idx > 0) {
+        const step = s.trace.points[idx].distanceTo(s.trace.points[idx - 1]) / dtStep;
+        sfx('updateFlight', U.clamp(step / 45, 0, 1), panFor(s.mesh.position));
+      }
       if (idx >= s.trace.points.length - 1) {
         s.resolved = true;
+        sfx('stopFlight');
         scene.remove(s.mesh);
         if (s.trace.hit.type === 'block') {
           const impactPos = s.trace.points[s.trace.points.length - 1];
           applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel, impactPos);
           beginImpact(impactPos, s.trace.impactVel);
         } else {
+          /* A clean miss still landed somewhere — a dull thud into the dirt,
+             so "nothing happened" is never silent. */
+          sfx('noise', 0.22, { freq: 380, freqTo: 60, vol: 0.13,
+                               pan: panFor(s.trace.points[s.trace.points.length - 1]) });
           advanceAfterShot();   // a clean miss has nothing worth a cinematic cut for, but bolts still ran out
         }
       }
@@ -670,6 +770,12 @@ RT.game = (function () {
       if (b.mat.static) continue;
       const drop = (b._preSpeed || 0) - P.speed(b.body);
       if (drop > CFG.IMPACT_THRESHOLD) {
+        /* This is where a collapse gets its sound. Every block stopped hard
+           this step is one impact; audio.js voices the loudest few and sums
+           the rest into a rumble, which is what a wall coming down actually
+           sounds like. */
+        b._lastHitSpeed = drop;
+        sfx('impact', b.mat, drop, panFor(b.mesh.position));
         b.hp -= (drop - CFG.IMPACT_THRESHOLD) * CFG.IMPACT_DMG_SCALE;
         if (b.hp <= 0) destroyBlockRec(b);
       }
@@ -677,14 +783,35 @@ RT.game = (function () {
     checkWin();
   }
 
-  /** Call after a theme change (settings menu) to repaint the live scene. */
+  /**
+   * Call after a theme change (settings menu) to repaint the live scene.
+   *
+   * Repainting is not optional and it is not just the sky: a mesh keeps
+   * whatever material it was handed when it was built, so switching profile
+   * used to leave every block, and the ballista itself, painted in the
+   * *previous* profile's colours — only the sky, ground and aim preview
+   * followed. High Contrast made that impossible to miss, since the profile
+   * changes the material class as well as the colours.
+   */
   function onThemeChanged() {
     if (!world) return;
     refreshPalette();
-    W.refresh(world, {
-      sky1: css('sky1'), sky2: css('sky2'), ground: css('ground')
-    });
+    applyProfileToArt();
+    W.refresh(world, worldPalette(), scene);
+    repaintBlocks();
+    if (ballista) A.repaint(ballista.root, { wood: css('wood'), steel: css('steel') });
     if (previewMat) previewMat.color.set(css('focus'));
+  }
+
+  /** Hand every live block a material from the current palette. Same colour
+   *  lookup spawnBlock() uses, so a repainted castle and a freshly built one
+   *  can't disagree. */
+  function repaintBlocks() {
+    for (const b of blocks) {
+      if (!b.alive) continue;
+      const color = css(b.mat.css.replace('--', ''));
+      b.mesh.material = b.mat.crown ? A.glow(color) : A.paper(color);
+    }
   }
 
   function init(opts) {
@@ -695,6 +822,10 @@ RT.game = (function () {
 
   function loadAttract() {
     if (!save) loadSave();   // before ui.js's synchronous init() reads unlockedAmmo()/liveLevel
+    // The saved profile has to be on the body BEFORE the world is built, or
+    // the first frame is painted from the default palette and only corrects
+    // itself on the next theme change.
+    if (save.theme) document.body.setAttribute('data-theme', save.theme);
     if (!world) buildWorldAndBallista();
     if (!physicsReady) {
       // Ammo's module factory resolves asynchronously (see js/physics.js) —
@@ -867,6 +998,10 @@ RT.game = (function () {
   }
 
   function update(dt) {
+    /* Flushes whatever the impact voice cap folded into a rumble this frame.
+       Called before the physics step so a rumble follows the collapse it came
+       from rather than lagging a frame behind it. */
+    sfx('tick', dt);
     if (physicsReady) {
       stepPhysicsWithImpacts(dt);
       updateShots(dt);
@@ -974,6 +1109,21 @@ RT.game = (function () {
     persistSave();
   }
   function setSteadyCamera(on) { save.steadyCamera = !!on; persistSave(); }
+
+  /* ── Colour profile ───────────────────────────────────────────────────────
+   * index.html has carried four full palettes since the step-2 rewrite, but
+   * nothing ever set `data-theme` and nothing ever called onThemeChanged() —
+   * so three of the four profiles, High Contrast included, were unreachable.
+   * Same shape as FishMaster's getTheme()/setTheme() (game.js:2862 there),
+   * which js/ui.js's Settings screen drives.
+   */
+  function getTheme() { return (save && save.theme) || 'ben'; }
+  function setTheme(t) {
+    save.theme = t;
+    document.body.setAttribute('data-theme', t);
+    onThemeChanged();
+    persistSave();
+  }
   function setEndlessBolts(on) { save.endlessBolts = !!on; persistSave(); }
 
   /**
@@ -1074,10 +1224,12 @@ RT.game = (function () {
     unlockedAmmo, ammoRemaining, currentLevel, crownPositions, fire, traceShot, updateAimPreview,
     confirmResults, retryLevel, enableEndlessAndContinue,
     openMenu, closeMenu, setMinimapSize, setSteadyCamera, setEndlessBolts, steadyCameraOn,
+    getTheme, setTheme,
     get CAM() { return CAM; },
     get levelIx() { return levelIx; },
     get lastResult() { return lastResult; },
     get boltsUsed() { return boltsUsed; },
+    get levelScore() { return levelScore; },
     get save() { return save; },
     __test: __test
   };

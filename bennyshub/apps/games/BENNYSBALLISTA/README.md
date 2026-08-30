@@ -93,10 +93,23 @@ contains legal choices, so a selection can never fail.
 | `W` | Wood beam | Breaks easily. Fire Bolts burn straight through it. |
 | `S` | Stone block | Needs a hard hit. Boulders are best against it. |
 | `I` | Glass pane | Shatters at a touch, but holds almost nothing up. |
-| `T` | Powder keg | Fragile (low hp), no bonus. The 2D version's keg actually exploded and took its neighbours with it; that carried over as an `explodes:true` flag in `js/data.js`'s `MAT.T` but nothing reads it yet in the 3D port — currently just a weak plain block. |
-| `K` | Crown | The target. Destroy them all to win. |
+| `T` | Powder keg | Fragile (low hp), no bonus. Drawn as a barrel, not a box. The 2D version's keg actually exploded and took its neighbours with it; that carried over as an `explodes:true` flag in `js/data.js`'s `MAT.T` but nothing reads it yet in the 3D port — currently just a weak plain block. |
+| `K` | Crown | The target. Destroy them all to win. Drawn as a faceted gem, not a box. |
 | `X` | Steel girder | Never breaks and never moves. Go around it. |
 | `w` / `s` / `i` | Small rubble | Half-size, lighter, never welds to a neighbour — loose debris. |
+
+**Some pieces have their own silhouette, and that is deliberate.** Two things
+the player has to tell apart must differ in *shape*, not only colour — a
+marking or a shade alone does not survive low vision. The keg is a barrel and
+the crown is a gem for exactly that reason; as boxes they were distinguished
+from wood and stone by hue alone. It matters most in the High Contrast
+profile, where materials are unlit and the crown's emissive glow — its main
+"look at me" cue in the other three profiles — does nothing at all.
+
+Only materials that are **never mergeable** can have a shape, because a
+mergeable run can be any number of cells wide and a shaped mesh cannot stretch
+across it without distorting. `js/art.js`'s `blockGeometry()` is where shapes
+are chosen; the physics body stays a box either way.
 
 **A crown does not need a clear shot.** It's an ordinary physics body with hp
 like everything else, so it dies the same three ways anything else does: a
@@ -191,8 +204,75 @@ A top-down minimap (top-right) shows the sweep cone, every surviving crown as
 its own ring marker, and a bold crosshair at exactly where the current aim
 and range will land — big while you're actually composing a shot, shrinking
 out of the way the instant it's locked in. **Settings** (in the menu) lets
-you pick its size (Large / Medium / Off), and also holds Steady Camera and
-Endless Bolts — see their own sections above/below for what each does.
+you pick its size (Large / Medium / Off), and also holds Colour Profile,
+Steady Camera, Endless Bolts and Sound — see their own sections above/below
+for what each does.
+
+## Colour profiles
+
+Four profiles — **Ben's**, **Dark**, **Light** and **High Contrast** — chosen
+from Settings and remembered. They repaint the whole game, the 3D world
+included, not just the UI chrome: every colour comes from a CSS custom
+property in `index.html`, `js/game.js` reads them once per change into
+`PALETTE_VARS`, and hands them to `js/art.js` and `js/world.js`.
+
+**High Contrast is a different profile, not a darker skin.** It swaps the
+paper-craft look for unlit, solid-fill geometry, inverts the outline ink to
+white so every block still has a hard border on black, and drops distance fog
+entirely — fog fades geometry toward the sky colour, which on a near-black sky
+would mean a far castle losing exactly the contrast the profile exists to add.
+
+Two things to know if you touch this:
+
+- **A colour missing from `PALETTE_VARS` silently comes out grey.** Add it to
+  all four CSS blocks *and* the array.
+- **Repainting is not automatic.** A mesh keeps whatever material it was built
+  with, so `onThemeChanged()` has to hand every live block and every ballista
+  part a fresh one. Anything new that holds a material needs adding there, or
+  it will quietly stay in the previous profile's colours.
+
+## Sound
+
+Every sound in this game is synthesised at runtime in `js/audio.js`. There are
+no audio files, which is part of why the game opens straight from a `file://`
+page with nothing to fetch and nothing to fail to load.
+
+What you hear is meant to carry information, not just atmosphere:
+
+- **Each material breaks differently** — wood cracks, stone grinds, glass
+  shatters and tinkles, a powder keg booms, steel rings. If you cannot resolve
+  the blocks visually, the sound still tells you what you just hit.
+- **Volume follows force.** A glancing hit and a full-speed one are not the
+  same sound, because they are not the same event.
+- **Sound is positioned.** Impacts are panned to where they happened on
+  screen, and the aim sweep is panned to where the ballista is pointing — so
+  left and right are audible, not only visible.
+- **The range meter climbs a musical ladder** rather than repeating one blip,
+  so how far along the charge is comes through as pitch.
+- **A collapse is summed, not stacked.** A falling castle makes dozens of
+  contacts at once; only the loudest few get their own sound and the rest
+  become one low rumble, which is both what a collapse actually sounds like
+  and what stops it turning into static.
+
+**Sound** in Settings turns all of this off. It does **not** affect speech —
+those are separate controls on purpose, because someone playing largely by ear
+may well want the narration without the crashes. The setting is shared with the
+other Race Tracks-derived games under the same `rt-sound` key.
+
+### A deliberate divergence, for whoever checks
+
+`AGENTS.md` tells hub games to use the shared `SafeAudio` rather than the Web
+Audio API, because an `AudioContext` can take down the renderer in the Electron
+desktop build. This game uses Web Audio anyway, following the precedent Race
+Tracks and FishMaster already set, and `js/audio.js` is defensively wrapped
+throughout — a `broken` flag means any Web Audio failure degrades to silence
+rather than throwing, and every call site treats sound as never load-bearing.
+
+The reason for diverging is specific rather than aesthetic: `SafeAudio` bakes a
+fixed waveform at preload time and has no panner, so it cannot express either
+"scaled by force" or "positioned on screen" — the two properties that make the
+list above work. `SafeAudio` stays loaded, and muting mirrors into it, so the
+two systems can never disagree about whether the game is silent.
 
 ## No fail states
 
@@ -262,9 +342,24 @@ crownIx)` to check one crown in isolation while iterating on a level.
 - The whole thing is split across `js/`: `data.js` (tunables, ammo,
   materials, ballistics), `levels.js` (level data + the ASCII parser),
   `physics.js` (the Ammo.js adapter), `art.js` (the paper-craft models),
-  `world.js` (sky/ground/lights), `game.js` (camera director, shot pipeline,
-  save/progress, boot audits), `ui.js` (input, meters, minimap, the menu).
-  `main.js` is the whole bootstrap and frame loop.
+  `world.js` (sky/ground/lights), `audio.js` (all sound, synthesised),
+  `game.js` (camera director, shot pipeline, save/progress, boot audits),
+  `ui.js` (input, meters, minimap, the menu). `main.js` is the whole
+  bootstrap and frame loop.
+- **The four status pills across the top are live now.** `#pLevel`,
+  `#pCrowns`, `#pBolts` and `#pScore` existed as markup from the step-2
+  rewrite and nothing ever wrote to them, so they permanently read "Level 1 /
+  Crowns 0 / Bolts 0 / Score 0" no matter what was happening. `updateStatus()`
+  in `js/ui.js` fills them from `tick()`. Worth remembering as a shape of bug:
+  a large, prominent indicator that always shows a plausible value is harder
+  to notice than a missing one, and worse than either.
+- **Anything that destroys or settles blocks in bulk must be silent.** The
+  boot audits stand twelve castles up and fire real test shots; without a
+  guard that is a burst of noise before the player has touched anything.
+  `auditLevels()` and `auditReach()` each set `game.js`'s `auditing` flag
+  around themselves, so calling one from the console is as quiet as booting
+  is. If you add another bulk-simulation path, it needs the same treatment —
+  the guard belongs on the thing making the noise, not on one caller.
 - **Power sets range, never force** — see "Why this game exists" above. If
   you add a new ammunition or mechanic, keep this rule; it's the strongest
   form of the hub's "letting go early must be harmless" principle and it's

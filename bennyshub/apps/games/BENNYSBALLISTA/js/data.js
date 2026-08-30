@@ -147,8 +147,13 @@ RT.data = (function () {
     W:{ id:'W', name:'wood beam',         hp: 40,  css:'--wood',   family:'wood',  mergeable:true },
     S:{ id:'S', name:'stone block',       hp: 90,  css:'--stone',  family:'stone', mergeable:true },
     I:{ id:'I', name:'glass pane',        hp: 12,  css:'--glass',  family:'glass', mergeable:true, glass:true },
-    T:{ id:'T', name:'powder keg',        hp: 20,  css:'--barrel', explodes:true },
-    K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true },
+    /* `shape` gives a material its own silhouette instead of the default box.
+       Only ever set on non-mergeable materials — a run of those is always a
+       single cell, so a shaped mesh can never be asked to stretch across a
+       merged wall (see js/art.js's blockGeometry). Two things the player must
+       tell apart have to differ in SHAPE, not just colour. */
+    T:{ id:'T', name:'powder keg',        hp: 20,  css:'--barrel', explodes:true, shape:'barrel' },
+    K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true, shape:'crown' },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     w:{ id:'w', name:'small wood chunk',  hp: 14,  css:'--wood',   family:'wood',  small:true },
     s:{ id:'s', name:'small stone chunk', hp: 30,  css:'--stone',  family:'stone', small:true },

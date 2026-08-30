@@ -76,27 +76,79 @@ RT.art = (function () {
     return tex;
   }
 
-  /* ── Materials ────────────────────────────────────────────────────────── */
+  /* ── Materials ────────────────────────────────────────────────────────────
+   * This module never reads the DOM or the theme; it is *told* what to look
+   * like, the same way world.js is handed its colours rather than fetching
+   * them. game.js reads the CSS custom properties once per theme change and
+   * calls setFlat()/setInk() here.
+   */
 
-  const matCache = {};
+  let matCache = {};
+  let flatProfile = false;
 
-  /** The workhorse: flat-shaded, papery, no shine. */
+  /**
+   * High Contrast wants unlit, solid-fill geometry rather than the paper-craft
+   * shading — flat colour and heavy outlines, no gradients, no texture. That
+   * is a different *material class*, not a different colour, so it has to be
+   * decided here where materials are made. game.js drives it from isFlat().
+   */
+  function setFlat(on) {
+    on = !!on;
+    if (on === flatProfile) return false;
+    flatProfile = on;
+    clearMatCache();
+    return true;                        // caller needs to rebuild/repaint
+  }
+  function isFlatProfile() { return flatProfile; }
+
+  /** Materials are cached and shared across every block, so nothing may
+   *  dispose them per-mesh (see game.js's disposeBlockMesh). Dropping the
+   *  cache wholesale is how a theme change gets clean materials — without
+   *  this, the cache key (colour + opts) matches across themes and the OLD
+   *  material is handed back, so the world keeps the previous profile's look.
+   *
+   *  Deliberately does NOT dispose the old materials. Live meshes still hold
+   *  references until game.js repaints them, and disposing a material that is
+   *  still on a mesh is a use-after-free waiting on someone forgetting to
+   *  repaint one thing. The cost of not disposing is a handful of tiny
+   *  materials per theme switch, which is not worth that risk. */
+  function clearMatCache() { matCache = {}; }
+
+  /** The workhorse: flat-shaded, papery, no shine — or unlit solid fill in
+   *  the High Contrast profile. */
   function paper(color, opts) {
     opts = opts || {};
-    const key = color + '|' + JSON.stringify(opts);
+    const key = (flatProfile ? 'f|' : 'p|') + color + '|' + JSON.stringify(opts);
     if (matCache[key]) return matCache[key];
-    const m = new THREE.MeshStandardMaterial({
-      color: color,
-      map: opts.noMap ? null : paperTexture(),
-      roughness: opts.roughness === undefined ? 0.92 : opts.roughness,
-      metalness: opts.metalness === undefined ? 0 : opts.metalness,
-      flatShading: opts.flat === undefined ? true : opts.flat,
-      side: opts.side || THREE.FrontSide,
-      transparent: !!opts.transparent,
-      opacity: opts.opacity === undefined ? 1 : opts.opacity,
-      emissive: opts.emissive === undefined ? 0x000000 : opts.emissive,
-      emissiveIntensity: opts.emissiveIntensity === undefined ? 1 : opts.emissiveIntensity
-    });
+
+    let m;
+    if (flatProfile) {
+      /* Unlit: the colour on screen is exactly the palette colour, with no
+         light, no shadow and no paper fibre to wash it out. An emissive glow
+         has no meaning here — an unlit material is already at full value —
+         so the crown/tyrant simply renders as its own solid colour, which in
+         this profile is the brightest thing on a black field anyway. */
+      m = new THREE.MeshBasicMaterial({
+        color: color,
+        side: opts.side || THREE.FrontSide,
+        transparent: !!opts.transparent,
+        opacity: opts.opacity === undefined ? 1 : opts.opacity,
+        fog: false                      // distance must not eat contrast
+      });
+    } else {
+      m = new THREE.MeshStandardMaterial({
+        color: color,
+        map: opts.noMap ? null : paperTexture(),
+        roughness: opts.roughness === undefined ? 0.92 : opts.roughness,
+        metalness: opts.metalness === undefined ? 0 : opts.metalness,
+        flatShading: opts.flat === undefined ? true : opts.flat,
+        side: opts.side || THREE.FrontSide,
+        transparent: !!opts.transparent,
+        opacity: opts.opacity === undefined ? 1 : opts.opacity,
+        emissive: opts.emissive === undefined ? 0x000000 : opts.emissive,
+        emissiveIntensity: opts.emissiveIntensity === undefined ? 1 : opts.emissiveIntensity
+      });
+    }
     matCache[key] = m;
     return m;
   }
@@ -111,15 +163,27 @@ RT.art = (function () {
     });
   }
 
-  const INK = 0x2f231a;
+  /* One shared ink material for every outline in the scene. Two reasons it is
+   * shared rather than one material per outline: there is an outline on every
+   * block of every castle, and — the point here — re-inking for a new theme is
+   * then a single colour assignment that every existing outline picks up,
+   * with no traversal and nothing to rebuild. */
+  const INK = 0x2f231a;                 // the paper-craft default, still the fallback
+  const inkMat = new THREE.LineBasicMaterial({ color: INK });
+
+  function setInk(color) {
+    try { inkMat.color.set(color || INK); } catch (e) { inkMat.color.set(INK); }
+  }
 
   function outline(mesh, color, angle) {
     try {
       const edges = new THREE.EdgesGeometry(mesh.geometry, angle === undefined ? 26 : angle);
-      const line = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: color === undefined ? INK : color })
-      );
+      /* A caller asking for a specific colour gets its own material; everything
+         else shares the themed one. Nothing currently passes a colour, but the
+         parameter predates this and removing it would be a silent behaviour
+         change for any caller added since. */
+      const mat = color === undefined ? inkMat : new THREE.LineBasicMaterial({ color: color });
+      const line = new THREE.LineSegments(edges, mat);
       line.raycast = function () {};
       mesh.add(line);
       return line;
@@ -156,6 +220,32 @@ RT.art = (function () {
     return root;
   }
 
+  /* Extra material options per palette entry, so repaint() can rebuild the
+     exact material a part was first given rather than a plain one. */
+  const PAL_OPTS = { wood: undefined, steel: { roughness: 0.5, metalness: 0.15 } };
+
+  /**
+   * Repaint an already-built assembly for a new palette.
+   *
+   * A mesh holds whatever material it was handed when it was built, so a
+   * palette change does not reach it on its own — clearing the material cache
+   * only affects things built *after* the switch. Each part records which
+   * palette entry it was painted from (`userData.pal`), which makes this a
+   * lookup rather than a rebuild: the ballista keeps its live aim rotation and
+   * nothing has to be removed from the scene.
+   *
+   * @param {THREE.Object3D} root
+   * @param {object} colors  palette entry name -> css colour
+   */
+  function repaint(root, colors) {
+    root.traverse((o) => {
+      const key = o.isMesh && o.userData ? o.userData.pal : null;
+      if (!key || colors[key] === undefined) return;
+      o.material = paper(colors[key], PAL_OPTS[key]);
+    });
+    return root;
+  }
+
   /**
    * A block of the siege wall — the visual half of a level cell. The physics
    * body (Ammo) is a separate box built to match these same dimensions;
@@ -164,10 +254,47 @@ RT.art = (function () {
    */
   function buildBlock(w, h, d, color, opts) {
     opts = opts || {};
-    const geo = new THREE.BoxGeometry(w, h, d);
     const mat = opts.glow ? glow(color) : paper(color);
-    const mesh = part(geo, mat, { cast: true, receive: true, outline: true });
+    const mesh = part(blockGeometry(w, h, d, opts.shape), mat,
+                      { cast: true, receive: true, outline: true });
     return mesh;
+  }
+
+  /**
+   * Two things Ben has to tell apart must differ in SHAPE as well as colour —
+   * a marking or a shade alone does not survive low vision. Materials that are
+   * always a single cell can therefore afford their own silhouette, and the
+   * powder keg is the clearest case: as a box it was indistinguishable from
+   * every other block until it exploded.
+   *
+   * Only ever called for non-mergeable materials, whose runs are always one
+   * cell (see levels.js's rowRuns — it only extends a run when mat.mergeable),
+   * so a shaped mesh can never be asked to stretch across a merged wall. The
+   * physics body stays the same box either way, which is fine at this scale
+   * and keeps js/physics.js free of shape special cases.
+   */
+  function blockGeometry(w, h, d, shape) {
+    if (shape === 'barrel') {
+      const r = Math.min(w, d) * 0.5;
+      // 10 sides, not 16: chunky and faceted reads as craft, and gives
+      // EdgesGeometry real corners to ink instead of a smooth tube.
+      return new THREE.CylinderGeometry(r, r, h, 10);
+    }
+    if (shape === 'crown') {
+      /* A faceted gem. The crown is the win condition, so it is the one thing
+       * that must never be ambiguous — and up to now it relied on glow()'s
+       * emissive to stand out. That works in the three lit profiles and does
+       * nothing at all in High Contrast, where materials are unlit and every
+       * colour is already at full value: there the crown was a yellow box
+       * among orange boxes, i.e. distinguished by hue alone, in exactly the
+       * profile that exists because hue alone is not enough.
+       *
+       * Sized to the cell's inscribed radius so it fills the cell without
+       * overhanging it (the interpenetration audit has to stay honest).
+       * Interim: Part D replaces this with the tyrant model. */
+      return new THREE.OctahedronGeometry(Math.min(w, h, d) * 0.5);
+    }
+    return new THREE.BoxGeometry(w, h, d);
   }
 
   /**
@@ -180,7 +307,12 @@ RT.art = (function () {
    */
   function buildBallista(woodColor, steelColor) {
     const wood = paper(woodColor || 0xa9682f);
-    const steel = paper(steelColor || 0x4a5160, { roughness: 0.5, metalness: 0.15 });
+    const steel = paper(steelColor || 0x4a5160, PAL_OPTS.steel);
+
+    /* Tag each part with the palette entry it was painted from, so
+       repaint() can re-colour the whole engine on a theme change without
+       rebuilding it and losing the pivot's current aim. */
+    const tag = (mesh, pal) => { mesh.userData.pal = pal; return mesh; };
 
     const root = new THREE.Group();
     root.name = 'ballista';
@@ -189,7 +321,7 @@ RT.art = (function () {
     const base = part(new THREE.BoxGeometry(1.6, 0.32, 2.6), wood, {
       pos: [0, 0.16, 0], outline: true
     });
-    root.add(base);
+    root.add(tag(base, 'wood'));
 
     /* Two wheels, one either side, purely for silhouette — the engine never
        rolls. */
@@ -197,7 +329,7 @@ RT.art = (function () {
       const wheel = part(new THREE.CylinderGeometry(0.55, 0.55, 0.22, 16), wood, {
         pos: [x, 0.55, 0.7], rot: [0, 0, Math.PI / 2], outline: true
       });
-      root.add(wheel);
+      root.add(tag(wheel, 'wood'));
     });
 
     /* A-frame uprights that carry the pivot. */
@@ -205,7 +337,7 @@ RT.art = (function () {
       const upright = part(new THREE.BoxGeometry(0.26, 1.7, 0.3), wood, {
         pos: [x, 0.32 + 0.85, -0.1], outline: true
       });
-      root.add(upright);
+      root.add(tag(upright, 'wood'));
     });
 
     /* The pivot group: everything that actually points at the target lives
@@ -220,7 +352,7 @@ RT.art = (function () {
     const armPart = part(new THREE.BoxGeometry(0.24, 0.24, 3.0), steel, {
       pos: [0, 0, -0.4], outline: true
     });
-    pivot.add(armPart);
+    pivot.add(tag(armPart, 'steel'));
 
     /* Bow arms, splayed out from the front of the arm — pure silhouette, the
        two-curve shape that reads as "ballista" at a glance. */
@@ -230,7 +362,7 @@ RT.art = (function () {
         rot: [0, side * 0.5, 0],
         outline: true
       });
-      pivot.add(bow);
+      pivot.add(tag(bow, 'wood'));
     });
 
     setShadow(root, true, false);
@@ -253,7 +385,8 @@ RT.art = (function () {
   return {
     paperTexture, skyTexture,
     paper, glow, outline, ink, part, setShadow,
-    buildBlock, buildBallista, buildBolt,
+    buildBlock, blockGeometry, buildBallista, buildBolt,
+    setFlat, isFlatProfile, clearMatCache, setInk, repaint,
     INK
   };
 })();

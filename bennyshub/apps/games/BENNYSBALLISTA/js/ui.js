@@ -77,9 +77,28 @@ RT.ui = (function () {
   function unlockedAmmo() { return G.unlockedAmmo(); }
   function stageOrder() { return unlockedAmmo().length > 1 ? ['ammo', 'aim', 'range'] : ['aim', 'range']; }
 
+  /* UI blips come from js/audio.js now rather than the shared SafeAudio — see
+   * that file's header for why this game diverges. The three names the rest of
+   * this file already used are kept as-is so every call site didn't have to
+   * change; SafeAudio stays loaded and stays in step, because
+   * RT.audio.setEnabled() mirrors into SafeAudio.setEnabled().
+   *
+   * `vol` is no longer a volume. It survives as the soft/normal distinction it
+   * was actually being used for: the quiet variants (below 0.4) all mark the
+   * deadzone step where nothing is highlighted, and that reads better as a
+   * lower, duller blip than as the same blip played more quietly. */
   function sfx(name, vol) {
-    if (!window.SafeAudio) return;
-    try { SafeAudio.play(name, vol); } catch (e) { /* audio is never load-bearing */ }
+    if (!RT.audio) return;
+    const soft = vol !== undefined && vol < 0.4;
+    try {
+      if (name === 'hover') RT.audio.menuMove(soft);
+      else if (name === 'select') RT.audio.menuSelect();
+      else if (name === 'bust') RT.audio.menuBlocked();
+    } catch (e) { /* audio is never load-bearing */ }
+  }
+  function audioFn(fn, a, b) {
+    if (!RT.audio) return;
+    try { RT.audio[fn](a, b); } catch (e) { /* audio is never load-bearing */ }
   }
   function autoScanOn() { const m = U.sm(); return m ? m.getSettings().autoScan : false; }
   function scanInterval() { const m = U.sm(); return m ? m.getScanInterval() : 2000; }
@@ -170,6 +189,42 @@ RT.ui = (function () {
       ? 'Endless Bolts on. You can never run out.'
       : 'Endless Bolts off. Running out of bolts ends the attempt.');
   }
+  /** Sound is stored under RT.util's shared `rt-sound` key rather than in this
+   *  game's own save, matching Race Tracks and FishMaster — one sound
+   *  preference across the RT games, the way the hub treats its TTS toggle.
+   *  Speech is deliberately NOT affected: that has its own hub-level control,
+   *  and someone who plays by ear needs to be able to mute the crashes while
+   *  keeping the narration. */
+  /* Same four profiles, same ids and names, as FishMaster's Settings screen
+     (ui.js:43 there) — a player who learns "High Contrast" in one game finds
+     the same words in this one. */
+  const THEMES = [
+    { id: 'ben',      name: "Ben's" },
+    { id: 'dark',     name: 'Dark' },
+    { id: 'light',    name: 'Light' },
+    { id: 'contrast', name: 'High Contrast' }
+  ];
+  function currentTheme() {
+    return THEMES.find((t) => t.id === G.getTheme()) || THEMES[0];
+  }
+  function cycleTheme() {
+    const i = THEMES.findIndex((t) => t.id === G.getTheme());
+    const next = THEMES[(i + 1) % THEMES.length];
+    G.setTheme(next.id);
+    refreshMinimapPalette();
+    afterSettingChange(`Colour profile, ${next.name}.`);
+  }
+
+  function soundOn() { return RT.audio ? RT.audio.isEnabled() : false; }
+  function toggleSound() {
+    if (!RT.audio) return;
+    const next = !soundOn();
+    RT.audio.setEnabled(next);
+    if (next) RT.audio.resume();
+    afterSettingChange(next
+      ? 'Sound on. You will hear the shot land and the castle come down.'
+      : 'Sound off. Speech still works.');
+  }
 
   /** The one definition of every overlay screen. */
   function screenDef() {
@@ -240,11 +295,16 @@ RT.ui = (function () {
         sub: 'Adjust how Benny’s Ballista looks and plays.',
         note: 'Minimap Size sets how big the top-down map gets while you’re composing a shot. '
           + 'Steady Camera holds one fixed view instead of chasing the bolt. '
-          + 'Endless Bolts means running out never blocks you — it only affects your star rating.',
+          + 'Endless Bolts means running out never blocks you — it only affects your star rating. '
+          + 'Sound turns the shot and impact effects on or off; it does not affect speech. '
+          + 'Colour Profile repaints the whole game, the 3D world included — High Contrast '
+          + 'uses solid colours and white outlines on black.',
         items: [
+          { label: '🎨 Colour Profile', sub: currentTheme().name, action: cycleTheme },
           { label: '🗺 Minimap Size', sub: MINIMAP_SIZE_LABEL[G.save.minimapSize || 'large'], action: cycleMinimapSize },
           { label: '🎥 Steady Camera', sub: onOff(G.steadyCameraOn()), action: toggleSteadyCamera },
           { label: '♾ Endless Bolts', sub: onOff(G.save.endlessBolts), action: toggleEndlessBolts },
+          { label: '🔊 Sound', sub: onOff(soundOn()), action: toggleSound },
           { label: '← Back', sub: '', action: () => gotoMenuScreen('root') }
         ],
         speech: 'Settings. Press space to scan, return to change the highlighted option.'
@@ -339,6 +399,11 @@ RT.ui = (function () {
       pendingMenuScreen = null;
     }
     overlayIx = -1;
+    /* The result sting lands as the panel opens, not when the crown died —
+       that happens mid-cinematic, several seconds earlier, and a fanfare over
+       a still-collapsing castle reads as part of the collapse. */
+    if (G.CAM.phase === 'RESULTS_MENU') audioFn('win', (G.lastResult || {}).stars || 1);
+    else if (G.CAM.phase === 'OUTOFBOLTS') audioFn('outOfBolts');
     renderOverlay();
     resetAutoScan();
     U.speak(screenDef().speech);
@@ -434,6 +499,47 @@ RT.ui = (function () {
     els.ftrTarget.textContent = previewTrace ? previewPhrase() : '';
   }
 
+  /**
+   * The four status pills across the top: level, crowns left, bolts used,
+   * score.
+   *
+   * These were static markup — `#pLevel` / `#pCrowns` / `#pBolts` / `#pScore`
+   * existed in index.html from the step-2 rewrite and nothing ever wrote to
+   * them, so they permanently read "Level 1 / Crowns 0 / Bolts 0 / Score 0"
+   * however the game was going. Four large indicators that always say zero are
+   * worse than none: AGENTS.md asks for large state indicators precisely
+   * because Ben reads state off them, and these were quietly lying.
+   *
+   * Crowns counts what is LEFT rather than what has been destroyed — it is the
+   * win condition, so "how many still to go" is the number that matters, and
+   * it ticks down to zero exactly as the level is cleared.
+   */
+  function updateStatus() {
+    if (!els.pLevel) return;
+    const bolts = G.boltsUsed;
+    const lvl = level();
+    const cap = (G.save && G.save.endlessBolts) ? '' : ` / ${lvl.bolts}`;
+    const crowns = G.crownPositions().length;
+    const score = G.levelScore;
+    /* Cheap change-detect: this runs every frame and these are DOM writes. */
+    const sig = `${G.levelIx}|${crowns}|${bolts}|${cap}|${score}`;
+    if (sig === lastStatusSig) return;
+    lastStatusSig = sig;
+
+    els.pLevel.textContent = `Level ${G.levelIx + 1}`;
+    setPill(els.pCrowns, crowns);
+    setPill(els.pBolts, `${bolts}${cap}`);
+    setPill(els.pScore, score);
+  }
+  let lastStatusSig = null;
+
+  /** Each pill is "Label <b>value</b>" — only the bold part changes. */
+  function setPill(el, value) {
+    if (!el) return;
+    const b = el.querySelector('b');
+    if (b) b.textContent = String(value);
+  }
+
   function startMeter() {
     if (!meterStage()) return;
     stopAutoScan();
@@ -482,14 +588,24 @@ RT.ui = (function () {
       if (state.yawDeg >= h) { state.yawDeg = h; state.yawDir = -1; }
       if (state.yawDeg <= -h) { state.yawDeg = -h; state.yawDir = 1; }
       const tick = Math.round(state.yawDeg / CFG.YAW_TICK_DEG);
-      if (tick !== state.yawTick) { state.yawTick = tick; sfx('hover', 0.16); }
+      /* Panned by yaw, so which way the ballista is pointing is audible and
+         not only visible — the sweep reads with the screen ignored. */
+      if (tick !== state.yawTick) {
+        state.yawTick = tick;
+        audioFn('aimTick', h > 0 ? U.clamp(state.yawDeg / h, -1, 1) : 0);
+      }
       moved = true;
     }
     if (state.stage === 'range' && state.charging) {
       state.rangePct = Math.min(100, state.rangePct + CFG.RANGE_PCT_PER_S * dt);
       state.charged = true;
       const step = Math.floor(state.rangePct / CFG.RANGE_TICK_PCT);
-      if (step !== state.rangeTick) { state.rangeTick = step; sfx('hover', 0.3); }
+      /* A rising ladder rather than a repeated blip: how far along the charge
+         is gets carried by pitch, per AGENTS.md's charge-feedback rule. */
+      if (step !== state.rangeTick) {
+        state.rangeTick = step;
+        audioFn('chargeStep', state.rangePct, 100);
+      }
       if (state.rangePct >= 100) { stopCharge(); return; }
       moved = true;
     }
@@ -543,7 +659,43 @@ RT.ui = (function () {
     els.minimap.style.setProperty('--mm-big-h', h);
   }
 
-  const INK = '#2f231a';
+  /* ── Minimap palette ──────────────────────────────────────────────────────
+   * Read once per theme change, never per frame. drawMinimap() runs on every
+   * frame a meter is moving, and getComputedStyle is far too slow for that —
+   * the same rule js/game.js's palette cache follows, and the same reason.
+   *
+   * The ink and the two greys used to be literals here, which meant the
+   * minimap ignored the colour profile entirely: dark-brown ink and
+   * translucent white sat on High Contrast's black just as they did on Ben's
+   * Default, so the map lost exactly the contrast that profile exists to add.
+   */
+  const MM_FALLBACK = { ink: '#2f231a', crown: '#ffc93c', focus: '#ffd400',
+                        text: '#f2f4f8' };
+  let MM = Object.assign({}, MM_FALLBACK);
+
+  function refreshMinimapPalette() {
+    const cs = getComputedStyle(document.body);
+    const get = (n, fb) => cs.getPropertyValue('--' + n).trim() || fb;
+    MM = {
+      ink:   get('ink', MM_FALLBACK.ink),
+      crown: get('crown', MM_FALLBACK.crown),
+      focus: get('focus', MM_FALLBACK.focus),
+      text:  get('text', MM_FALLBACK.text)
+    };
+  }
+
+  /** Semi-transparent version of a palette colour, for the fills that need to
+   *  sit under the markers without competing with them. Handles the #rgb and
+   *  #rrggbb the profiles actually use, and falls back to the colour as-is. */
+  function fade(hex, alpha) {
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return hex;
+    let h = m[1];
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
+
   function drawMinimap() {
     const cvs = els.minimap;
     if (!cvs) return;
@@ -562,8 +714,12 @@ RT.ui = (function () {
     const originX = w / 2, originY = h - pad;
     const toCanvas = (x, dist) => [originX + x * scale, originY - dist * scale];
 
-    // Sweep cone — how far the aim meter can swing left/right at this range.
-    ctx.strokeStyle = 'rgba(255,255,255,.32)';
+    /* Sweep cone — how far the aim meter can swing left/right at this range.
+       Drawn from --text rather than --line: --line is a border colour, light
+       in every profile, so on the Light profile's near-white minimap it was
+       invisible (as the hardcoded white it replaced had been). --text is the
+       one variable guaranteed to contrast with the panel in all four. */
+    ctx.strokeStyle = fade(MM.text, 0.38);
     ctx.lineWidth = 4;
     ctx.setLineDash([7, 10]);
     [-yawH, yawH].forEach((yaw) => {
@@ -575,14 +731,13 @@ RT.ui = (function () {
     // The castle's footprint.
     const [cx1, cy1] = toCanvas(-bounds.halfWidth, bounds.far);
     const [cx2, cy2] = toCanvas(bounds.halfWidth, bounds.near);
-    ctx.fillStyle = 'rgba(190,190,200,.4)';
-    ctx.strokeStyle = 'rgba(235,235,240,.85)';
+    ctx.fillStyle = fade(MM.text, 0.34);
+    ctx.strokeStyle = fade(MM.text, 0.85);
     ctx.lineWidth = 4;
     ctx.fillRect(cx1, cy1, cx2 - cx1, cy2 - cy1);
     ctx.strokeRect(cx1, cy1, cx2 - cx1, cy2 - cy1);
 
-    const crownColor = getComputedStyle(document.body).getPropertyValue('--crown').trim() || '#ffc93c';
-    const focus = getComputedStyle(document.body).getPropertyValue('--focus').trim() || '#ffd400';
+    const INK = MM.ink, crownColor = MM.crown, focus = MM.focus;
 
     // Objectives — every crown still alive, wherever it actually sits (a
     // crown can be a legitimate target while fully hidden behind another
@@ -798,6 +953,12 @@ RT.ui = (function () {
 
   /* ── Input ────────────────────────────────────────────────────────────── */
   function onKeyDown(e) {
+    /* Browsers hold an AudioContext suspended until a user gesture. The shared
+       ios-audio-fix.js resumes every context on the first touch/click/keydown,
+       but this game can be played entirely from the keyboard inside an iframe,
+       so ask directly too rather than depending on that. Cheap and idempotent
+       once the context is running. */
+    audioFn('resume');
     if (e.repeat || (!canAct() && !overlayPhase())) return;
     if (e.code === 'Space') {
       e.preventDefault();
@@ -868,10 +1029,15 @@ RT.ui = (function () {
       overlay: U.$('overlay'), panelTitle: U.$('panelTitle'), panelSub: U.$('panelSub'),
       panelList: U.$('panelList'), panelNote: U.$('panelNote'),
       minimap: U.$('minimap'),
+      pLevel: U.$('pLevel'), pCrowns: U.$('pCrowns'),
+      pBolts: U.$('pBolts'), pScore: U.$('pScore'),
       btnHelp: U.$('btnHelp'), btnSet: U.$('btnSet'), btnExit: U.$('btnExit')
     };
     if (els.minimap) els.minimapCtx = els.minimap.getContext('2d');
     applyMinimapSize();
+    // The saved profile is already on <body> by now (game.js's loadAttract
+    // sets it before the world is built), so this reads the right palette.
+    refreshMinimapPalette();
 
     bindMeter(els.meterAim, 'aim');
     bindMeter(els.meterPower, 'range');
@@ -914,6 +1080,7 @@ RT.ui = (function () {
   let wasOverlay = false;
   function tick(dt) {
     stepMeters(dt);
+    updateStatus();
     const actable = canAct();
     if (actable && !wasActable) enterShot(false);
     wasActable = actable;
