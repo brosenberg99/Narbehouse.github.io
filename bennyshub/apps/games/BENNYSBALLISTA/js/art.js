@@ -238,10 +238,22 @@ RT.art = (function () {
     return { root: root, pivot: pivot };
   }
 
+  /** The projectile. A plain sphere is enough to read clearly against the
+   *  paper-craft blocks without needing per-ammo models yet. No ink outline —
+   *  a fast-moving sphere doesn't get the same "judge this at a glance"
+   *  treatment as a static obstacle, and EdgesGeometry on a sphere is
+   *  effectively a full wireframe. */
+  function buildBolt(radius, color) {
+    const geo = new THREE.SphereGeometry(radius, 10, 8);
+    return part(geo, paper(color === undefined ? 0x3a3226 : color, { roughness: 0.7 }), {
+      cast: true, receive: false
+    });
+  }
+
   return {
     paperTexture, skyTexture,
     paper, glow, outline, ink, part, setShadow,
-    buildBlock, buildBallista,
+    buildBlock, buildBallista, buildBolt,
     INK
   };
 })();

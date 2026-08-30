@@ -238,14 +238,18 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
     <div id="shotbar">
       <div class="lane" id="laneAmmo"  hidden><span class="laneLabel">Ammo</span><div class="chips" id="chipsAmmo"></div></div>
       <div class="lane" id="laneAim">
-        <span class="laneLabel">Angle</span>
-        <div class="meter" id="meterAim" role="progressbar" aria-label="Angle"
-             aria-valuemin="20" aria-valuemax="70" aria-valuenow="45"><div class="fill" id="fillAim"></div><span class="mval" id="valAim">45&deg;</span></div>
+        <span class="laneLabel">Aim</span>
+        <!-- ids stay the historical "Aim" from the 2D angle meter; it now
+             drives lateral yaw, not elevation — see js/ui.js. -->
+        <div class="meter" id="meterAim" role="progressbar" aria-label="Aim"
+             aria-valuemin="-20" aria-valuemax="20" aria-valuenow="0"><div class="fill" id="fillAim"></div><span class="mval" id="valAim">0&deg;</span></div>
         <button class="chip act" id="btnLockAim" type="button">Lock</button>
       </div>
       <div class="lane" id="lanePower">
-        <span class="laneLabel">Power</span>
-        <div class="meter" id="meterPower" role="progressbar" aria-label="Power"
+        <span class="laneLabel">Range</span>
+        <!-- ids stay the historical "Power" from the 2D charge meter; it now
+             picks landing distance, not muzzle speed — see js/ui.js. -->
+        <div class="meter" id="meterPower" role="progressbar" aria-label="Range"
              aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill" id="fillPower"></div><span class="mval" id="valPower">0%</span></div>
         <button class="chip act" id="btnFire" type="button">Fire</button>
       </div>
