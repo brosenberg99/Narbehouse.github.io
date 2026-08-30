@@ -1,9 +1,16 @@
 /**
  * Benny's Ballista — input, meters, ammo list.
  *
- * STEP 4 SLICE: the real shot pipeline input — no menus, no pause overlay,
- * no minimap yet (those are later work-order steps). The game starts
- * straight into aiming against the test castle from js/game.js.
+ * No menus, no pause overlay, no minimap yet (later work-order steps). The
+ * game starts straight into aiming against the test castle from js/game.js.
+ *
+ * Input only responds while the camera director (js/game.js) is in its AIM
+ * phase — canAct() below. Once a shot fires, the director owns FLIGHT
+ * through RESULTS on its own timing, and the next shot's meters reset the
+ * moment it returns to AIM (see the edge-detect in tick()), not the instant
+ * Return is pressed. There's no pause menu yet to interrupt that with
+ * (AGENTS.md wants Return-hold to open Pause from every screen, including
+ * mid-flight — noted as a gap until steps 6-7 build the menu system).
  *
  * Reuses the exact hold-timer discipline the 2D version used (recovered from
  * git history at commit 695472a, `index.html:2196-2244` there) rather than
@@ -39,6 +46,10 @@ RT.ui = (function () {
   const timers = { space: null, spaceRepeat: null, ret: null, auto: null };
   const input = { spaceDown: false, retDown: false, retLong: false };
 
+  /** True only while the camera director is holding its fixed AIM frame —
+   *  see the file header. Every input entry point checks this. */
+  function canAct() { return G.CAM.phase === 'AIM'; }
+
   function level() { return G.currentLevel(); }
   function yawHalfDeg() { return D.yawLimit(level()) * 180 / Math.PI; }
   function clampYaw(deg) { const h = yawHalfDeg(); return U.clamp(deg, -h, h); }
@@ -72,7 +83,7 @@ RT.ui = (function () {
       if (!state.locked.ammo && state.last.ammo === it.ix) b.classList.add('last');
       if (state.stage === 'ammo' && state.scan === it.ix) b.classList.add('focus');
       b.addEventListener('click', () => {
-        if (state.stage !== 'ammo') return;
+        if (!canAct() || state.stage !== 'ammo') return;
         state.scan = it.ix; renderChips(); updatePreview(true); commit();
       });
       holder.appendChild(b);
@@ -306,10 +317,10 @@ RT.ui = (function () {
     G.fire(ammo, yawRad, state.rangePct);
     state.last = { ammo: state.pick.ammo, yawDeg: state.yawDeg, rangePct: state.rangePct };
     sfx('bust', 0.35);
-    // The bolt keeps flying under js/game.js's own update loop; there's no
-    // settle/results screen yet (later work-order steps), so the next shot
-    // is available immediately rather than waiting for it to land.
-    enterShot(false);
+    // No enterShot() here — the camera director (js/game.js) now owns the
+    // whole FLIGHT/IMPACT/SETTLE/RESULTS sequence, and canAct() blocks input
+    // until it returns to AIM. tick()'s edge-detect calls enterShot(false)
+    // the moment that happens.
   }
 
   function backOut() {
@@ -368,7 +379,7 @@ RT.ui = (function () {
 
   /* ── Input ────────────────────────────────────────────────────────────── */
   function onKeyDown(e) {
-    if (e.repeat) return;
+    if (e.repeat || !canAct()) return;
     if (e.code === 'Space') {
       e.preventDefault();
       if (input.spaceDown) return;
@@ -419,7 +430,7 @@ RT.ui = (function () {
    *  everywhere else in the hub. */
   function bindMeter(box, stage) {
     const down = (e) => {
-      if (state.stage !== stage) return;
+      if (!canAct() || state.stage !== stage) return;
       e.preventDefault();
       startMeter();
     };
@@ -441,24 +452,34 @@ RT.ui = (function () {
     bindMeter(els.meterPower, 'range');
     window.addEventListener('mouseup', () => { if (meterStage()) releaseMeter(); });
     window.addEventListener('touchend', () => { if (meterStage()) releaseMeter(); });
-    els.btnLockAim.addEventListener('click', () => { if (state.stage === 'aim') lockAim(); });
-    els.btnFire.addEventListener('click', () => { if (state.stage === 'range') confirmShot(); });
+    els.btnLockAim.addEventListener('click', () => { if (canAct() && state.stage === 'aim') lockAim(); });
+    els.btnFire.addEventListener('click', () => { if (canAct() && state.stage === 'range') confirmShot(); });
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
 
     if (U.sm()) U.sm().subscribe(() => resetAutoScan());
 
+    wasActable = canAct();   // usually false here — physics/camera aren't ready yet
     enterShot(true);
   }
 
-  function tick(dt) { stepMeters(dt); }
+  /** The moment the camera director's phase returns to AIM, the next shot's
+   *  meters are ready — edge-detected here rather than timed independently,
+   *  so this always matches what the player is actually looking at. */
+  let wasActable = true;
+  function tick(dt) {
+    stepMeters(dt);
+    const actable = canAct();
+    if (actable && !wasActable) enterShot(false);
+    wasActable = actable;
+  }
 
   return {
     init, tick,
     __test: {
       state() { return JSON.parse(JSON.stringify(state)); },
-      previewPhrase,
+      previewPhrase, canAct,
       pressSpace() { onKeyDown({ code: 'Space', preventDefault() {} }); },
       releaseSpace() { onKeyUp({ code: 'Space', preventDefault() {} }); },
       pressReturn() { onKeyDown({ code: 'Enter', preventDefault() {} }); },

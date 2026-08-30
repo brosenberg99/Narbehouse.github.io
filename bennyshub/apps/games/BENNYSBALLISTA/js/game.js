@@ -1,15 +1,17 @@
 /**
  * Benny's Ballista — game state and camera director.
  *
- * STEP 4 SLICE adds the shot pipeline: solved-elevation trajectories,
- * firing, direct-hit damage, and the collateral block-vs-block impact
- * damage ported from the 2D version's stepWorld(). js/ui.js drives the
- * meters and input and calls into the fire()/traceShot() API at the bottom
- * of this file; everything about the world and the castle stays here.
+ * STEP 5 SLICE replaces the placeholder AIM/FLIGHT split with the real
+ * six-phase director: ATTRACT / AIM / FLIGHT / IMPACT / SETTLE / RESULTS,
+ * the impact-seat scorer, screen shake, and the Steady Camera setting.
+ * js/ui.js drives the meters and input and calls into the fire()/
+ * traceShot() API at the bottom of this file; everything about the world,
+ * the castle and the camera stays here.
  *
- * No real level system yet (js/levels.js is work-order step 6) and no full
- * camera director (step 5) — AIM/FLIGHT below are a minimal stand-in just
- * solid enough to make aiming and firing legible while testing.
+ * No real level system yet (js/levels.js is work-order step 6), and no
+ * results/pause overlay (that needs the level system's stars/progress to
+ * mean anything) — RESULTS below is a camera hold over the wreckage with
+ * no panel drawn over it yet.
  */
 RT.game = (function () {
   'use strict';
@@ -28,6 +30,12 @@ RT.game = (function () {
   let blocks = [];       // { mesh, body, mat, half:Vector3, hp, alive } — the test castle, for now
   let shots = [];        // live bolts: { mesh, ammo, trace, t, resolved }
   let levelWon = false;
+
+  /** Auto-enabled under prefers-reduced-motion, same as FishMaster's
+   *  reducedMotion(). Exposed mutable so a future settings menu (steps 6-7)
+   *  can toggle it; __test.setSteadyCamera() is the only way in for now. */
+  const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let steadyCamera = REDUCED_MOTION;
 
   /**
    * Stands in for js/levels.js's per-level object (work-order step 6) —
@@ -64,14 +72,22 @@ RT.game = (function () {
    *  polish-step work per the plan), but callers can already check this. */
   function isFlat() { return document.body.dataset.theme === 'contrast'; }
 
-  /* ── Camera phases ──────────────────────────────────────────────────────
-   * Only ATTRACT exists yet. AIM/FLIGHT/IMPACT/SETTLE/RESULTS arrive with the
-   * shot pipeline and camera director in later steps.
-   */
+  /* ── Camera phases ────────────────────────────────────────────────────── */
   const CAM = {
     phase: 'ATTRACT',
-    attractT: 0
+    attractT: 0,
+    impactPoint: new THREE.Vector3(),
+    seatPos: new THREE.Vector3(),
+    impactT: 0,
+    settleT: 0,
+    resultsT: 0,
+    shake: 0
   };
+
+  /** The fixed pose everything about a shot is judged from. Never moves —
+   *  all camera personality happens after Return is pressed. */
+  const AIM_POS = new THREE.Vector3(0, 3.6, 7.5);
+  const AIM_LOOKAT = new THREE.Vector3(0, 2.0, -TEST_LEVEL.dist);
 
   function buildWorldAndBallista() {
     refreshPalette();
@@ -252,6 +268,7 @@ RT.game = (function () {
     mesh.position.copy(trace.points[0]);
     scene.add(mesh);
     shots.push({ mesh: mesh, trace: trace, t: 0, resolved: false });
+    CAM.phase = 'FLIGHT';
     return trace;
   }
 
@@ -285,7 +302,13 @@ RT.game = (function () {
       if (idx >= s.trace.points.length - 1) {
         s.resolved = true;
         scene.remove(s.mesh);
-        if (s.trace.hit.type === 'block') applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel);
+        if (s.trace.hit.type === 'block') {
+          const impactPos = s.trace.points[s.trace.points.length - 1];
+          applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel);
+          beginImpact(impactPos, s.trace.impactVel);
+        } else {
+          CAM.phase = 'AIM';   // a clean miss has nothing worth a cinematic cut for
+        }
       }
     }
     shots = shots.filter((s) => !s.resolved);
@@ -362,15 +385,13 @@ RT.game = (function () {
   }
 
   /**
-   * Placeholder AIM/FLIGHT — a minimal stand-in for the real camera director
-   * (work-order step 5: all six phases, the impact-seat scorer, Steady
-   * Camera). AIM here is at least fixed while aiming, matching the one hard
-   * rule the real director must keep: "everything the player judges a shot
-   * by is in a fixed frame."
+   * AIM never moves — everything the player judges a shot by is in a fixed
+   * frame; all camera personality happens after Return is pressed. That is
+   * what keeps the cinematics below from becoming an accessibility problem.
    */
   function updateAim() {
-    camera.position.set(0, 3.6, 7.5);
-    camera.lookAt(0, 2.0, -TEST_LEVEL.dist);
+    camera.position.copy(AIM_POS);
+    camera.lookAt(AIM_LOOKAT);
   }
 
   const _flightEye = new THREE.Vector3();
@@ -383,20 +404,150 @@ RT.game = (function () {
     camera.lookAt(p.x, p.y, p.z);
   }
 
+  /* ── Impact-seat scorer ───────────────────────────────────────────────────
+   * Score candidate poses on a ring around the impact point and take the
+   * best. Three rules, in order of how hard they are: never cross the aim
+   * camera's 180 degree line (a cut to the far side reverses left and right,
+   * which is genuinely disorienting — this one is load-bearing, not just a
+   * preference); prefer a three-quarter view over dead side-on; prefer
+   * seeing the most destructible mass still in play.
+   */
+  const SEAT_RADIUS = 4.5, SEAT_HEIGHT = 2.4, SEAT_STEPS = 8;
+  const THREE_QUARTER_RAD = 60 * Math.PI / 180;
+
+  const _segPoint = new THREE.Vector3();
+  /** Cheap occlusion test — reuses the same oriented-box test the shot
+   *  itself hits blocks with, rather than a real ray query, so a candidate
+   *  seat is rejected if any surviving block sits between it and the
+   *  impact point. */
+  function segmentBlocked(from, to) {
+    for (let t = 0.2; t <= 0.8; t += 0.2) {
+      _segPoint.lerpVectors(from, to, t);
+      if (findHitBlock(_segPoint, 0.15)) return true;
+    }
+    return false;
+  }
+
+  const _toBlock = new THREE.Vector3(), _viewDir = new THREE.Vector3();
+  /** How much destructible mass a pose can actually see, weighted toward
+   *  what's roughly in front of it and closer. A proxy for "the most
+   *  soon-to-move mass" — the real thing would need a frame of sleep-state
+   *  history per block to classify "about to move" precisely, which isn't
+   *  worth the complexity yet at this block count. */
+  function visibleDynamicMass(pos, lookAt) {
+    _viewDir.subVectors(lookAt, pos).normalize();
+    let total = 0;
+    for (const b of blocks) {
+      if (!b.alive || b.mat.static) continue;
+      _toBlock.subVectors(b.mesh.position, pos);
+      const dist = _toBlock.length();
+      if (dist < 0.001) continue;
+      _toBlock.divideScalar(dist);
+      const facing = _toBlock.dot(_viewDir);
+      if (facing < 0.3) continue;                    // behind or well off to the side
+      const vol = b.half.x * b.half.y * b.half.z * 8;
+      total += vol * facing / Math.max(1, dist * 0.3);
+    }
+    return total;
+  }
+
+  function pickImpactSeat(impactPoint) {
+    const homeX = AIM_POS.x - impactPoint.x, homeZ = AIM_POS.z - impactPoint.z;
+    const homeAngle = Math.atan2(homeZ, homeX);
+
+    let best = null, bestScore = -Infinity;
+    for (let i = 0; i <= SEAT_STEPS; i++) {
+      const off = -Math.PI / 2 + (i / SEAT_STEPS) * Math.PI;     // stays within +-90 of home
+      const angle = homeAngle + off;
+      const pos = new THREE.Vector3(
+        impactPoint.x + Math.cos(angle) * SEAT_RADIUS,
+        impactPoint.y + SEAT_HEIGHT,
+        impactPoint.z + Math.sin(angle) * SEAT_RADIUS
+      );
+      if (pos.y < CFG.GROUND_Y + 0.3) continue;
+      if (segmentBlocked(pos, impactPoint)) continue;
+
+      const threeQuarter = 1 - Math.abs(Math.abs(off) - THREE_QUARTER_RAD) / (Math.PI / 2);
+      const score = threeQuarter * 3 + visibleDynamicMass(pos, impactPoint);
+      if (score > bestScore) { bestScore = score; best = pos; }
+    }
+    return best || new THREE.Vector3(impactPoint.x, impactPoint.y + SEAT_HEIGHT, impactPoint.z + SEAT_RADIUS);
+  }
+
+  function beginImpact(impactPoint, impactVel) {
+    CAM.impactPoint.copy(impactPoint);
+    CAM.seatPos.copy(pickImpactSeat(impactPoint));
+    CAM.phase = 'IMPACT';
+    CAM.impactT = 0;
+    CAM.shake = Math.max(CAM.shake, Math.min(1, (impactVel ? impactVel.length() : 20) / 30));
+  }
+
+  const IMPACT_HOLD_S = 0.25;
+  const SETTLE_ORBIT_RAD_PER_S = 6 * Math.PI / 180;
+
+  const _seatOffset = new THREE.Vector3();
+  /** Camera at CAM.seatPos, optionally drifting around the impact point by
+   *  `extraAngle` radians (the slow SETTLE orbit) — always looking at the
+   *  impact point. */
+  function positionAtSeat(extraAngle) {
+    _seatOffset.subVectors(CAM.seatPos, CAM.impactPoint);
+    if (extraAngle) {
+      const cos = Math.cos(extraAngle), sin = Math.sin(extraAngle);
+      const x = _seatOffset.x * cos - _seatOffset.z * sin;
+      const z = _seatOffset.x * sin + _seatOffset.z * cos;
+      _seatOffset.x = x; _seatOffset.z = z;
+    }
+    camera.position.copy(CAM.impactPoint).add(_seatOffset);
+    camera.lookAt(CAM.impactPoint);
+  }
+
+  /** Scales with impact energy, zeroed under reduced motion or Steady
+   *  Camera. Applied after whatever positioned the camera this frame, as a
+   *  small additive jitter rather than a replacement. */
+  function updateShake(dt) {
+    CAM.shake = Math.max(0, CAM.shake - dt * 1.5);
+    if (CAM.shake <= 0 || steadyCamera || REDUCED_MOTION) return;
+    const s = CAM.shake * 0.12;
+    camera.position.x += (Math.random() * 2 - 1) * s;
+    camera.position.y += (Math.random() * 2 - 1) * s;
+  }
+
   function update(dt) {
     if (physicsReady) {
       stepPhysicsWithImpacts(dt);
       updateShots(dt);
     }
+
     if (CAM.phase === 'ATTRACT') {
       updateAttract(dt);
-    } else if (shots.length) {
-      CAM.phase = 'FLIGHT';
+    } else if (CAM.phase === 'FLIGHT') {
       updateFlight(dt);
+    } else if (CAM.phase === 'IMPACT') {
+      CAM.impactT += dt;
+      positionAtSeat(0);
+      if (CAM.impactT > IMPACT_HOLD_S) { CAM.phase = 'SETTLE'; CAM.settleT = 0; }
+    } else if (CAM.phase === 'SETTLE') {
+      CAM.settleT += dt;
+      positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);
+      const stillMoving = blocks.some((b) => b.alive && !b.mat.static && P.isAwake(b.body));
+      if ((!stillMoving && CAM.settleT > CFG.SETTLE_MIN) || CAM.settleT > CFG.SETTLE_MAX) {
+        CAM.phase = 'RESULTS'; CAM.resultsT = 0;
+      }
+    } else if (CAM.phase === 'RESULTS') {
+      CAM.resultsT += dt;
+      positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);   // hold the SETTLE framing
+      if (CAM.resultsT > CFG.WIN_PAUSE) CAM.phase = 'AIM';
     } else {
       CAM.phase = 'AIM';
       updateAim();
     }
+
+    // One fixed wide view for every phase — still runs the state machine
+    // above (so js/ui.js's input gate on CAM.phase === 'AIM' keeps working),
+    // just overrides what gets rendered.
+    if (steadyCamera) updateAim();
+
+    updateShake(dt);
   }
 
   /**
@@ -445,7 +596,17 @@ RT.game = (function () {
     levelWon() { return levelWon; },
     rangeWindow() { return D.rangeWindow(TEST_LEVEL); },
     yawLimitDeg() { return D.yawLimit(TEST_LEVEL) * 180 / Math.PI; },
-    rebuildCastle: buildTestCastle
+    rebuildCastle: buildTestCastle,
+    camState() {
+      return {
+        phase: CAM.phase, shake: CAM.shake,
+        impactPoint: CAM.impactPoint.toArray(), seatPos: CAM.seatPos.toArray(),
+        camPos: camera.position.toArray()
+      };
+    },
+    isSteadyCamera() { return steadyCamera; },
+    setSteadyCamera(on) { steadyCamera = !!on; },
+    isReducedMotion() { return REDUCED_MOTION; }
   };
 
   return {
