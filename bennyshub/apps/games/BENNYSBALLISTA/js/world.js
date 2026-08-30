@@ -84,5 +84,18 @@ RT.world = (function () {
     handles.sun.color.set(pal.sunColor || 0xfff4dc);
   }
 
-  return { build, refresh };
+  /** Re-centres the shadow frustum on a level's actual distance, now that
+   *  real levels (js/levels.js) exist and don't all sit at the same `dist`
+   *  the fixed frustum in build() was tuned for. Keeps the same half-size,
+   *  just slides where it's aimed. */
+  function recenterShadow(handles, dist) {
+    const sun = handles.sun;
+    sun.target.position.set(0, 0, -dist);
+    sun.target.updateMatrixWorld();
+    const SH = sun.shadow.camera.right;   // half-size chosen in build()
+    sun.shadow.camera.far = dist + SH + 10;
+    sun.shadow.camera.updateProjectionMatrix();
+  }
+
+  return { build, refresh, recenterShadow };
 })();

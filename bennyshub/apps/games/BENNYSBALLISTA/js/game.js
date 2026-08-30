@@ -1,17 +1,19 @@
 /**
  * Benny's Ballista — game state and camera director.
  *
- * STEP 5 SLICE replaces the placeholder AIM/FLIGHT split with the real
- * six-phase director: ATTRACT / AIM / FLIGHT / IMPACT / SETTLE / RESULTS,
- * the impact-seat scorer, screen shake, and the Steady Camera setting.
- * js/ui.js drives the meters and input and calls into the fire()/
- * traceShot() API at the bottom of this file; everything about the world,
- * the castle and the camera stays here.
+ * Runs the real six-phase camera director (ATTRACT / AIM / FLIGHT / IMPACT /
+ * SETTLE / RESULTS, the impact-seat scorer, screen shake, Steady Camera —
+ * work-order step 5) over real levels loaded from RT.levels (the stacked-
+ * ASCII-layer format, ~12 castles, and the auditLevels()/auditReach() boot
+ * checks — step 6). js/ui.js drives the meters and input and calls into the
+ * fire()/traceShot() API at the bottom of this file; everything about the
+ * world, the live castle and the camera stays here.
  *
- * No real level system yet (js/levels.js is work-order step 6), and no
- * results/pause overlay (that needs the level system's stars/progress to
- * mean anything) — RESULTS below is a camera hold over the wreckage with
- * no panel drawn over it yet.
+ * Still no results/pause overlay, no stars, no bolt limit and no save
+ * persistence (later polish) — clearing a level currently just moves
+ * straight on to the next one (see the RESULTS phase in update()), and
+ * RESULTS itself is a camera hold over the wreckage with no panel drawn
+ * over it yet.
  */
 RT.game = (function () {
   'use strict';
@@ -20,6 +22,7 @@ RT.game = (function () {
   const A = RT.art;
   const W = RT.world;
   const D = RT.data;
+  const LV = RT.levels;
   const P = RT.physics;
   const CFG = D.CFG;
 
@@ -27,23 +30,20 @@ RT.game = (function () {
   let world = null;      // world.js handles (sky/ground/lights)
   let ballista = null;   // { root, pivot }
   let physicsReady = false;
-  let blocks = [];       // { mesh, body, mat, half:Vector3, hp, alive } — the test castle, for now
+  let blocks = [];       // { mesh, body, mat, half:Vector3, hp, alive } — the live level's blocks
   let shots = [];        // live bolts: { mesh, ammo, trace, t, resolved }
   let levelWon = false;
+  let levelIx = 0;
+  // Valid from module load (level 0), same as TEST_LEVEL used to be — ui.js
+  // computes yaw/range windows against currentLevel() before physics (and so
+  // loadLevel()) has run at all, and needs something real to read.
+  let liveLevel = LV.LEVELS[0];
 
   /** Auto-enabled under prefers-reduced-motion, same as FishMaster's
    *  reducedMotion(). Exposed mutable so a future settings menu (steps 6-7)
    *  can toggle it; __test.setSteadyCamera() is the only way in for now. */
   const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   let steadyCamera = REDUCED_MOTION;
-
-  /**
-   * Stands in for js/levels.js's per-level object (work-order step 6) —
-   * `dist`/`_cols`/`_depth` are exactly what RT.data's rangeWindow()/
-   * yawLimit()/castleBounds() read, so the meters scale correctly against
-   * this hand-made castle the same way they will against a real level.
-   */
-  const TEST_LEVEL = { name: 'Test Castle', dist: 20, _cols: 2.2, _depth: 1.6 };
 
   /* ── Theming ──────────────────────────────────────────────────────────────
    * getComputedStyle is far too slow to call per frame, so the palette is
@@ -85,9 +85,11 @@ RT.game = (function () {
   };
 
   /** The fixed pose everything about a shot is judged from. Never moves —
-   *  all camera personality happens after Return is pressed. */
+   *  all camera personality happens after Return is pressed. Its look-at
+   *  point re-centres on whatever castle is live (see loadLevel()) so a
+   *  distant level doesn't leave the frame aimed short of it. */
   const AIM_POS = new THREE.Vector3(0, 3.6, 7.5);
-  const AIM_LOOKAT = new THREE.Vector3(0, 2.0, -TEST_LEVEL.dist);
+  const AIM_LOOKAT = new THREE.Vector3(0, 2.0, -20);
 
   function buildWorldAndBallista() {
     refreshPalette();
@@ -99,9 +101,8 @@ RT.game = (function () {
   }
 
   /* ── Blocks ───────────────────────────────────────────────────────────────
-   * Ties one Ammo body to one Three.js mesh. Real level loading (js/levels.js
-   * + the ASCII layer parser) is work-order step 6; this is just enough to
-   * put a real, physically simulated castle on screen to fire at.
+   * Ties one Ammo body to one Three.js mesh — loadLevel() below is what
+   * calls this once per parsed block spec from RT.levels.parseLevel().
    */
   function spawnBlock(matId, x, y, z, w, h, d) {
     const mat = D.MAT[matId];
@@ -122,76 +123,137 @@ RT.game = (function () {
     return rec;
   }
 
+  /** Frees a mesh's own geometry and its ink-outline child's geometry.
+   *  Materials are cached and shared (see art.js's paper()/glow()), so they
+   *  outlive any one block and are never disposed here. */
+  function disposeBlockMesh(mesh) {
+    mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  }
+
   function destroyBlockRec(b) {
     if (!b.alive) return;
     b.alive = false;
     scene.remove(b.mesh);
+    disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);
   }
 
+  /**
+   * Tears down every block of whatever level is currently live. Loading a
+   * new level (or replaying this one) always goes through here first —
+   * this has to remove each mesh from the scene and dispose its geometry
+   * itself, the same as destroyBlockRec() above, or every level swap leaks
+   * one level's worth of draw calls forever (caught by RT.perf() climbing
+   * well past its budget after cycling through a handful of levels).
+   */
   function clearBlocks() {
-    for (const b of blocks) if (b.alive) P.destroyBlock(b.body);
+    for (const b of blocks) {
+      if (!b.alive) continue;
+      scene.remove(b.mesh);
+      disposeBlockMesh(b.mesh);
+      P.destroyBlock(b.body);
+    }
     blocks = [];
   }
 
   /**
-   * A baseline structure, built before any camera work, per Bryan's reference
-   * screenshots (Angry Birds' wooden/stone towers): long thin support
-   * members, wide flat floors spanning between them, several differently
-   * sized blocks as loose set-dressing debris. The single-cell-cube tower
-   * this replaced never exercised non-cubic proportions at all — this is
-   * the shape the physics and the paper-craft art actually have to handle
-   * once real levels (ASCII layers, step 6) exist. Deliberately much
-   * simpler than the references: two tiers, one crown, a handful of loose
-   * debris — enough to judge stability and legibility, not a finished level.
-   *
-   *   tier 2 roof  (wood, wide+flat)         <- crown sits on this
-   *   tier 2 legs  (2 thin wood columns)
-   *   tier 1 floor (stone, wide+flat)        <- the main "knock this out" target
-   *   tier 1 legs  (4 thin wood columns)
-   *   ground       loose debris scattered around the base, not load-bearing
+   * Loads level `ix` from RT.levels.LEVELS: tears down whatever castle is
+   * live, parses the new one's stacked ASCII layers, and spawns every
+   * resulting block spec. The parser (js/levels.js) already did the row/
+   * depth merge and the world-unit placement math — this is just the
+   * spawn loop, identical in shape to the old hand-built test castle it
+   * replaces.
    */
-  function buildTestCastle() {
+  function loadLevel(ix) {
     clearBlocks();
     for (const s of shots) scene.remove(s.mesh);
     shots = [];
     levelWon = false;
-    const cz = -TEST_LEVEL.dist;
 
-    // Tier 1: four thin corner columns holding up a wide, flat stone floor.
-    const legW = 0.22, legH = 2.4, legD = 0.22;
-    const legY = legH / 2;
-    [[-0.85, -0.6], [0.85, -0.6], [-0.85, 0.6], [0.85, 0.6]].forEach(([dx, dz]) => {
-      spawnBlock('W', dx, legY, cz + dz, legW, legH, legD);
-    });
+    levelIx = ((ix % LV.LEVELS.length) + LV.LEVELS.length) % LV.LEVELS.length;
+    liveLevel = LV.LEVELS[levelIx];
+    const parsed = LV.parseLevel(liveLevel);
+    for (const b of parsed.blocks) spawnBlock(b.matId, b.x, b.y, b.z, b.w, b.h, b.d);
 
-    const floor1Y = legH + 0.11;
-    spawnBlock('S', 0, floor1Y, cz, 2.0, 0.22, 1.4);
+    AIM_LOOKAT.z = -liveLevel.dist;
+    if (world) W.recenterShadow(world, liveLevel.dist);
+  }
 
-    // Tier 2: two thinner, shorter columns on the floor, holding a smaller
-    // wood roof. Fewer legs and a narrower span than tier 1 on purpose — a
-    // real level would taper a tower the same way for the same reason: it
-    // reads as "this part is easier to knock over."
-    const floor1Top = floor1Y + 0.11;
-    const leg2W = 0.2, leg2H = 1.0, leg2D = 0.2;
-    const leg2Y = floor1Top + leg2H / 2;
-    [[-0.4, 0], [0.4, 0]].forEach(([dx, dz]) => {
-      spawnBlock('W', dx, leg2Y, cz + dz, leg2W, leg2H, leg2D);
-    });
+  /* ── Boot-time audits ─────────────────────────────────────────────────────
+   * Replace the two checks the old README asked a human to do by eye —
+   * "it must stand up" and "it must be reachable" — with assertions run
+   * once at boot, throwing loudly if a level fails either one. Both need
+   * real physics steps (unlike a purely data-driven audit like FishMaster's
+   * auditMissions()), so they run from inside physics init's callback
+   * rather than synchronously from init() — see runBootAudits() below for
+   * how a failure still gets surfaced despite that.
+   */
 
-    const roofY = floor1Top + leg2H + 0.09;
-    spawnBlock('W', 0, roofY, cz, 1.2, 0.18, 0.9);
+  /** Every castle stands unaided: build it, step ~4 simulated seconds, and
+   *  check no crown drifted and nothing is still awake. Reuses loadLevel()
+   *  itself, so this is exercising the exact path the player's first look
+   *  at each level goes through, not a parallel code path. */
+  function auditLevels() {
+    const steps = Math.ceil(4 / CFG.DT);
+    for (let ix = 0; ix < LV.LEVELS.length; ix++) {
+      loadLevel(ix);
+      const name = LV.LEVELS[ix].name;
+      const before = blocks.filter((b) => b.mat.crown).map((b) => b.mesh.position.clone());
+      for (let i = 0; i < steps; i++) stepPhysicsWithImpacts(CFG.DT);
+      const after = blocks.filter((b) => b.mat.crown);
+      if (after.length !== before.length) {
+        throw new Error(`auditLevels: "${name}" lost a crown just from standing (${before.length} -> ${after.length})`);
+      }
+      for (let i = 0; i < after.length; i++) {
+        const moved = after[i].mesh.position.distanceTo(before[i]);
+        if (moved > 0.05) {
+          throw new Error(`auditLevels: "${name}" crown ${i} moved ${moved.toFixed(3)} units while settling — it doesn't stand on its own`);
+        }
+      }
+      const awake = blocks.some((b) => b.alive && !b.mat.static && P.isAwake(b.body));
+      if (awake) throw new Error(`auditLevels: "${name}" never settled to sleep within ${steps} steps`);
+    }
+  }
 
-    const roofTop = roofY + 0.09;
-    spawnBlock('K', 0, roofTop + 0.3, cz, 0.6, 0.6, 0.6);
+  /** Every crown is hittable: for each level, sweep (ammo x yaw x range) and
+   *  assert at least one combination's deterministic trace lands a direct
+   *  hit on each crown. Coarse sampling — this only needs to prove a
+   *  solution exists somewhere in the window, not find the best one. */
+  function auditReach() {
+    const YAW_STEPS = 6, RANGE_STEPS = 8;
+    for (let ix = 0; ix < LV.LEVELS.length; ix++) {
+      loadLevel(ix);
+      const lvl = LV.LEVELS[ix];
+      const name = lvl.name;
+      const yawHalfDeg = D.yawLimit(lvl) * 180 / Math.PI;
+      const crowns = blocks.filter((b) => b.mat.crown);
+      for (const crown of crowns) {
+        let hitOk = false;
+        for (const ammo of D.AMMO) {
+          for (let yi = 0; yi <= YAW_STEPS && !hitOk; yi++) {
+            const yawDeg = -yawHalfDeg + (2 * yawHalfDeg) * yi / YAW_STEPS;
+            const yawRad = yawDeg * Math.PI / 180;
+            for (let ri = 0; ri <= RANGE_STEPS; ri++) {
+              const rangePct = 100 * ri / RANGE_STEPS;
+              const trace = traceShot(ammo, yawRad, rangePct, lvl);
+              if (trace && trace.hit.type === 'block' && trace.hit.block === crown) { hitOk = true; break; }
+            }
+          }
+          if (hitOk) break;
+        }
+        if (!hitOk) throw new Error(`auditReach: "${name}" has a crown no (ammo, yaw, range) combination in the sampled window can hit`);
+      }
+    }
+  }
 
-    // Loose debris: not attached to the structure, just resting on the
-    // ground around it — set dressing, and extra rubble once things start
-    // flying. Deliberately several different sizes/materials.
-    spawnBlock('s', -1.6, 0.2, cz + 1.0, 0.4, 0.4, 0.4);
-    spawnBlock('w', 1.5, 0.175, cz - 1.2, 0.35, 0.35, 0.35);
-    spawnBlock('i', -1.3, 0.15, cz - 1.3, 0.3, 0.3, 0.3);
-    spawnBlock('S', 1.7, 0.3, cz + 0.8, 0.6, 0.6, 0.6);
+  /** Runs both audits (each leaves the last level it built live in the
+   *  scene) and, once both pass, loads level 0 for real play. A failure
+   *  throws synchronously to the caller — see loadAttract() for how that
+   *  gets surfaced instead of just hanging silently. */
+  function runBootAudits() {
+    auditLevels();
+    auditReach();
+    loadLevel(0);
   }
 
   /* ── Shot pipeline ──────────────────────────────────────────────────────
@@ -229,11 +291,11 @@ RT.game = (function () {
   /**
    * Full deterministic flight for one shot, from muzzle to first contact
    * (or the ground, or flying off the field). Pure — spawns nothing, does
-   * no damage. `level` defaults to the live TEST_LEVEL so preview calls
-   * from js/ui.js don't need to know that stand-in exists.
+   * no damage. `level` defaults to whatever level is actually live, so
+   * preview calls from js/ui.js don't need to track that themselves.
    */
   function traceShot(ammo, yawRad, rangePct, level) {
-    const launch = D.launchFor(ammo, level || TEST_LEVEL, yawRad, rangePct);
+    const launch = D.launchFor(ammo, level || liveLevel, yawRad, rangePct);
     if (!launch) return null;
 
     const pos = new THREE.Vector3(launch.pos.x, launch.pos.y, launch.pos.z);
@@ -364,9 +426,24 @@ RT.game = (function () {
       // resolves, so there's nothing to block on here.
       P.init().then(() => {
         physicsReady = true;
-        buildTestCastle();
+        try {
+          runBootAudits();
+        } catch (err) {
+          // An unhandled rejection here would just look like a silent hang
+          // — surface it the same way main.js's own frame-loop errors do,
+          // then still throw so it also lands loudly in the console.
+          console.error('Ballista boot audit failed:', err);
+          const el = document.getElementById('loading');
+          if (el) {
+            el.style.display = 'flex';
+            el.innerHTML = '<div style="max-width:640px;text-align:center;padding:24px;font-size:1.1rem">'
+              + '<div style="font-size:2rem;margin-bottom:12px">\u{1F635} Level audit failed</div>'
+              + '<div style="opacity:.8">' + String(err && err.message ? err.message : err) + '</div></div>';
+          }
+          throw err;
+        }
         // No main menu yet (that's later polish) — go straight to aiming
-        // against the test castle rather than orbiting forever.
+        // against level 0 rather than orbiting forever.
         CAM.phase = 'AIM';
       });
     }
@@ -536,7 +613,14 @@ RT.game = (function () {
     } else if (CAM.phase === 'RESULTS') {
       CAM.resultsT += dt;
       positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);   // hold the SETTLE framing
-      if (CAM.resultsT > CFG.WIN_PAUSE) CAM.phase = 'AIM';
+      if (CAM.resultsT > CFG.WIN_PAUSE) {
+        // No results panel or star rating yet (later polish) — clearing a
+        // level's only visible effect for now is moving straight on to the
+        // next one, wrapping after the last. A miss/partial hit just keeps
+        // shooting at the same wreckage.
+        if (levelWon) loadLevel(levelIx + 1);
+        CAM.phase = 'AIM';
+      }
     } else {
       CAM.phase = 'AIM';
       updateAim();
@@ -551,12 +635,13 @@ RT.game = (function () {
   }
 
   /**
-   * All four ammo, always unlocked. Real progression (`unlockAt` gated by
-   * `save.level`) needs the level system and persistence — work-order
-   * steps 6-7 — so there's nothing to gate against yet.
+   * All four ammo, always unlocked. `unlockAt` gating by `save.level` needs
+   * save persistence, which doesn't exist yet (later polish) — there's a
+   * real level system now (levelIx advances on a win, see update()), just
+   * nothing saved across a reload yet.
    */
   function unlockedAmmo() { return D.AMMO; }
-  function currentLevel() { return TEST_LEVEL; }
+  function currentLevel() { return liveLevel; }
 
   /**
    * Console-driven checks — no results panel or narration for a miss/hit
@@ -594,9 +679,14 @@ RT.game = (function () {
     },
     crownsAlive() { return blocks.filter((b) => b.alive && b.mat.crown).length; },
     levelWon() { return levelWon; },
-    rangeWindow() { return D.rangeWindow(TEST_LEVEL); },
-    yawLimitDeg() { return D.yawLimit(TEST_LEVEL) * 180 / Math.PI; },
-    rebuildCastle: buildTestCastle,
+    rangeWindow() { return D.rangeWindow(liveLevel); },
+    yawLimitDeg() { return D.yawLimit(liveLevel) * 180 / Math.PI; },
+    rebuildCastle() { loadLevel(levelIx); },
+    levelCount() { return LV.LEVELS.length; },
+    levelIx() { return levelIx; },
+    levelName() { return liveLevel ? liveLevel.name : null; },
+    loadLevel(ix) { loadLevel(ix); },
+    auditLevels, auditReach,
     camState() {
       return {
         phase: CAM.phase, shake: CAM.shake,

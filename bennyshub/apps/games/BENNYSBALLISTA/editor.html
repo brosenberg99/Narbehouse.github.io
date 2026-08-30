@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benny's Ballista — Level Editor</title>
+<style>
+:root{
+  --bg:#15161c; --panel:#1d1f28; --line:#2e3140; --text:#f2f4f8; --dim:#a6adbb;
+  --accent:#ff5c00; --accent2:#22d3ee; --good:#3ddc84; --bad:#ff5470;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
+#app{display:flex;height:100vh}
+#side{width:26rem;flex:0 0 auto;background:var(--panel);border-right:2px solid var(--line);padding:.8rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem}
+#stage{flex:1 1 auto;position:relative}
+canvas{display:block;width:100%;height:100%}
+h1{font-size:1.1rem;margin:0 0 .3rem;color:var(--accent)}
+h1 a{color:var(--accent2);font-size:.8rem;margin-left:.6rem}
+label{display:block;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);margin-bottom:.15rem}
+input[type=text],input[type=number],select,textarea{
+  width:100%;background:#0e0f14;border:2px solid var(--line);border-radius:.4rem;color:var(--text);
+  font:13px/1.3 'Consolas',monospace;padding:.35rem .5rem;
+}
+input[type=text],select{font-family:inherit}
+.row{display:flex;gap:.5rem}
+.row>div{flex:1}
+textarea{resize:vertical;white-space:pre}
+#layersBox{height:12rem}
+#exportBox{height:8rem;font-size:11px}
+button{
+  background:var(--accent);color:#1a0d00;border:none;border-radius:.4rem;font-weight:800;
+  padding:.5rem .7rem;cursor:pointer;font-size:.85rem;
+}
+button.alt{background:var(--panel);color:var(--text);border:2px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.stats{background:#0e0f14;border:2px solid var(--line);border-radius:.4rem;padding:.5rem .6rem;font-size:.8rem}
+.stats div{display:flex;justify-content:space-between;padding:.1rem 0}
+.stats b{color:var(--accent2)}
+#checkResult{white-space:pre-wrap;font-size:.78rem}
+#checkResult.pass{color:var(--good)}
+#checkResult.fail{color:var(--bad)}
+#hint{font-size:.75rem;color:var(--dim);line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <h1>BALLISTA LEVEL EDITOR <a href="index.html">&larr; back to game</a></h1>
+
+    <div>
+      <label>Load an existing level</label>
+      <select id="picker"></select>
+    </div>
+
+    <div class="row">
+      <div><label>Name</label><input type="text" id="fName"></div>
+      <div><label>Dist</label><input type="number" id="fDist" step="0.5"></div>
+    </div>
+    <div class="row">
+      <div><label>Par (bolts, 3&#9733;)</label><input type="number" id="fPar"></div>
+      <div><label>Bolts (limit)</label><input type="number" id="fBolts"></div>
+    </div>
+
+    <div>
+      <label>Layers — front (nearest the ballista) first. Blank line separates layers.</label>
+      <textarea id="layersBox" spellcheck="false"></textarea>
+    </div>
+
+    <div class="row">
+      <button id="btnRebuild">Rebuild preview</button>
+      <button class="alt" id="btnCheck">Run stand-up check</button>
+    </div>
+
+    <div class="stats" id="stats">—</div>
+    <div id="checkResult"></div>
+
+    <div>
+      <label>Export (paste into js/levels.js's LEVELS array)</label>
+      <textarea id="exportBox" readonly spellcheck="false"></textarea>
+      <button class="alt" id="btnExport" style="margin-top:.4rem">Generate export text</button>
+    </div>
+
+    <div id="hint">
+      Letters: <b>W</b> wood &middot; <b>S</b> stone &middot; <b>I</b> glass &middot;
+      <b>T</b> powder keg &middot; <b>K</b> crown &middot; <b>X</b> steel (indestructible) &middot;
+      <b>w/s/i</b> half-size rubble (never merges). A run of the same mergeable letter
+      side by side in a row welds into one wide body; the same run repeated on the next
+      layer back welds in depth too. Drag to orbit, scroll to zoom. This tool never runs
+      the real game's camera, input or scan lists — mouse/keyboard only, on purpose.
+    </div>
+  </div>
+  <div id="stage"></div>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/ammo.js"></script>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/art.js"></script>
+<script src="js/world.js"></script>
+<script src="js/physics.js"></script>
+<script>
+(function () {
+  'use strict';
+  const D = RT.data, LV = RT.levels, A = RT.art, W = RT.world, P = RT.physics;
+  const CFG = D.CFG;
+
+  const els = {
+    picker: document.getElementById('picker'),
+    name: document.getElementById('fName'), dist: document.getElementById('fDist'),
+    par: document.getElementById('fPar'), bolts: document.getElementById('fBolts'),
+    layers: document.getElementById('layersBox'),
+    stats: document.getElementById('stats'),
+    checkResult: document.getElementById('checkResult'),
+    exportBox: document.getElementById('exportBox')
+  };
+
+  /* ── Scene ────────────────────────────────────────────────────────────── */
+  const stage = document.getElementById('stage');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 400);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+  stage.appendChild(renderer.domElement);
+
+  const world = W.build(scene, { sky1: '#1b2a4a', sky2: '#3d5a80', ground: '#3a5a40' });
+
+  /* Simple drag-to-orbit / wheel-to-zoom camera, centred on wherever the
+   * live level's castle actually sits — no OrbitControls vendored, and this
+   * tool doesn't need anything fancier. */
+  const orbit = { az: 0.5, el: 0.45, dist: 14, target: new THREE.Vector3(0, 1.5, -14) };
+  function applyOrbit() {
+    const r = orbit.dist;
+    camera.position.set(
+      orbit.target.x + r * Math.cos(orbit.el) * Math.sin(orbit.az),
+      orbit.target.y + r * Math.sin(orbit.el),
+      orbit.target.z + r * Math.cos(orbit.el) * Math.cos(orbit.az)
+    );
+    camera.lookAt(orbit.target);
+  }
+  applyOrbit();
+  let dragging = false, lastX = 0, lastY = 0;
+  renderer.domElement.addEventListener('mousedown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    orbit.az -= (e.clientX - lastX) * 0.007;
+    orbit.el = Math.max(0.08, Math.min(1.4, orbit.el + (e.clientY - lastY) * 0.007));
+    lastX = e.clientX; lastY = e.clientY;
+    applyOrbit();
+  });
+  renderer.domElement.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    orbit.dist = Math.max(3, Math.min(60, orbit.dist + e.deltaY * 0.02));
+    applyOrbit();
+  }, { passive: false });
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    camera.aspect = w / Math.max(1, h);
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* ── Blocks — a standalone spawn loop, same shape as game.js's, since
+   * this tool intentionally doesn't load game.js (no camera director, no
+   * input, nothing scan-list-reachable — see the plan's editor.html note). */
+  let blocks = [];
+  function clearBlocks() {
+    for (const b of blocks) {
+      scene.remove(b.mesh);
+      b.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      P.destroyBlock(b.body);
+    }
+    blocks = [];
+  }
+  function spawnBlock(matId, x, y, z, w, h, d) {
+    const mat = D.MAT[matId];
+    if (!mat) return;
+    const mesh = A.buildBlock(w, h, d, mat.crown ? 0xffc93c : cssFor(matId), { glow: !!mat.crown });
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+    const mass = mat.static ? 0 : w * h * d;
+    const body = P.addBlock(x, y, z, w, h, d, mass);
+    blocks.push({ mesh: mesh, body: body, mat: mat });
+  }
+  function cssFor(matId) {
+    return { W: 0xa9682f, S: 0x8d939c, I: 0x7fe6ff, T: 0xc9442f, X: 0x4a5160,
+      w: 0xa9682f, s: 0x8d939c, i: 0x7fe6ff }[matId] || 0x888888;
+  }
+
+  /* ── Textarea <-> layers array ────────────────────────────────────────── */
+  function textToLayers(text) {
+    return text.replace(/\r/g, '').split(/\n[ \t]*\n/)
+      .map((block) => block.split('\n'))
+      .map((rows) => {
+        while (rows.length && rows[0].trim() === '') rows.shift();
+        while (rows.length && rows[rows.length - 1].trim() === '') rows.pop();
+        return rows;
+      })
+      .filter((rows) => rows.length > 0);
+  }
+  function layersToText(layers) {
+    return layers.map((rows) => rows.join('\n')).join('\n\n');
+  }
+
+  function currentLevelFromForm() {
+    return {
+      name: els.name.value || 'Untitled',
+      dist: parseFloat(els.dist.value) || 20,
+      par: parseInt(els.par.value, 10) || 1,
+      bolts: parseInt(els.bolts.value, 10) || 6,
+      layers: textToLayers(els.layers.value)
+    };
+  }
+
+  let liveLevel = null;
+  function rebuildPreview() {
+    const level = currentLevelFromForm();
+    liveLevel = level;
+    clearBlocks();
+    let parsed;
+    try {
+      parsed = LV.parseLevel(level);
+    } catch (e) {
+      els.stats.textContent = 'Could not parse layers: ' + e.message;
+      return;
+    }
+    for (const b of parsed.blocks) spawnBlock(b.matId, b.x, b.y, b.z, b.w, b.h, b.d);
+    orbit.target.set(0, parsed.rows * 0.4, -level.dist);
+    applyOrbit();
+    els.stats.innerHTML =
+      `<div>Cols <b>${parsed.cols}</b></div><div>Rows <b>${parsed.rows}</b></div>` +
+      `<div>Depth (layers) <b>${parsed.numLayers}</b></div>` +
+      `<div>Blocks <b>${parsed.blocks.length}</b></div><div>Crowns <b>${parsed.crownCount}</b></div>`;
+    els.checkResult.textContent = '';
+    els.checkResult.className = '';
+  }
+
+  function runStandUpCheck() {
+    if (!blocks.length) { els.checkResult.textContent = 'Nothing to check — rebuild the preview first.'; return; }
+    const crowns = blocks.filter((b) => b.mat.crown);
+    const before = crowns.map((b) => b.mesh.position.clone());
+    const steps = Math.ceil(4 / CFG.DT);
+    for (let i = 0; i < steps; i++) {
+      P.step(CFG.DT);
+      for (const b of blocks) P.sync(b.mesh, b.body);
+    }
+    let worst = 0;
+    for (let i = 0; i < crowns.length; i++) worst = Math.max(worst, crowns[i].mesh.position.distanceTo(before[i]));
+    const awake = blocks.some((b) => !b.mat.static && P.isAwake(b.body));
+    const pass = worst <= 0.05 && !awake;
+    els.checkResult.className = pass ? 'pass' : 'fail';
+    els.checkResult.textContent = pass
+      ? `Stands on its own. Worst crown drift: ${worst.toFixed(4)} units. All bodies asleep.`
+      : `Does not stand on its own.\nWorst crown drift: ${worst.toFixed(4)} units (fail if > 0.05).\nStill awake: ${awake}.`;
+  }
+
+  function exportText() {
+    const level = currentLevelFromForm();
+    const lines = [];
+    lines.push(`{ name: ${JSON.stringify(level.name)}, par: ${level.par}, bolts: ${level.bolts}, dist: ${level.dist}, layers: [`);
+    level.layers.forEach((rows, li) => {
+      lines.push('  [');
+      rows.forEach((r, ri) => lines.push(`    ${JSON.stringify(r)}${ri < rows.length - 1 ? ',' : ''}`));
+      lines.push(li < level.layers.length - 1 ? '  ],' : '  ]');
+    });
+    lines.push('] },');
+    els.exportBox.value = lines.join('\n');
+  }
+
+  function loadIntoForm(level) {
+    els.name.value = level.name;
+    els.dist.value = level.dist;
+    els.par.value = level.par;
+    els.bolts.value = level.bolts;
+    els.layers.value = layersToText(level.layers);
+    rebuildPreview();
+  }
+
+  LV.LEVELS.forEach((l, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `${i + 1}. ${l.name}`;
+    els.picker.appendChild(o);
+  });
+  els.picker.addEventListener('change', () => loadIntoForm(LV.LEVELS[+els.picker.value]));
+  document.getElementById('btnRebuild').addEventListener('click', rebuildPreview);
+  document.getElementById('btnCheck').addEventListener('click', runStandUpCheck);
+  document.getElementById('btnExport').addEventListener('click', exportText);
+
+  P.init().then(() => {
+    loadIntoForm(LV.LEVELS[0]);
+    requestAnimationFrame(loop);
+  });
+
+  let last = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    last = now;
+    renderer.render(scene, camera);
+  }
+})();
+</script>
+</body>
+</html>
