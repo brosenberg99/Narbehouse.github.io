@@ -1,68 +1,86 @@
 # Benny's Ballista
 
-A siege game for one or two switches. You fire a giant crossbow at castles and
-bring the crowns down.
+A siege game for one or two switches. You fire a giant crossbow at real 3D
+castles and bring the crowns down — by a direct hit, by dropping a wall on
+one, or by knocking out whatever was holding it up and letting it fall.
 
-The game itself is one file, [`index.html`](index.html), same as the rest of
-the hub — but the castles now run on real physics (see "Physics" below), which
-means a real physics engine: [`js/`](js/) vendors
-[Box2D compiled to WebAssembly](https://github.com/Birch-san/box2d-wasm).
-[Benny's Bowling](../BENNYSBOWLING/) made the same call with Ammo.js, for the
-same reason — hand-rolled collision math only gets you so far before a real
-engine is the more honest trade. **This means the game needs to be served over
-`http(s)://`, not opened as a `file://` page** — the WASM binary loads with
-`fetch`, which most browsers block from a bare local file. It's marked
-`"needsServer": true` in `games.json` for exactly this reason, same as
-`TRIVIAMASTER`.
+The game is real-time 3D and real physics, both in [`js/`](js/):
+[three.js r155](https://threejs.org/) for rendering and
+[Ammo.js](https://github.com/kripken/ammo.js/) (a port of Bullet Physics)
+for the castles. Unlike the box2d-wasm build the 2D version of this game
+used to vendor, Ammo.js here is the asm.js build, not WebAssembly-over-`fetch`
+— so **this game runs fine opened directly as a `file://` page**, no server
+needed, and does not carry `"needsServer": true` in `games.json`.
 
 ## Why this game exists
 
-An artillery game has a sweeping aimer and a filling power bar. Normally both
-are reaction tests: let go at the wrong instant and the shot is wasted, which
-locks out the person this hub is built for.
+An artillery game normally has a sweeping aimer and a filling power bar, and
+both are reaction tests: let go at the wrong instant and the shot is wasted,
+which locks out the person this hub is built for.
 
-This game keeps the sweep and the bar and takes the reaction out of them, along
-the lines [`AGENTS.md`](../../../../AGENTS.md) lays out under "Hold-to-charge
-and hold-to-sweep". Three things do that, and none of them is optional:
+This game keeps the sweep and the bar and takes the reaction out of them,
+along the lines [`AGENTS.md`](../../../../AGENTS.md) lays out under
+"Hold-to-charge and hold-to-sweep" — but it goes one step further than a
+typical version of this genre: **power sets where the shot lands, never how
+hard it hits.** Muzzle speed is fixed per ammunition and never touched by a
+meter; the range meter only ever picks a distance, and the elevation needed
+to reach it is solved automatically. There is no such thing as an
+undercharged dud — an early release costs accuracy, never effect. Three
+things make the meters themselves safe to fumble:
 
-- **The aimer turns round.** Hold Space and the angle sweeps up at two and a
-  half degrees per second. At 70° it reverses and comes straight back down, and
-  keeps doing that for as long as you hold. Overshooting the angle you wanted
-  costs you the wait for it to come past again, and nothing else.
-- **The power bar stops at full.** It fills at five percent a second and pins
-  itself at 100%. Holding on too long is never worse than letting go at the
-  perfect moment, because there is no perfect moment to miss. Let go early and
-  the next hold picks up where the last one stopped.
-- **Letting go never fires.** A release only ever *stops* the meter. Firing is a
-  separate press of Return, so a switch slipping out of a hand costs nothing.
+- **The aim meter turns round.** Hold Space and the yaw sweeps left and right
+  at 4.5°/s. At each edge of the window it reverses and comes back, and keeps
+  doing that for as long as you hold. Overshooting the angle you wanted costs
+  you the wait for it to come past again, and nothing else.
+- **The range meter stops at full.** It fills at 5%/s and pins itself at
+  100%. Holding on too long is never worse than letting go at the perfect
+  moment, because there is no perfect moment to miss. Let go early and the
+  next hold picks up where the last one stopped.
+- **Letting go never fires.** A release only ever *stops* a meter. Firing is
+  a separate press of Return, so a switch slipping out of a hand costs
+  nothing.
 
-Between the two, a dotted line shows the exact path the bolt will take, and the
-game says out loud what it is about to hit — but only when you stop, never
-while a meter is moving: *"45 degrees. At 60 percent power, hits the left wood
-beam."* Nothing is hidden, nothing is rushed, and you can sit between presses
-for an hour.
+While a meter is moving a dotted trail of gold dots and a ground-ring
+reticle show the exact arc the bolt will take and where it lands — in the
+main 3D view *and* on a top-down minimap — and the game says out loud what
+it is about to hit, but only once you stop moving, never while a meter is
+sweeping: *"12 degrees. This shot hits the stone block. Press return to lock
+it in."* Nothing is hidden, nothing is rushed, and you can sit between
+presses for an hour.
+
+Once you fire, a cinematic camera takes over completely — chasing the bolt,
+cutting to a scored seat on impact, orbiting the wreckage until it settles —
+and every input is blocked until it's done, so the cinematic actually gets
+watched rather than raced past. **Steady Camera** (in Settings, and on
+automatically under the OS's reduced-motion setting) holds one fixed pose
+through all of it instead, for anyone the cuts and shake would bother.
 
 ## How to play
 
 | Input | What it does |
 |---|---|
-| **Space**, held | Sweeps the angle, then charges the power. Let go to stop. |
-| **Return**, short press | Stops a moving meter; otherwise locks the angle or fires the shot |
-| **Return**, held 3 seconds | Go back one step, or open the pause menu |
-| **Space**, short press | *In the ammunition list only:* move to the next choice |
-| **Space**, held 3 seconds | *In the ammunition list only:* scan backwards until you let go |
+| **Space**, held | Sweeps the aim, then charges the range. Let go to stop. |
+| **Return**, short press | Stops a moving meter; otherwise locks the aim or fires the shot |
+| **Return**, held 3 seconds | Back up one step, or open the menu |
+| **Space**, short press | *In a scan list (ammunition, or a menu):* move to the next choice |
+| **Space**, held 3 seconds | *In a scan list:* scan backwards until you let go |
 | Mouse / touch | Optional. Hold a meter to move it, then press Lock or Fire. Never a drag. |
 
-A shot goes: ammunition (once you have more than one), then **angle**, then
-**power**, then Return to fire. Destroy every crown to finish the level.
+A shot goes: ammunition (once you have more than one unlocked), then **aim**,
+then **range**, then Return to fire. Destroy every crown to clear the level.
 
 Each meter takes two Return presses, never one that does both jobs: the first
-stops the meter, the second commits it. That is what makes the whole thing work
-on a single switch — with **Auto Scan** on, both meters run by themselves and
-Return alone plays the game.
+stops the meter, the second commits it. That is what makes the whole thing
+work on a single switch — with **Auto Scan** on, both meters run by
+themselves and Return alone plays the game.
 
-Backing out with a Return-hold returns the power meter to zero, which is also
-how you take a second run at a shot you charged too far.
+Backing out with a Return-hold, from the very first step of a shot, opens the
+**menu** — Resume, Restart Level, How to Play, Settings, Exit Game — the same
+one the header's Help/Settings/Exit buttons open (they just jump straight to
+the screen they name; nothing there is mouse-only). Backing out from a menu
+sub-screen goes back one screen at a time, same gesture. The one place it
+can't be opened yet is mid-cinematic, while a shot is in flight or a castle
+is still settling.
 
 In the ammunition list the highlight passes through a blank "deadzone" step
 before it wraps, same as every other list in the hub, and the list only ever
@@ -75,183 +93,214 @@ contains legal choices, so a selection can never fail.
 | `W` | Wood beam | Breaks easily. Fire Bolts burn straight through it. |
 | `S` | Stone block | Needs a hard hit. Boulders are best against it. |
 | `I` | Glass pane | Shatters at a touch, but holds almost nothing up. |
-| `T` | Powder keg | Explodes and takes its neighbours with it. |
+| `T` | Powder keg | Fragile (low hp), no bonus. The 2D version's keg actually exploded and took its neighbours with it; that carried over as an `explodes:true` flag in `js/data.js`'s `MAT.T` but nothing reads it yet in the 3D port — currently just a weak plain block. |
 | `K` | Crown | The target. Destroy them all to win. |
-| `X` | Steel girder | Never breaks. Go around it. |
+| `X` | Steel girder | Never breaks and never moves. Go around it. |
+| `w` / `s` / `i` | Small rubble | Half-size, lighter, never welds to a neighbour — loose debris. |
 
-Knocking the legs out from under a structure is usually cheaper than hitting a
-crown directly — anything left with no path down to the ground falls, and lands
-hard enough to damage whatever is beneath it.
+**A crown does not need a clear shot.** It's an ordinary physics body with hp
+like everything else, so it dies the same three ways anything else does: a
+direct hit, a hard landing, or a hard knock from a collapsing neighbour.
+Levels are free to bury a crown behind a wall that has to come down first —
+`js/game.js`'s boot-time `auditReach()` actually proves this rather than
+assuming it: it tries a cheap direct-hit trace first, and for any crown that
+fails, falls through to firing a real test shot and running physics forward
+to see whether the crown dies to the collapse. See "Adding a level" below.
 
 ## Physics
 
-Every piece of every castle is a real Box2D rigid body from the moment the
-level loads — not a special case for "loose" pieces. That is deliberate: it
-means there is no hand-written "is this block held up?" check anywhere in the
-game. A well-built castle stands because Box2D's own contact solver is
-distributing weight through it via friction and normal force, exactly the way
-a real stack of blocks does. Knock the right piece out and the same solver is
-what makes everything that depended on it topple, slide down its neighbours'
-faces, and crash into whatever is next to it — a chain reaction, not one block
-quietly vanishing.
+Every piece of every castle is a real Ammo.js (Bullet) rigid body from the
+moment the level loads — not a special case for "loose" pieces. That means
+there is no hand-written "is this block held up?" check anywhere in the game.
+A well-built castle stands because Bullet's own contact solver is
+distributing weight through it via friction and normal force, exactly the
+way a real stack of blocks does. Knock the right piece out and the same
+solver is what makes everything that depended on it topple, slide down its
+neighbours' faces, and crash into whatever is next to it — a chain reaction,
+not one block quietly vanishing.
 
-A bolt striking a piece doesn't just deal damage, either — it hands the piece
-some of its own velocity, so a hit that doesn't destroy something still knocks
-it loose to go tumbling. Impact damage (from a hard landing, or one piece
-crashing into another) works by watching for a sudden drop in a piece's own
-speed — the physics engine doesn't need to be told when that happens, the game
-just notices it.
+A bolt striking a piece doesn't just deal damage, either — it hands the
+piece some of its own velocity, so a hit that doesn't destroy something
+still knocks it loose to go tumbling. Impact damage (from a hard landing, or
+one piece crashing into another) works by watching for a sudden drop in a
+piece's own speed — the physics engine doesn't need to be told when that
+happens, the game just notices it (`stepPhysicsWithImpacts()` in
+`js/game.js`).
 
-Two piece sizes come out of this:
+Gravity (`CFG.GRAVITY`) is set well above real-world for a 1-unit block on
+purpose — that's what makes a collapse read as chunky and toy-like rather
+than floaty. It's also the single number every ballistics/reachability
+result depends on, so changing it means re-running the boot audits.
 
-- **Long rectangles.** A run of the same wall/floor letter side by side in a row
-  (`WWWWW`, `SSSSSSS`, …) is built as one wide rigid body, not N separate cells —
-  so a wall topples and lands as a single beam. Heavier (wider) pieces resist
-  being knocked around more; a bolt that sends a single stone chunk flying will
-  barely nudge a five-wide wall.
-- **Small rubble squares** (`w`/`s`/`i` — see the level letters above) are half
-  the size of a normal block, much lighter, and never weld to their neighbours.
-  A light hit sends them flying rather than just damaging them in place, which
-  is what makes them fun to place as loose debris on top of a solid structure.
-  They are *not* reliable load-bearing supports: because they only fill the
-  bottom half of their map cell, anything drawn directly above one will have a
-  visible gap and fall — good for "a wobbly cap that flies off when clipped,"
-  bad for "the leg holding up a lintel."
+Two piece sizes come out of the level parser (`js/levels.js`):
 
-"The Rubble Yard" (the last level) is built specifically to show both off.
+- **Merged runs.** A run of the same mergeable letter side by side in one row
+  (`WWWWW`, `SSSSSSS`, …) welds into one wide rigid body, not N separate
+  cells — so a wall topples and lands as a single slab. The *same* run
+  repeated on the next layer back (see "Depth" below) welds through depth
+  too, so a wall drawn identically on several layers is one thick slab, not
+  a stack of thin plates standing shoulder to shoulder.
+- **Small rubble** (`w`/`s`/`i`) is half the size of a normal block, much
+  lighter, and never welds to anything. A light hit sends it flying rather
+  than just damaging it in place, which is what makes it fun as loose
+  debris on top of a solid structure. It's *not* a reliable load-bearing
+  support: because it only fills the bottom half of its cell, anything drawn
+  directly above one has a visible gap and falls.
 
-The actual Box2D wiring lives in [`js/ballista-physics.js`](js/ballista-physics.js)
-— a small adapter so the main script only ever deals in plain pixel
-coordinates and never touches Box2D's raw API (which works in metres, and
-whose objects need to be explicitly destroyed — there's no garbage collection
-on the WASM side). If you're changing how something moves, that file and
-`stepWorld()` in `index.html` are the two places to look.
+### Depth
+
+A castle is a *stack* of ASCII pictures, front layer first (nearest the
+ballista), not a single flat one — see the big comment above `LEVELS` in
+`js/levels.js` for the full authoring rules. Because layers sit in their own
+z-slice with no vertical overlap between them, each layer has to stand on
+its own; knocking down a front wall doesn't structurally support anything
+behind it, only newly reveals or reaches it. Two tricks this makes possible,
+both already used by the shipped levels:
+
+- **Cladding.** Put `S` in front of a `W` (same row, same column, earlier
+  layer) and the wood is armoured — reachable only by getting through the
+  stone first, or a lob that clears the front layer entirely.
+- **A hidden crown.** A solid front layer can hide a back layer's crown from
+  a flat shot completely — see "What is in a castle" above for why that's a
+  legitimate level design now rather than a broken one.
 
 ## Ammunition
 
-You start with the Stone Bolt. Clearing levels 3, 6 and 9 unlocks the rest. Each
-one is better at something rather than simply stronger:
+You start with the Stone Bolt. Clearing levels 3, 6, 9 and 10 unlocks the
+rest, in that order. Each one is better at something rather than simply
+stronger, and each carries its own trajectory — flat ("direct") ammo takes
+the low root of the ballistics solution, lobbed ammo the high one, so both
+land on the same spot by different paths:
 
-- **Stone Bolt** — all-round.
-- **Boulder** — heavy, so it arcs shorter, but it smashes stone.
-- **Fire Bolt** — triple damage against wood.
-- **Splitter** — breaks into three at the top of its arc, covering width.
+- **Stone Bolt** — flat and true, no bonus, unlimited.
+- **Boulder** — lobs, 1.6× damage against stone, unlimited.
+- **Fire Bolt** — flat, 3× damage against wood, unlimited.
+- **Splitter** — lobs, lower per-hit damage, unlimited. Its in-game subtitle
+  says "splits in 3", inherited from the 2D version's design — nothing in
+  `js/game.js` actually spawns extra bolts yet, so that text currently
+  over-promises. Worth either implementing the split or rewording the
+  subtitle; flagging rather than picking one silently.
+- **Powder Bomb** — lobs, moderate direct hit *plus* falloff-scaled splash
+  damage to everything else nearby (see `applySplash()` in `js/game.js`) —
+  **only one per level**, reset on a retry. The one ammo worth saving for
+  the shot that actually needs it.
+
+## The minimap and Settings
+
+A top-down minimap (top-right) shows the sweep cone, every surviving crown as
+its own ring marker, and a bold crosshair at exactly where the current aim
+and range will land — big while you're actually composing a shot, shrinking
+out of the way the instant it's locked in. **Settings** (in the menu) lets
+you pick its size (Large / Medium / Off), and also holds Steady Camera and
+Endless Bolts — see their own sections above/below for what each does.
 
 ## No fail states
 
 Running out of bolts is not a loss. You are offered the level again, or the
-option to switch on **Endless Bolts**, which is **on by default** — with it on
-the bolt count only affects your star rating, never your ability to finish.
-Nothing in this game can be failed by being slow, and nothing is on a timer.
+option to switch on **Endless Bolts**, which is **on by default** — with it
+on, the bolt count only affects your star rating, never your ability to
+finish. Nothing in this game can be failed by being slow, and nothing is on
+a timer.
 
 ## Adding a level
 
-Levels are ASCII pictures in the `LEVELS` array near the top of the script. Copy
-one and draw a castle with the letters in the table above, plus the lowercase
-rubble letters (`w`, `s`, `i` — half-size, never merge, easily knocked flying)
-from the Physics section. The bottom row sits on the ground. A run of the same
-uppercase letter side by side in one row becomes a single wide rigid body — see
-Physics above.
+Levels are entries in the `LEVELS` array in `js/levels.js` — each one or more
+stacked ASCII layers (front layer first), built from the letters in "What is
+in a castle" above. The bottom row of every layer sits on the ground.
+[`editor.html`](editor.html) is a standalone previewer for drawing one by
+mouse: it live-checks that a draft stands up, and can export the result
+straight into `levels.js`'s format.
 
 ```js
-{ name:'The Reed Tower', dist:700, par:1, bolts:6, map:[
+{ name: 'The Reed Tower', par: 1, bolts: 6, dist: 24, layers: [[
   '..K..',
   '.WWW.',
   '.W.W.',
   '.W.W.',
   '.W.W.'
-]},
+]] },
 ```
 
-- `dist` — how far away the castle stands. Keep it roughly **700–780**; much
-  further and the far side drifts off screen, much closer and the bottom of the
-  power meter overshoots it.
+- `dist` — the castle's centre distance downrange. The range meter's window
+  is derived from this plus the castle's own footprint (`castleBounds()`/
+  `rangeWindow()` in `js/data.js`), so there's no dead travel at either end
+  regardless of how far out a castle sits — but `dist` still has to stay
+  inside every relevant ammo's `maxRange(speed)`, or the boot audit below
+  will catch it and throw. As a rough guide, the 12 shipped levels sit
+  between 24 and 29; a level several layers deep that needs a lob to clear
+  its front wall has noticeably less real reach than that number suggests,
+  since the lob still has to clear the *same* absolute distance ceiling.
 - `par` — the bolt count worth three stars.
 - `bolts` — the limit when Endless Bolts is switched off.
+- `layers` — front to back. A crown or a support can live on any layer; see
+  "Depth" above for what that buys.
 
-The whole set is built around one idea: knocking the legs out from under a
-tall, thin structure is more fun than shooting the target directly, so favour
-spindly silhouettes with real voids in them over honest thick walls. Two
-letter tricks make that hide-and-reveal design possible without touching the
-engine, both exploiting the fact that a bolt only reaches a cell once it's
-gone through whatever sits in front of it (same row, closer to the muzzle) —
-see the comment above the `LEVELS` array for the full explanation:
+Two things to check after drawing one — both are boot-time assertions in
+`js/game.js` now, not something to eyeball:
 
-- Put `S` in front of a `W` to **clad** it — the wood behind is only
-  reachable with a Boulder, a very hard direct Stone Bolt, or a lob that
-  clears the cladding entirely.
-- Put `I` in front of a `W` or `T` to make it a **window** — any shot that
-  breaks the glass carries on into whatever was behind it in the same
-  motion. Glass is also weak enough to use as a leg on its own, as a
-  deliberately fragile point in an otherwise solid colonnade.
+1. **It must stand up** (`auditLevels()`) — build it, step a few seconds of
+   physics, and confirm no crown drifted and nothing is still awake. If it
+   collapses the moment the level loads, it genuinely wasn't standing on its
+   own: check that every piece sits on the ground or on something wide
+   enough underneath it, and mind the small-rubble caveat under Physics
+   above (a beam with only rubble for legs can sag and fall).
+2. **Every crown must be destroyable** (`auditReach()`) — not necessarily
+   hittable. It tries a cheap direct-hit trace first (still the common
+   case), and for any crown that fails, actually fires a real test shot at a
+   fresh copy of the level and steps physics forward to see whether the
+   crown dies to the collapse instead — a legitimate pass, not a workaround.
+   If a level fails this, watch the console: the error names the level and
+   which crown nothing in the sampled window could reach *or* bring down.
 
-Two things to check after drawing one:
-
-1. **It must stand up.** There's no hand-written rule to satisfy any more —
-   it's real physics, so a well-drawn castle just stands, the same way stacked
-   blocks would in real life. If it collapses the moment the level loads, that
-   means it genuinely wasn't standing on its own: check that every piece
-   either sits on the ground or on something wide enough underneath it. A long
-   lintel needs legs that are actually load-bearing (see the small-rubble
-   caveat under Physics above) — a beam spanning a wide gap with only
-   corner support can sag and fall, exactly like the real thing would.
-2. **It must be reachable.** The sweep covers 20–70° and the power meter maps
-   to 780–1160 muzzle speed (`AIM_MIN_DEG`/`AIM_MAX_DEG`, `POWER_MIN_V`/
-   `POWER_MAX_V` in `CFG`) — the same ground the old seven-angle, four-power
-   scan lists covered. If you move a castle a long way out, check that a
-   part-charged shot can still reach its near face, or the bottom half of the
-   meter becomes dead travel the player has to wait through.
-
-## Settings
-
-Speech, voice, sound, auto-scan, scan speed, colour profile (Ben Default, Dark,
-Light, High Contrast), text size (100–200%) and Endless Bolts. Auto-scan and
-scan speed are shared hub-wide through `scan-manager.js`, so changing them here
-changes them everywhere. Progress, stars and settings are saved automatically
-under the `bennysballista_` keys in `localStorage`.
-
-"Reset Progress" needs to be selected twice — a single mis-scan should not be
-able to wipe a save.
+Both audits run on every boot, against every level, before the title
+resolves — a failure surfaces as a loud error on screen rather than a silent
+hang. `RT.game.__test` exposes both, plus `crownDestroyableBySimulation(ix,
+crownIx)` to check one crown in isolation while iterating on a level.
 
 ## Notes for whoever edits this next
 
-- Sound goes through `SafeAudio`, never `AudioContext` — the latter can take
-  down the renderer in the Electron desktop build.
-- Do not add input debouncing. `scan-manager.js` already installs a global 250 ms
-  cooldown; a second one fights it.
-- `CFG` at the top holds the hold durations and the scan-on-hold direction, in
-  case the hub's conventions change, plus every number behind the two meters
-  (`AIM_DEG_PER_S`, `CHARGE_PCT_PER_S`, the angle and speed ranges, the tick
-  and beep spacing). It also holds the Box2D tuning (`PPM`, solver iteration
-  counts, friction/restitution, the impact-damage thresholds) — see
-  `js/ballista-physics.js` and `stepWorld()`.
-- Both meters advance in the frame loop (`stepMeters()`), not on a timer, so the
-  pause menu freezes them and resuming picks them up mid-charge.
-- Nothing is spoken while a meter moves. Everything the player is told about a
-  shot comes from `stopAim()` or `stopCharge()`, on release. Adding a "45
-  degrees… 46 degrees…" running commentary would put speech permanently behind
-  the meter and on top of itself — the sweep is silent on purpose.
-- `Space` means "scan backwards" in the ammunition list and "move the meter" in
-  the aim and power steps. `meterStage()` is what keeps those apart; don't let
-  the two paths merge.
-- `boot()` is `async` and `await`s `Box2D()` before the first `buildLevel()`
-  call — the WASM module has to finish loading first. Nothing before that
-  point in `boot()` may depend on physics being ready.
-- Box2D bodies aren't garbage-collected: `buildLevel()` explicitly
-  `destroyBlock()`s every body from the outgoing level before building the
-  next one, and `damageBlock()`'s "destroyed" branch does the same the instant
-  a piece dies, rather than waiting for the next physics step. If you add a
-  new way for a block to leave the game, make sure it destroys the body too.
-- The one `b2World` (and its static ground body) is created once in `boot()`
-  and reused for the whole session — levels only ever add/remove their own
-  block bodies, never the world itself.
+- The whole thing is split across `js/`: `data.js` (tunables, ammo,
+  materials, ballistics), `levels.js` (level data + the ASCII parser),
+  `physics.js` (the Ammo.js adapter), `art.js` (the paper-craft models),
+  `world.js` (sky/ground/lights), `game.js` (camera director, shot pipeline,
+  save/progress, boot audits), `ui.js` (input, meters, minimap, the menu).
+  `main.js` is the whole bootstrap and frame loop.
+- **Power sets range, never force** — see "Why this game exists" above. If
+  you add a new ammunition or mechanic, keep this rule; it's the strongest
+  form of the hub's "letting go early must be harmless" principle and it's
+  why elevation isn't a second meter.
+- Ammo.js's module factory resolves via a hand-rolled `.then()` with no
+  `.catch` and a single argument only — `await`-ing the raw factory hangs
+  the page outright. `js/physics.js` wraps it in a real `Promise`; don't
+  `await` `Ammo()` directly anywhere else.
+- A "rebuild this level" function needs the exact same teardown discipline
+  as the "destroy this one thing" function it sits next to. `clearBlocks()`
+  in `game.js` removes every mesh from the scene and disposes its geometry
+  for exactly this reason — skipping that leaked draw calls forever the
+  first time levels could actually be swapped.
+- Nothing is spoken while a meter moves. Everything the player is told about
+  a shot comes from `stopAim()`/`stopCharge()` in `ui.js`, on release, using
+  the same `traceShot()` the real shot fires with — "the dots never lie"
+  because there's only one function that can lie.
+- `Space` means "scan backwards" in a list and "move the meter" in the aim
+  and range stages. `meterStage()`/`inScanList()` in `ui.js` are what keep
+  those apart; don't let the two paths merge. The same file's `overlayPhase()`
+  treats the menu's item list as one more list to scan, for free.
+- `RT.game.CAM.phase` is the one source of truth for what's on screen —
+  `ATTRACT` / `AIM` / `FLIGHT` / `IMPACT` / `SETTLE` / `RESULTS` /
+  `RESULTS_MENU` / `OUTOFBOLTS` / `MENU`. `ui.js`'s `canAct()`/`overlayPhase()`
+  gate every input entry point against it; add a phase there before adding
+  one in `game.js`, not after.
+- Progress, stars, and settings (minimap size, Steady Camera, Endless Bolts)
+  live in one object under `RT.util`'s `rt-ballista` save key — see
+  `defaultSave()` in `game.js`. `runBootAudits()` snapshots and restores this
+  around the boot audits, since `auditReach()`'s simulated tier fires real
+  test shots that can legitimately trip a real win.
 
 ## Third-party code
 
-`js/Box2D.js` / `js/Box2D.wasm` / `js/Box2D.simd.js` / `js/Box2D.simd.wasm` /
-`js/box2d-entry.js` are vendored unmodified from
-[`box2d-wasm`](https://github.com/Birch-san/box2d-wasm) (zlib licence — see
-`js/box2d-LICENSE.zlib.txt`) and bundle Google's
-[wasm-feature-detect](https://github.com/GoogleChromeLabs/wasm-feature-detect)
-(Apache 2.0 — see `js/box2d-LICENSE.wasm-feature-detect.txt`). Don't hand-edit
-these; pull a fresh copy from the npm package if Box2D itself needs updating.
+`js/three.min.js` is vendored unmodified from [three.js](https://threejs.org/)
+r155 (MIT licence). `js/ammo.js` is vendored unmodified from
+[ammo.js](https://github.com/kripken/ammo.js/) (zlib licence), a port of
+[Bullet Physics](https://pybullet.org/) to JavaScript. Don't hand-edit
+either; pull a fresh build from upstream if either needs updating.

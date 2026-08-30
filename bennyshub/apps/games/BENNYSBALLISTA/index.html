@@ -93,6 +93,26 @@ canvas{display:block; max-width:100%; max-height:100%; background:var(--sky1)}
 body[data-theme="light"] .pill{background:rgba(255,255,255,.85)}
 .pill b{color:var(--accent2)}
 
+/* Top-down read of the aim window — castle footprint, objective markers,
+   landing crosshair. Sits opposite the HUD pills so it never competes with
+   them. Big and bold while actually composing a shot (.big, driven by
+   canAct() in js/ui.js) since that's when it's doing real work as an aiming
+   aid; shrinks out of the way the instant the shot is locked in and the
+   camera takes over. Drawn at one native resolution (300x364, see
+   index.html's canvas attrs) and only *displayed* smaller via these CSS
+   dimensions, so shrinking never blurs it. */
+#minimap{
+  position:absolute; top:.5rem; right:.5rem; z-index:3;
+  width:150px; height:182px;
+  --mm-big-w:520px; --mm-big-h:632px;   /* Large by default; js/ui.js's applyMinimapSize() overrides for Medium */
+  border:3px solid var(--line); border-radius:.6rem;
+  background:rgba(0,0,0,.6);
+  transition:width .3s ease, height .3s ease;
+}
+#minimap.big{ width:var(--mm-big-w); height:var(--mm-big-h); border-color:var(--focus) }
+#minimap.mm-hidden{ display:none }
+body[data-theme="light"] #minimap{background:rgba(255,255,255,.78)}
+
 /* ── Shot bar: the ammo list, then the two meters ───────────────────────── */
 #shotbar{
   flex:0 0 auto; background:var(--panel); border-top:3px solid var(--line);
@@ -124,6 +144,10 @@ body[data-theme="light"] .pill{background:rgba(255,255,255,.85)}
 }
 .chip.focus .sub{color:#3a2f00}
 .chip:disabled{opacity:.4; cursor:default}
+.chip.depleted{opacity:.55}
+.chip.depleted .sub{color:var(--bad)}
+.chip.depleted.focus{opacity:1}
+.chip.depleted.focus .sub{color:#3a2f00}
 .chip.act{font-weight:800; border-color:var(--accent); color:var(--accent)}
 .lane.active .chip.act{background:var(--accent); color:#0d1220; border-color:var(--accent)}
 
@@ -233,6 +257,7 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
         <div class="pill" id="pBolts">Bolts <b>0</b></div>
         <div class="pill" id="pScore">Score <b>0</b></div>
       </div>
+      <canvas id="minimap" width="520" height="632" aria-hidden="true"></canvas>
     </div>
 
     <div id="shotbar">

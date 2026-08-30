@@ -9,14 +9,14 @@
  * fire()/traceShot() API at the bottom of this file; everything about the
  * world, the live castle and the camera stays here.
  *
- * Also owns progress: stars, score, ammo unlocks and the results/out-of-
- * bolts overlays (RESULTS_MENU / OUTOFBOLTS, two more CAM phases alongside
- * the camera director's own six), and the save file itself — one combined
- * object under RT.util's `rt-ballista` key, same shape as FishMaster's save.
- * Endless Bolts defaults on (the hub's no-fail default), so OUTOFBOLTS is
- * mostly dormant until a future settings menu can actually turn it off —
- * `__test.setEndlessBolts(false)` is the only way there for now. Still no
- * pause menu, minimap, or per-material audio (later polish).
+ * Also owns progress: stars, score, ammo unlocks, the results/out-of-bolts/
+ * menu overlays (RESULTS_MENU / OUTOFBOLTS / MENU, three more CAM phases
+ * alongside the camera director's own six), and the save file itself — one
+ * combined object under RT.util's `rt-ballista` key, same shape as
+ * FishMaster's save. Endless Bolts defaults on (the hub's no-fail default);
+ * it, Steady Camera and minimap size are all reachable from the MENU phase's
+ * Settings screen, which js/ui.js renders. Still no per-material audio, and
+ * no way to open MENU mid-cinematic (see js/ui.js's header).
  */
 RT.game = (function () {
   'use strict';
@@ -45,6 +45,21 @@ RT.game = (function () {
   let levelScore = 0;   // this level's points, folded into save.totalScore on a win
   let lastResult = null; // { stars, earned, bonus, newAmmo } for the results overlay
 
+  /** Per-level ammo scarcity — id -> uses left, only for AMMO entries that
+   *  carry a `limit`. Reset every loadLevel() (including a retry), never
+   *  persisted, so scarcity is a per-attempt puzzle constraint, not a
+   *  session-wide one. See D.AMMO's limit field. */
+  let ammoLeft = {};
+  function resetAmmoLeft() {
+    ammoLeft = {};
+    for (const a of D.AMMO) if (a.limit != null) ammoLeft[a.id] = a.limit;
+  }
+  function ammoRemaining(ammo) {
+    if (ammo.limit == null) return Infinity;
+    const v = ammoLeft[ammo.id];
+    return v == null ? ammo.limit : v;
+  }
+
   /* ── Save / progress ──────────────────────────────────────────────────────
    * One combined object (progress + the one setting that affects rules),
    * same shape as FishMaster's save — not the bare `bennysballista_*` keys
@@ -60,20 +75,38 @@ RT.game = (function () {
       level: 0,          // furthest level reached (index) — also where a fresh boot resumes
       stars: {},         // levelIx -> best stars earned (1-3)
       totalScore: 0,
-      endlessBolts: true // recommended default, matches the hub's no-fail philosophy
+      endlessBolts: true, // recommended default, matches the hub's no-fail philosophy
+      minimapSize: 'large', // 'large' | 'medium' | 'none' — js/ui.js's Settings screen
+      // null = follow the OS's prefers-reduced-motion; true/false = the player
+      // overrode it in Settings. Kept tri-state rather than baking the OS value
+      // in at first save, so someone who later turns reduced-motion on still
+      // gets Steady Camera automatically unless they explicitly chose otherwise.
+      steadyCamera: null
     };
   }
   function loadSave() {
     const raw = U.load(SAVE_KEY, null);
     save = (raw && raw.version === SAVE_VERSION) ? Object.assign(defaultSave(), raw) : defaultSave();
   }
-  function persistSave() { U.save(SAVE_KEY, save); }
+  /** Set while runBootAudits() is actually firing test shots (auditReach()'s
+   *  simulated tier, below) — a test shot can legitimately clear a level's
+   *  only crown and trip checkWin()/finishLevel(), which would otherwise
+   *  write bogus progress into the player's real save. runBootAudits()
+   *  also snapshots/restores `save` itself around the whole audit, so this
+   *  is defense in depth, not the only guard. */
+  let suppressSaveWrites = false;
+  function persistSave() { if (!suppressSaveWrites) U.save(SAVE_KEY, save); }
 
   /** Auto-enabled under prefers-reduced-motion, same as FishMaster's
-   *  reducedMotion(). Exposed mutable so a future settings menu (steps 6-7)
-   *  can toggle it; __test.setSteadyCamera() is the only way in for now. */
+   *  reducedMotion() — unless the player explicitly overrode it from the
+   *  menu's Settings screen (setSteadyCamera below). */
   const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  let steadyCamera = REDUCED_MOTION;
+  /** Live value of the Steady Camera setting: the player's explicit choice
+   *  if they made one in Settings, otherwise whatever the OS asks for. */
+  function steadyCameraOn() {
+    if (!save || save.steadyCamera == null) return REDUCED_MOTION;
+    return !!save.steadyCamera;
+  }
 
   /* ── Theming ──────────────────────────────────────────────────────────────
    * getComputedStyle is far too slow to call per frame, so the palette is
@@ -83,7 +116,7 @@ RT.game = (function () {
    * black (getPropertyValue returns '').
    */
   const PALETTE_VARS = [
-    'sky1', 'sky2', 'ground',
+    'sky1', 'sky2', 'ground', 'focus',
     'wood', 'stone', 'glass', 'barrel', 'crown', 'steel'
   ];
   let PAL = {};
@@ -127,7 +160,66 @@ RT.game = (function () {
       sky1: css('sky1'), sky2: css('sky2'), ground: css('ground')
     });
     ballista = A.buildBallista(css('wood'), css('steel'));
+    ballista.pivot.rotation.order = 'YXZ';   // yaw about world-up first, then pitch — a turret, not a gimbal
     scene.add(ballista.root);
+    buildAimPreview();
+  }
+
+  /* ── Aim preview: the arm, a dotted flight path, and a ground reticle ──────
+   * "The dots never lie" (see traceShot()'s header) used to mean only the
+   * narrated outcome; this is the same trace made visible in the view the
+   * player is actually watching, not just the minimap (js/ui.js) or the
+   * footer text. Built once and repositioned rather than rebuilt, since
+   * updatePreview() in js/ui.js calls in fairly often while a meter moves.
+   */
+  const PREVIEW_DOTS = 10;
+  let previewGroup = null, previewDots = [], previewRing = null, previewMat = null;
+
+  function buildAimPreview() {
+    previewMat = new THREE.MeshBasicMaterial({ color: css('focus'), depthTest: false });
+    previewGroup = new THREE.Group();
+    previewGroup.visible = false;
+
+    const dotGeo = new THREE.SphereGeometry(0.08, 8, 6);
+    for (let i = 0; i < PREVIEW_DOTS; i++) {
+      const dot = new THREE.Mesh(dotGeo, previewMat);
+      dot.castShadow = false;
+      previewDots.push(dot);
+      previewGroup.add(dot);
+    }
+
+    const ringGeo = new THREE.RingGeometry(0.32, 0.5, 24);
+    previewRing = new THREE.Mesh(ringGeo, previewMat);
+    previewRing.rotation.x = -Math.PI / 2;   // lies flat on the ground
+    previewGroup.add(previewRing);
+
+    scene.add(previewGroup);
+  }
+
+  /** Repaints the arm/dots/reticle to match one trace (the exact object
+   *  js/ui.js's updatePreview() just computed via traceShot()), or hides
+   *  everything when there's nothing to show. Also points the ballista's
+   *  arm at the shot — cosmetic, but "the arm points where you're about to
+   *  fire" is the single biggest legibility win available here for free,
+   *  since traceShot() already solves the elevation this needs. */
+  function updateAimPreview(trace) {
+    if (!previewGroup) return;
+    if (!trace || CAM.phase !== 'AIM') { previewGroup.visible = false; return; }
+    previewGroup.visible = true;
+
+    const pts = trace.points;
+    for (let i = 0; i < PREVIEW_DOTS; i++) {
+      const t = i / (PREVIEW_DOTS - 1);
+      const idx = Math.min(pts.length - 1, Math.round(t * (pts.length - 1)));
+      previewDots[i].position.copy(pts[idx]);
+    }
+    const last = pts[pts.length - 1];
+    previewRing.position.set(last.x, CFG.GROUND_Y + 0.03, last.z);
+
+    if (ballista) {
+      ballista.pivot.rotation.y = -trace.yaw;
+      ballista.pivot.rotation.x = trace.elevation;
+    }
   }
 
   /* ── Blocks ───────────────────────────────────────────────────────────────
@@ -207,6 +299,7 @@ RT.game = (function () {
     boltsUsed = 0;
     levelScore = 0;
     lastResult = null;
+    resetAmmoLeft();
 
     levelIx = ((ix % LV.LEVELS.length) + LV.LEVELS.length) % LV.LEVELS.length;
     liveLevel = LV.LEVELS[levelIx];
@@ -253,10 +346,27 @@ RT.game = (function () {
     }
   }
 
-  /** Every crown is hittable: for each level, sweep (ammo x yaw x range) and
-   *  assert at least one combination's deterministic trace lands a direct
-   *  hit on each crown. Coarse sampling — this only needs to prove a
-   *  solution exists somewhere in the window, not find the best one. */
+  /**
+   * Every crown is DESTROYABLE — not necessarily hittable. A crown is a
+   * legitimate target while fully obscured behind another layer; it only
+   * has to be killable by *some* plan: a direct hit, collateral impact
+   * damage from a collapsing neighbour, or fall damage once its support is
+   * gone (see js/data.js's MAT.K — a crown is an ordinary dynamic body with
+   * hp, so stepPhysicsWithImpacts()'s existing before/after speed check
+   * already covers all three at runtime; this audit just has to actually
+   * simulate a shot to see it, not assume "no direct hit" means "no plan").
+   *
+   * Tier 1 is the old cheap check — a deterministic traceShot() with no
+   * physics, tried first since most crowns still are directly hittable and
+   * it costs almost nothing. Only a crown tier 1 can't reach falls through
+   * to tier 2: fire a real candidate shot (js/game.js's actual fire()) into
+   * a freshly reloaded castle and step real physics forward, watching that
+   * one crown specifically, so an obscured crown gets to prove itself the
+   * same way a player firing at it for real would. Tier 2's grid is coarser
+   * than tier 1's — each sample costs a full simulated settle, not one
+   * cheap trace — and every candidate bails the instant the crown dies
+   * rather than running the full settle window to the end.
+   */
   function auditReach() {
     const YAW_STEPS = 6, RANGE_STEPS = 8;
     for (let ix = 0; ix < LV.LEVELS.length; ix++) {
@@ -264,8 +374,16 @@ RT.game = (function () {
       const lvl = LV.LEVELS[ix];
       const name = lvl.name;
       const yawHalfDeg = D.yawLimit(lvl) * 180 / Math.PI;
-      const crowns = blocks.filter((b) => b.mat.crown);
-      for (const crown of crowns) {
+      const crownCount = blocks.filter((b) => b.mat.crown).length;
+
+      // Tier 2 reloads the level (and rebuilds every block, crown included)
+      // per candidate it tries, which invalidates any earlier crown
+      // reference — so each crown index gets its OWN fresh, untouched
+      // loadLevel() right before it's checked, rather than sharing one load
+      // across the whole level the way tier 1 alone used to.
+      for (let ci = 0; ci < crownCount; ci++) {
+        loadLevel(ix);
+        const crown = blocks.filter((b) => b.mat.crown)[ci];
         let hitOk = false;
         for (const ammo of D.AMMO) {
           for (let yi = 0; yi <= YAW_STEPS && !hitOk; yi++) {
@@ -279,9 +397,44 @@ RT.game = (function () {
           }
           if (hitOk) break;
         }
-        if (!hitOk) throw new Error(`auditReach: "${name}" has a crown no (ammo, yaw, range) combination in the sampled window can hit`);
+
+        if (!hitOk) hitOk = crownDestroyableBySimulation(ix, ci, yawHalfDeg);
+        if (!hitOk) {
+          throw new Error(`auditReach: "${name}" has a crown nothing in the sampled window can destroy — `
+            + 'not by a direct hit, and not by collapse/fall damage from any candidate shot either');
+        }
       }
     }
+  }
+
+  const SIM_YAW_STEPS = 4, SIM_RANGE_STEPS = 6, SIM_SECONDS = 6;
+  /** Tier 2 of auditReach() above: actually fires candidate shots (via the
+   *  real fire() pipeline) at a fresh copy of level `ix` and lets physics
+   *  run forward, checking whether crown index `crownIx` (stable within one
+   *  loadLevel() call, since nothing has been destroyed yet at the moment
+   *  it's captured) dies — directly, or as collateral, or by falling.
+   *  Bails out of a candidate the instant the crown dies rather than
+   *  running the rest of its settle window. */
+  function crownDestroyableBySimulation(ix, crownIx, yawHalfDeg) {
+    const maxSteps = Math.ceil(SIM_SECONDS / CFG.DT);
+    for (const ammo of D.AMMO) {
+      for (let yi = 0; yi <= SIM_YAW_STEPS; yi++) {
+        const yawDeg = -yawHalfDeg + (2 * yawHalfDeg) * yi / SIM_YAW_STEPS;
+        const yawRad = yawDeg * Math.PI / 180;
+        for (let ri = 0; ri <= SIM_RANGE_STEPS; ri++) {
+          const rangePct = 100 * ri / SIM_RANGE_STEPS;
+          loadLevel(ix);
+          const target = blocks.filter((b) => b.mat.crown)[crownIx];
+          if (!target || !fire(ammo, yawRad, rangePct)) continue;
+          for (let i = 0; i < maxSteps; i++) {
+            stepPhysicsWithImpacts(CFG.DT);
+            updateShots(CFG.DT);
+            if (!target.alive) return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   /** Runs both audits (each leaves the last level it built live in the
@@ -290,8 +443,18 @@ RT.game = (function () {
    *  loadAttract() for how that gets surfaced instead of just hanging
    *  silently. */
   function runBootAudits() {
-    auditLevels();
-    auditReach();
+    // auditReach()'s simulated tier fires real test shots (see below) which
+    // can legitimately win a level and touch `save` — snapshot/restore it so
+    // none of that leaks into the player's actual progress, win or throw.
+    const saveSnapshot = JSON.parse(JSON.stringify(save));
+    suppressSaveWrites = true;
+    try {
+      auditLevels();
+      auditReach();
+    } finally {
+      suppressSaveWrites = false;
+      save = saveSnapshot;
+    }
     loadLevel(save.level);
   }
 
@@ -354,18 +517,25 @@ RT.game = (function () {
       if (pos.y <= CFG.GROUND_Y + 0.02) { hit = { type: 'ground' }; break; }
       if (Math.abs(pos.x) > OUT_OF_BOUNDS_X || pos.z < OUT_OF_BOUNDS_Z_FAR || pos.z > OUT_OF_BOUNDS_Z_NEAR) break;
     }
-    return { points: points, hit: hit, ammo: ammo, impactVel: vel.clone() };
+    return {
+      points: points, hit: hit, ammo: ammo, impactVel: vel.clone(),
+      yaw: yawRad, elevation: launch.elevation   // for the aim-preview arm/reticle, see updateAimPreview()
+    };
   }
 
   /** Fires for real: traces the shot, spawns the bolt mesh, and queues it
    *  for updateShots() to play back and resolve. Returns the trace (same
    *  shape the preview uses) so ui.js can narrate the outcome immediately —
    *  the outcome is already fully determined, only the *watching* of it
-   *  takes time. */
+   *  takes time. Returns null (and spends nothing) if this ammo is out for
+   *  the level — js/ui.js already refuses to lock a depleted ammo in at
+   *  commit time, so this is a backstop, not the primary gate. */
   function fire(ammo, yawRad, rangePct) {
+    if (ammoRemaining(ammo) <= 0) return null;
     const trace = traceShot(ammo, yawRad, rangePct);
     if (!trace) return null;
     boltsUsed++;
+    if (ammo.limit != null) ammoLeft[ammo.id] = ammoRemaining(ammo) - 1;
     const mesh = A.buildBolt(ammo.r);
     mesh.position.copy(trace.points[0]);
     scene.add(mesh);
@@ -374,7 +544,7 @@ RT.game = (function () {
     return trace;
   }
 
-  function applyHit(b, ammo, impactVel) {
+  function applyHit(b, ammo, impactVel, impactPos) {
     if (!b.alive) return;
     const dmg = D.damageFor(ammo, b.mat);
     b.hp -= dmg;
@@ -382,7 +552,33 @@ RT.game = (function () {
       P.addVelocity(b.body, impactVel.x * CFG.KNOCK_SCALE, impactVel.y * CFG.KNOCK_SCALE, impactVel.z * CFG.KNOCK_SCALE);
     }
     if (b.hp <= 0) destroyBlockRec(b);
+    if (ammo.splash && impactPos) applySplash(ammo, impactPos, b);
     checkWin();
+  }
+
+  const _splashDir = new THREE.Vector3();
+  /** Area damage around a splash ammo's direct hit — everything alive within
+   *  `splashRadius` of the impact (the primary block excluded, it already
+   *  took a full direct hit above) takes falloff-scaled damage and a knock
+   *  away from the blast centre. Distance is measured to each block's centre
+   *  rather than a real explosion-vs-box overlap test, which is plenty for
+   *  a block grid this coarse. */
+  function applySplash(ammo, impactPos, primaryBlock) {
+    const radius = ammo.splashRadius || 0;
+    if (radius <= 0) return;
+    for (const other of blocks) {
+      if (!other.alive || other === primaryBlock) continue;
+      const dist = other.mesh.position.distanceTo(impactPos);
+      if (dist > radius) continue;
+      const falloff = 1 - dist / radius;
+      other.hp -= D.damageFor(ammo, other.mat) * (ammo.splashDmgScale || 1) * falloff;
+      if (!other.mat.static) {
+        _splashDir.subVectors(other.mesh.position, impactPos).normalize();
+        const kick = ammo.speed * CFG.KNOCK_SCALE * falloff;
+        P.addVelocity(other.body, _splashDir.x * kick, _splashDir.y * kick + kick * 0.4, _splashDir.z * kick);
+      }
+      if (other.hp <= 0) destroyBlockRec(other);
+    }
   }
 
   function checkWin() {
@@ -445,7 +641,7 @@ RT.game = (function () {
         scene.remove(s.mesh);
         if (s.trace.hit.type === 'block') {
           const impactPos = s.trace.points[s.trace.points.length - 1];
-          applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel);
+          applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel, impactPos);
           beginImpact(impactPos, s.trace.impactVel);
         } else {
           advanceAfterShot();   // a clean miss has nothing worth a cinematic cut for, but bolts still ran out
@@ -488,6 +684,7 @@ RT.game = (function () {
     W.refresh(world, {
       sky1: css('sky1'), sky2: css('sky2'), ground: css('ground')
     });
+    if (previewMat) previewMat.color.set(css('focus'));
   }
 
   function init(opts) {
@@ -663,7 +860,7 @@ RT.game = (function () {
    *  small additive jitter rather than a replacement. */
   function updateShake(dt) {
     CAM.shake = Math.max(0, CAM.shake - dt * 1.5);
-    if (CAM.shake <= 0 || steadyCamera || REDUCED_MOTION) return;
+    if (CAM.shake <= 0 || steadyCameraOn()) return;
     const s = CAM.shake * 0.12;
     camera.position.x += (Math.random() * 2 - 1) * s;
     camera.position.y += (Math.random() * 2 - 1) * s;
@@ -674,6 +871,12 @@ RT.game = (function () {
       stepPhysicsWithImpacts(dt);
       updateShots(dt);
     }
+
+    // The preview is only ever *shown* from updateAimPreview() (called by
+    // js/ui.js whenever it recomputes a trace), but it has to be *hidden*
+    // the instant the phase leaves AIM even if ui.js never calls in again —
+    // e.g. the moment a shot fires and the camera cuts to FLIGHT.
+    if (previewGroup && CAM.phase !== 'AIM') previewGroup.visible = false;
 
     if (CAM.phase === 'ATTRACT') {
       updateAttract(dt);
@@ -704,6 +907,10 @@ RT.game = (function () {
       // holding a shot of — the out-of-bolts overlay just sits over the
       // ordinary aim framing.
       updateAim();
+    } else if (CAM.phase === 'MENU') {
+      // Player-invoked, always from AIM (see openMenu()) — same fixed
+      // framing underneath, same as OUTOFBOLTS.
+      updateAim();
     } else {
       CAM.phase = 'AIM';
       updateAim();
@@ -712,7 +919,7 @@ RT.game = (function () {
     // One fixed wide view for every phase — still runs the state machine
     // above (so js/ui.js's input gate on CAM.phase === 'AIM' keeps working),
     // just overrides what gets rendered.
-    if (steadyCamera) updateAim();
+    if (steadyCameraOn()) updateAim();
 
     updateShake(dt);
   }
@@ -721,6 +928,15 @@ RT.game = (function () {
    *  same gate as the 2D version's unlockedAmmo(). */
   function unlockedAmmo() { return D.AMMO.filter((a) => a.unlockAt === 0 || save.level >= a.unlockAt); }
   function currentLevel() { return liveLevel; }
+
+  /** Every crown still standing, in world x/z — js/ui.js's minimap marks
+   *  these as objectives regardless of whether they're actually exposed to
+   *  a direct shot right now (a crown can be a legitimate target while
+   *  fully hidden behind another layer — see the splash/collateral damage
+   *  path). */
+  function crownPositions() {
+    return blocks.filter((b) => b.alive && b.mat.crown).map((b) => ({ x: b.mesh.position.x, z: b.mesh.position.z }));
+  }
 
   /* ── Results / out-of-bolts overlays ──────────────────────────────────────
    * js/ui.js renders these (the #overlay markup already in index.html) and
@@ -742,6 +958,23 @@ RT.game = (function () {
     persistSave();
     CAM.phase = 'AIM';   // same wreckage, no rebuild — just allowed to keep firing
   }
+
+  /** The context/pause menu — a third overlay phase alongside RESULTS_MENU/
+   *  OUTOFBOLTS, but player-invoked (Return-hold, or the header's Help/
+   *  Settings buttons) rather than reached automatically, so it only opens
+   *  from AIM rather than interrupting a cinematic. js/ui.js owns which
+   *  *screen* within it is showing (root / how-to-play / settings) and
+   *  renders all of them through the same #overlay/#panel list machinery. */
+  function openMenu() { if (CAM.phase === 'AIM') CAM.phase = 'MENU'; }
+  function closeMenu() { CAM.phase = 'AIM'; }
+
+  function setMinimapSize(size) {
+    if (['large', 'medium', 'none'].indexOf(size) === -1) return;
+    save.minimapSize = size;
+    persistSave();
+  }
+  function setSteadyCamera(on) { save.steadyCamera = !!on; persistSave(); }
+  function setEndlessBolts(on) { save.endlessBolts = !!on; persistSave(); }
 
   /**
    * Console-driven checks — no results panel or narration for a miss/hit
@@ -787,6 +1020,9 @@ RT.game = (function () {
     levelName() { return liveLevel ? liveLevel.name : null; },
     loadLevel(ix) { loadLevel(ix); },
     auditLevels, auditReach,
+    crownDestroyableBySimulation(ix, crownIx) {
+      return crownDestroyableBySimulation(ix, crownIx, D.yawLimit(LV.LEVELS[ix]) * 180 / Math.PI);
+    },
     camState() {
       return {
         phase: CAM.phase, shake: CAM.shake,
@@ -794,28 +1030,50 @@ RT.game = (function () {
         camPos: camera.position.toArray()
       };
     },
-    isSteadyCamera() { return steadyCamera; },
-    setSteadyCamera(on) { steadyCamera = !!on; },
+    isSteadyCamera() { return steadyCameraOn(); },
+    setSteadyCamera(on) { setSteadyCamera(on); },
     isReducedMotion() { return REDUCED_MOTION; },
     boltsUsed() { return boltsUsed; },
     levelScore() { return levelScore; },
     save() { return save; },
     lastResult() { return lastResult; },
-    setEndlessBolts(on) {
-      // No settings menu exists yet to reach this by hand — Endless Bolts
-      // defaults on (see defaultSave()), so this is here purely so the
-      // out-of-bolts path can be exercised/verified before that menu exists.
-      save.endlessBolts = !!on;
-      persistSave();
+    ammoLeft() { return Object.assign({}, ammoLeft); },
+    /** Diagnostic, not a real audit: world-space AABB overlap between every
+     *  pair of alive blocks, shrunk by `epsilon` first so flush resting
+     *  contact doesn't count — only genuine interpenetration does. Used to
+     *  sanity-check that real multi-layer levels aren't visibly clipping. */
+    checkOverlaps(epsilon) {
+      const eps = epsilon === undefined ? 0.03 : epsilon;
+      const boxes = blocks.filter((b) => b.alive).map((b) => ({
+        b: b, box: new THREE.Box3().setFromObject(b.mesh).expandByScalar(-eps)
+      }));
+      const overlaps = [];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          if (boxes[i].box.intersectsBox(boxes[j].box)) {
+            overlaps.push({
+              a: { mat: boxes[i].b.mat.id, pos: boxes[i].b.mesh.position.toArray() },
+              b: { mat: boxes[j].b.mat.id, pos: boxes[j].b.mesh.position.toArray() }
+            });
+          }
+        }
+      }
+      return overlaps;
     },
+    pivotRotation() { return ballista ? { y: ballista.pivot.rotation.y, x: ballista.pivot.rotation.x } : null; },
+    previewVisible() { return previewGroup ? previewGroup.visible : null; },
+    previewDotCount() { return previewDots.length; },
+    previewRingPos() { return previewRing ? previewRing.position.toArray() : null; },
+    setEndlessBolts(on) { setEndlessBolts(on); },
     resetSave() { save = defaultSave(); persistSave(); }
   };
 
   return {
     init, loadAttract, update,
     onThemeChanged, isFlat,
-    unlockedAmmo, currentLevel, fire, traceShot,
+    unlockedAmmo, ammoRemaining, currentLevel, crownPositions, fire, traceShot, updateAimPreview,
     confirmResults, retryLevel, enableEndlessAndContinue,
+    openMenu, closeMenu, setMinimapSize, setSteadyCamera, setEndlessBolts, steadyCameraOn,
     get CAM() { return CAM; },
     get levelIx() { return levelIx; },
     get lastResult() { return lastResult; },

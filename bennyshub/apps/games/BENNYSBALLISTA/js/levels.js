@@ -131,9 +131,17 @@ RT.levels = (function () {
 
   /* ── Levels ───────────────────────────────────────────────────────────────
    * `dist` is the castle's centre distance downrange (see data.js's
-   * castleBounds/rangeWindow) — a placeholder pass for now, escalating
-   * gently; the plan's step 7 retunes these once real flight time can be
-   * judged by eye rather than guessed at.
+   * castleBounds/rangeWindow) — retuned 2026-08-30 for real cinematic flight
+   * time (measured by tracing real shots via traceShot(), not guessed):
+   * at the short original 16-25 range, a flat/direct ammo's near-max-range
+   * shot resolved in well under a second, too quick to watch the FLIGHT
+   * camera actually chase it. Distances now sit as far out as each level's
+   * available/needed ammo can safely reach — checked against
+   * maxRange(speed) for every unlocked ammo at that level index, with the
+   * rangeWindow's near/far pad and (for the four depth levels) each layer's
+   * own half-depth folded in — so this is still exactly as reachable as the
+   * original escalation, just slower to arrive. auditLevels()/auditReach()
+   * (js/game.js) reverify this on every boot regardless.
    *
    * The first eight are single-layer castles, carried over from the 2D
    * game's LEVELS array (recovered from git history, commit bc731c9) since
@@ -142,14 +150,14 @@ RT.levels = (function () {
    * last four introduce depth, escalating from two layers to three.
    */
   const LEVELS = [
-    { name: 'The Reed Tower', par: 1, bolts: 6, dist: 16, layers: [[
+    { name: 'The Reed Tower', par: 1, bolts: 6, dist: 24, layers: [[
       '..K..',
       '.WWW.',
       '.W.W.',
       '.W.W.',
       '.W.W.'
     ]] },
-    { name: 'The Clad Pillar', par: 2, bolts: 7, dist: 17, layers: [[
+    { name: 'The Clad Pillar', par: 2, bolts: 7, dist: 25, layers: [[
       '.K',
       '.W',
       'SW',
@@ -157,18 +165,18 @@ RT.levels = (function () {
       'SW',
       'SW'
     ]] },
-    { name: 'Scaffold Twins', par: 2, bolts: 7, dist: 18, layers: [[
+    { name: 'Scaffold Twins', par: 2, bolts: 7, dist: 26, layers: [[
       '.K.....K.',
       'WWWWWWWWW',
       'W.......W',
       'W.......W'
     ]] },
-    { name: 'The Long Colonnade', par: 2, bolts: 7, dist: 19, layers: [[
+    { name: 'The Long Colonnade', par: 2, bolts: 7, dist: 27, layers: [[
       '....K....',
       '.WWWWWWW.',
       '.S.S.S.S.'
     ]] },
-    { name: 'Glasshouse Keep', par: 2, bolts: 7, dist: 19, layers: [[
+    { name: 'Glasshouse Keep', par: 2, bolts: 7, dist: 27, layers: [[
       '.K..K',
       '.W..W',
       '.W..W',
@@ -176,13 +184,13 @@ RT.levels = (function () {
       'IW.SW',
       'SW.SW'
     ]] },
-    { name: 'Cliffside Fort', par: 2, bolts: 9, dist: 20, layers: [[
+    { name: 'Cliffside Fort', par: 2, bolts: 9, dist: 28, layers: [[
       '..K..K..K..',
       '..W..W..W..',
       '.WWWWTWWWW.',
       'XXXXXXXXXXX'
     ]] },
-    { name: 'Powder Row', par: 3, bolts: 8, dist: 21, layers: [[
+    { name: 'Powder Row', par: 3, bolts: 8, dist: 29, layers: [[
       '....K....',
       '.WWWWWWW.',
       'SW.....WS',
@@ -190,7 +198,7 @@ RT.levels = (function () {
       'SW.....WS',
       'SW.....WS'
     ]] },
-    { name: 'The Timberworks', par: 3, bolts: 9, dist: 22, layers: [[
+    { name: 'The Timberworks', par: 3, bolts: 9, dist: 27, layers: [[
       '.K.....K.',
       '.WWWWWWW.',
       '.W.....W.',
@@ -198,7 +206,7 @@ RT.levels = (function () {
       '.W.....T.',
       '.W..s..W.'
     ]] },
-    { name: 'Twin Halls', par: 3, bolts: 9, dist: 20, layers: [
+    { name: 'Twin Halls', par: 3, bolts: 9, dist: 25, layers: [
       [                             // front — a blind stone wall, no crown
         '.....',
         '.....',
@@ -211,7 +219,7 @@ RT.levels = (function () {
         '.W.W.'
       ]
     ] },
-    { name: 'The Palisade', par: 3, bolts: 9, dist: 21, layers: [
+    { name: 'The Palisade', par: 3, bolts: 9, dist: 26, layers: [
       [                             // front
         '.....',
         'X...X',
@@ -224,7 +232,7 @@ RT.levels = (function () {
         'XXXXX'
       ]
     ] },
-    { name: 'The Deep Keep', par: 4, bolts: 11, dist: 23, layers: [
+    { name: 'The Deep Keep', par: 4, bolts: 11, dist: 27, layers: [
       [                             // front screen — thin, meant to fall first
         '.....',
         '.W.W.',
@@ -242,7 +250,7 @@ RT.levels = (function () {
         '.W.W.'
       ]
     ] },
-    { name: "Benny's Bastion", par: 5, bolts: 13, dist: 25, layers: [
+    { name: "Benny's Bastion", par: 5, bolts: 13, dist: 27, layers: [
       [                             // front — twin outer crowns, spindly towers
         'K.......K',
         'W.......W',

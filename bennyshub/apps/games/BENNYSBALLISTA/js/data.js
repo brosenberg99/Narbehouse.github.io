@@ -109,12 +109,22 @@ RT.data = (function () {
    *   speed  muzzle velocity, units/s. FIXED — never touched by the meter.
    *   dmg    damage multiplier on impact. Also fixed.
    *   r      collision radius of the projectile.
+   *   limit  max uses PER LEVEL (resets on loadLevel()/retryLevel()).
+   *          Omitted (undefined) means unlimited — every ammo below except
+   *          the bomb. See js/game.js's ammoLeft/ammoRemaining().
+   *   splash, splashRadius, splashDmgScale — area damage on top of the
+   *          direct hit, see js/game.js's applySplash(). Falls off linearly
+   *          to zero at splashRadius; splashDmgScale scales the whole thing
+   *          down relative to a direct hit so splash is a bonus, not a second
+   *          direct hit for every neighbour.
    */
   const AMMO = [
     { id:'stone',    name:'Stone Bolt', sub:'Flat and true',   speed:23.0, dmg:1.00, r:0.22, lob:false, unlockAt:0 },
     { id:'boulder',  name:'Boulder',    sub:'Lobs, smashes rock', speed:21.5, dmg:2.20, r:0.38, lob:true,  unlockAt:3 },
     { id:'fire',     name:'Fire Bolt',  sub:'Flat, burns wood', speed:24.0, dmg:1.00, r:0.20, lob:false, unlockAt:6 },
-    { id:'splitter', name:'Splitter',   sub:'Lobs, splits in 3', speed:22.0, dmg:0.62, r:0.20, lob:true,  unlockAt:9 }
+    { id:'splitter', name:'Splitter',   sub:'Lobs, splits in 3', speed:22.0, dmg:0.62, r:0.20, lob:true,  unlockAt:9 },
+    { id:'bomb',     name:'Powder Bomb', sub:'Lobs, blasts a wide radius — one per level',
+      speed:19.0, dmg:1.40, r:0.34, lob:true, unlockAt:10, limit:1, splash:true, splashRadius:2.6, splashDmgScale:0.6 }
   ];
 
   /* ── Materials ──────────────────────────────────────────────────────────

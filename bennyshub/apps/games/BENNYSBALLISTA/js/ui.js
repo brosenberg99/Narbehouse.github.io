@@ -1,18 +1,24 @@
 /**
- * Benny's Ballista — input, meters, ammo list, and the results/out-of-bolts
- * overlay. Still no pause menu or minimap (later polish) — the game starts
- * straight into aiming against whichever level the save file resumes at.
+ * Benny's Ballista — input, meters, ammo list, minimap, and the results/
+ * out-of-bolts/context-menu overlay. The game starts straight into aiming
+ * against whichever level the save file resumes at.
  *
  * Input only responds while the camera director (js/game.js) is in its AIM
- * phase, or while it's holding one of the two overlay phases (RESULTS_MENU,
- * OUTOFBOLTS) — canAct()/overlayPhase() below. Once a shot fires, the
- * director owns FLIGHT through RESULTS on its own timing; the next shot's
- * meters reset the moment it returns to AIM (see the edge-detect in tick()),
- * and the overlay opens/closes on the same kind of edge-detect rather than
- * being driven from whatever fired the shot. There's still no pause menu to
- * interrupt any of this with (AGENTS.md wants Return-hold to open Pause from
- * every screen, including mid-flight — noted as a gap until that menu system
- * exists).
+ * phase, or while it's holding one of the three overlay phases
+ * (RESULTS_MENU, OUTOFBOLTS, MENU) — canAct()/overlayPhase() below. Once a
+ * shot fires, the director owns FLIGHT through RESULTS on its own timing;
+ * the next shot's meters reset the moment it returns to AIM (see the
+ * edge-detect in tick()), and the overlay opens/closes on the same kind of
+ * edge-detect rather than being driven from whatever fired the shot.
+ *
+ * A Return-hold with nothing left to back out of opens the context menu
+ * (see backOut()) — Resume, Restart Level, How to Play, Settings, Exit —
+ * which is AGENTS.md's "Return-hold opens Pause/Context from every screen"
+ * rule satisfied everywhere it can currently be satisfied. The header's
+ * Help/Settings/Exit buttons are pointer shortcuts into that same menu
+ * rather than parallel paths, so nothing a mouse can reach is unreachable
+ * by switch. Still outstanding: opening it *mid-cinematic*, which needs a
+ * real freeze/resume of the camera director rather than a phase swap.
  *
  * The overlay reuses the ammo list's own scan-list machinery
  * (scanStep()/inScanList()/resetAutoScan()) rather than a parallel
@@ -78,69 +84,207 @@ RT.ui = (function () {
   function autoScanOn() { const m = U.sm(); return m ? m.getSettings().autoScan : false; }
   function scanInterval() { const m = U.sm(); return m ? m.getScanInterval() : 2000; }
 
-  /* ── Results / out-of-bolts overlay ──────────────────────────────────────
+  /* ── Overlay screens: results, out-of-bolts, and the context menu ────────
    * The one place js/game.js's camera director takes input away from the
    * meters for something other than a cinematic — CAM.phase is
-   * 'RESULTS_MENU' after a level is cleared, or 'OUTOFBOLTS' after the last
-   * bolt with Endless Bolts off (on by default, so this is mostly dormant
-   * until a future settings menu can actually turn it off). Reuses the same
-   * #overlay/#panel markup the pause/settings menus will eventually use.
+   * 'RESULTS_MENU' after a level is cleared, 'OUTOFBOLTS' after the last
+   * bolt with Endless Bolts off, or 'MENU' while the player has the
+   * context/pause menu open (Return-hold with nothing to back out of, or a
+   * header button — see openMenu() in js/game.js, only reachable from AIM).
+   *
+   * MENU has its own three sub-screens, tracked here in `menuScreen` rather
+   * than as more CAM phases, since the camera does exactly the same thing
+   * for all of them and only the panel contents differ.
+   *
+   * Every screen is one descriptor from screenDef() below — title, sub,
+   * note, items, speech — so render/scan/select/announce all read from ONE
+   * definition instead of three parallel switch statements that have to be
+   * kept in agreement (which is what the earlier results/out-of-bolts pair
+   * was already starting to become).
    */
-  function overlayPhase() { return G.CAM.phase === 'RESULTS_MENU' || G.CAM.phase === 'OUTOFBOLTS'; }
+  let menuScreen = 'root';   // 'root' | 'howto' | 'settings' — only meaningful while CAM.phase is 'MENU'
+  /** Which screen the *next* menu open should land on. The header buttons
+   *  set this instead of setting menuScreen directly, because opening the
+   *  menu doesn't render it — tick()'s edge-detect does, one frame later,
+   *  via enterOverlay(), which resets to 'root'. Handing the target through
+   *  here lets enterOverlay() honour it rather than racing it. */
+  let pendingMenuScreen = null;
 
-  function overlayItems() {
-    if (G.CAM.phase === 'RESULTS_MENU') {
-      const nextIx = (G.levelIx + 1) % LV.LEVELS.length;
-      return [{ label: 'Next Level', sub: LV.LEVELS[nextIx].name, action: G.confirmResults }];
-    }
-    if (G.CAM.phase === 'OUTOFBOLTS') {
-      return [
-        { label: 'Try Again', sub: level().name, action: G.retryLevel },
-        { label: 'Turn On Endless Bolts', sub: 'Never run out again', action: G.enableEndlessAndContinue }
-      ];
-    }
-    return [];
+  function overlayPhase() {
+    return G.CAM.phase === 'RESULTS_MENU' || G.CAM.phase === 'OUTOFBOLTS' || G.CAM.phase === 'MENU';
   }
 
-  function overlaySpeech() {
-    if (G.CAM.phase === 'RESULTS_MENU') {
+  function gotoMenuScreen(name) {
+    menuScreen = name;
+    overlayIx = -1;
+    renderOverlay();
+    resetAutoScan();
+    U.speak(screenDef().speech);
+  }
+
+  /** Exit to the hub, matching BENNYSRACETRACKS' goToHub() — the hub embeds
+   *  games in an iframe, so hand focus back to its own Back button when
+   *  there's a parent, and only navigate directly when opened standalone.
+   *  The delay lets the spoken confirmation start before the page goes. */
+  function goToHub() {
+    U.speak('Exiting to hub');
+    setTimeout(() => {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ action: 'focusBackButton' }, '*');
+      } else {
+        window.location.href = '../../../index.html';
+      }
+    }, 700);
+  }
+
+  const MINIMAP_SIZE_LABEL = { large: 'Large', medium: 'Medium', none: 'Off' };
+  const onOff = (v) => (v ? 'On' : 'Off');
+
+  /** Applies a settings change and re-announces the row without losing the
+   *  player's place in the list — every Settings row toggles or cycles in
+   *  place rather than opening a sub-screen, so Return on a row never costs
+   *  a scan position. */
+  function afterSettingChange(speech) {
+    renderOverlay();
+    U.speak(speech);
+  }
+
+  function cycleMinimapSize() {
+    const order = ['large', 'medium', 'none'];
+    const next = order[(order.indexOf(G.save.minimapSize || 'large') + 1) % order.length];
+    G.setMinimapSize(next);
+    applyMinimapSize();
+    afterSettingChange(`Minimap size: ${MINIMAP_SIZE_LABEL[next]}`);
+  }
+  function toggleSteadyCamera() {
+    const next = !G.steadyCameraOn();
+    G.setSteadyCamera(next);
+    afterSettingChange(next
+      ? 'Steady Camera on. The view stays still through every shot.'
+      : 'Steady Camera off. The camera chases the bolt and cuts to the impact.');
+  }
+  function toggleEndlessBolts() {
+    const next = !G.save.endlessBolts;
+    G.setEndlessBolts(next);
+    afterSettingChange(next
+      ? 'Endless Bolts on. You can never run out.'
+      : 'Endless Bolts off. Running out of bolts ends the attempt.');
+  }
+
+  /** The one definition of every overlay screen. */
+  function screenDef() {
+    const phase = G.CAM.phase;
+
+    if (phase === 'RESULTS_MENU') {
       const r = G.lastResult || { stars: 0, earned: 0, newAmmo: null };
       const par = level().par;
+      const nextIx = (G.levelIx + 1) % LV.LEVELS.length;
+      const starStr = '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars);
       const starsSpoken = r.stars === 3 ? 'three stars' : r.stars === 2 ? 'two stars' : 'one star';
-      let s = `Castle destroyed! ${starsSpoken}. You used ${G.boltsUsed} ${G.boltsUsed === 1 ? 'bolt' : 'bolts'}, `
+      let speech = `Castle destroyed! ${starsSpoken}. You used ${G.boltsUsed} ${G.boltsUsed === 1 ? 'bolt' : 'bolts'}, `
         + `and the target for this level is ${par}. You scored ${r.earned} points.`;
-      if (r.newAmmo) s += ` New ammunition unlocked: ${r.newAmmo.name}. ${r.newAmmo.sub}.`;
-      return s + ' Press space then return to move to the next level.';
+      if (r.newAmmo) speech += ` New ammunition unlocked: ${r.newAmmo.name}. ${r.newAmmo.sub}.`;
+      return {
+        title: 'Level Cleared!',
+        sub: `<span class="stars">${starStr}</span> &nbsp; ${G.boltsUsed} `
+          + `${G.boltsUsed === 1 ? 'bolt' : 'bolts'} used (par ${par}) &middot; <b>${r.earned}</b> points`
+          + (r.newAmmo ? `<br>New ammunition unlocked: <b>${r.newAmmo.name}</b> — ${r.newAmmo.sub}.` : ''),
+        note: `Total score: <b>${G.save.totalScore}</b> &middot; `
+          + `Levels cleared: <b>${Object.keys(G.save.stars).length}</b> of ${LV.LEVELS.length}`,
+        items: [{ label: '▶ Next Level', sub: LV.LEVELS[nextIx].name, action: G.confirmResults }],
+        speech: speech + ' Press space then return to move to the next level.'
+      };
     }
+
+    if (phase === 'OUTOFBOLTS') {
+      const lvl = level();
+      return {
+        title: 'Out of Bolts',
+        sub: `You used all ${lvl.bolts} bolts on "${lvl.name}" without destroying every crown.`,
+        note: 'Endless Bolts lets you keep firing forever — it only affects '
+          + 'your star rating, never whether you can finish.',
+        items: [
+          { label: '🔁 Try Again', sub: lvl.name, action: G.retryLevel },
+          { label: '♾ Turn On Endless Bolts', sub: 'Never run out again', action: G.enableEndlessAndContinue }
+        ],
+        speech: `Out of bolts. You used all ${lvl.bolts} without destroying every crown. `
+          + 'Press space to choose: try again, or turn on endless bolts so you never run out.'
+      };
+    }
+
+    if (menuScreen === 'howto') {
+      return {
+        title: 'How to Play',
+        sub: 'Knock down every <b>gold crown</b> to clear the castle. A crown doesn’t have to be '
+          + 'in your line of fire — you can bring it down by smashing whatever holds it up, '
+          + 'or by burying it in falling rubble.'
+          + '<br><br><b>Pick ammunition</b> (once you’ve unlocked more than one), then '
+          + '<b>sweep the aim</b> left and right, then <b>set the range</b>. The dotted arc and '
+          + 'the minimap crosshair always show exactly where the shot will land.'
+          + '<br><br>Letting go early never weakens a shot — the range meter picks '
+          + '<i>where</i> it lands, never how hard it hits.',
+        note: '<b>Space</b> hold: move the meter, let go to stop &middot; '
+          + '<b>Return</b>: lock it in / fire &middot; '
+          + '<b>Return</b> hold: back up, or open this menu.',
+        items: [{ label: '← Back', sub: '', action: () => gotoMenuScreen('root') }],
+        speech: 'How to play. Knock down every gold crown to clear the castle. A crown does not have '
+          + 'to be in your line of fire — you can bring it down by smashing what holds it up, or by '
+          + 'burying it in falling rubble. Sweep the aim, then set the range. Letting go early never '
+          + 'weakens a shot. Press return to go back.'
+      };
+    }
+
+    if (menuScreen === 'settings') {
+      return {
+        title: 'Settings',
+        sub: 'Adjust how Benny’s Ballista looks and plays.',
+        note: 'Minimap Size sets how big the top-down map gets while you’re composing a shot. '
+          + 'Steady Camera holds one fixed view instead of chasing the bolt. '
+          + 'Endless Bolts means running out never blocks you — it only affects your star rating.',
+        items: [
+          { label: '🗺 Minimap Size', sub: MINIMAP_SIZE_LABEL[G.save.minimapSize || 'large'], action: cycleMinimapSize },
+          { label: '🎥 Steady Camera', sub: onOff(G.steadyCameraOn()), action: toggleSteadyCamera },
+          { label: '♾ Endless Bolts', sub: onOff(G.save.endlessBolts), action: toggleEndlessBolts },
+          { label: '← Back', sub: '', action: () => gotoMenuScreen('root') }
+        ],
+        speech: 'Settings. Press space to scan, return to change the highlighted option.'
+      };
+    }
+
+    // menuScreen === 'root'
     const lvl = level();
-    return `Out of bolts. You used all ${lvl.bolts} without destroying every crown. `
-      + 'Press space to choose: try again, or turn on endless bolts so you never run out.';
+    const stars = G.save.stars[G.levelIx] || 0;
+    return {
+      title: 'Menu',
+      sub: `Level ${G.levelIx + 1} of ${LV.LEVELS.length} — <b>${lvl.name}</b>`
+        + (stars ? ` &middot; <span class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</span> best` : ''),
+      note: `Total score: <b>${G.save.totalScore}</b> &middot; `
+        + `Levels cleared: <b>${Object.keys(G.save.stars).length}</b> of ${LV.LEVELS.length}`,
+      items: [
+        { label: '▶ Resume', sub: 'Back to aiming', action: G.closeMenu },
+        { label: '🔁 Restart Level', sub: lvl.name, action: G.retryLevel },
+        { label: '❓ How to Play', sub: '', action: () => gotoMenuScreen('howto') },
+        { label: '⚙ Settings', sub: '', action: () => gotoMenuScreen('settings') },
+        { label: '🏠 Exit Game', sub: 'Back to the hub', action: goToHub }
+      ],
+      speech: 'Menu. Resume, Restart Level, How to Play, Settings, or Exit Game. '
+        + 'Press space to scan, return to choose.'
+    };
   }
+
+  function overlayItems() { return overlayPhase() ? screenDef().items : []; }
 
   function renderOverlay() {
     if (!overlayPhase()) { els.overlay.classList.remove('on'); return; }
+    const def = screenDef();
 
-    if (G.CAM.phase === 'RESULTS_MENU') {
-      const r = G.lastResult || { stars: 0, earned: 0, newAmmo: null };
-      const par = level().par;
-      const starStr = '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars);
-      els.panelTitle.textContent = 'Level Cleared!';
-      els.panelSub.innerHTML = `<span class="stars">${starStr}</span> &nbsp; ${G.boltsUsed} `
-        + `${G.boltsUsed === 1 ? 'bolt' : 'bolts'} used (par ${par}) &middot; <b>${r.earned}</b> points`
-        + (r.newAmmo ? `<br>New ammunition unlocked: <b>${r.newAmmo.name}</b> — ${r.newAmmo.sub}.` : '');
-      els.panelNote.innerHTML = `Total score: <b>${G.save.totalScore}</b> &middot; `
-        + `Levels cleared: <b>${Object.keys(G.save.stars).length}</b> of ${LV.LEVELS.length}`;
-    } else {
-      const lvl = level();
-      els.panelTitle.textContent = 'Out of Bolts';
-      els.panelSub.innerHTML = `You used all ${lvl.bolts} bolts on "${lvl.name}" without destroying every crown.`;
-      els.panelNote.innerHTML = 'Endless Bolts lets you keep firing forever — it only affects '
-        + 'your star rating, never whether you can finish.';
-    }
+    els.panelTitle.textContent = def.title;
+    els.panelSub.innerHTML = def.sub;
+    els.panelNote.innerHTML = def.note;
 
     const holder = els.panelList;
     holder.innerHTML = '';
-    overlayItems().forEach((it, i) => {
+    def.items.forEach((it, i) => {
       const b = document.createElement('button');
       b.className = 'mi' + (i === overlayIx ? ' focus' : '');
       b.type = 'button';
@@ -155,6 +299,15 @@ RT.ui = (function () {
     els.overlay.classList.add('on');
   }
 
+  /** Menu labels carry a leading emoji/arrow as a visual cue, which a screen
+   *  reader would otherwise announce as noise ("black right-pointing triangle
+   *  Resume"). Strip anything before the first letter/digit for speech only —
+   *  the label itself keeps its icon. */
+  function itemSpeech(it) {
+    const spoken = String(it.label).replace(/^[^\p{L}\p{N}]+/u, '');
+    return it.sub ? `${spoken}. ${it.sub}` : spoken;
+  }
+
   function overlayScanStep(dir) {
     const n = overlayItems().length;
     let v = (overlayIx === -1) ? n : overlayIx;
@@ -164,7 +317,7 @@ RT.ui = (function () {
     if (overlayIx === -1) { sfx('hover', 0.25); return; }
     sfx('hover', 0.5);
     const it = overlayItems()[overlayIx];
-    if (it) U.speak(`${it.label}. ${it.sub}`);
+    if (it) U.speak(itemSpeech(it));
   }
 
   function overlaySelect() {
@@ -177,14 +330,24 @@ RT.ui = (function () {
   }
 
   function enterOverlay() {
+    // Every fresh open of the context menu starts at its root screen — a
+    // stale 'settings'/'howto' from last time would otherwise reopen there
+    // — unless whatever opened it asked for a specific screen (the header's
+    // Help/Settings buttons do).
+    if (G.CAM.phase === 'MENU') {
+      menuScreen = pendingMenuScreen || 'root';
+      pendingMenuScreen = null;
+    }
     overlayIx = -1;
     renderOverlay();
     resetAutoScan();
-    U.speak(overlaySpeech());
+    U.speak(screenDef().speech);
   }
 
   /* ── Ammo list ────────────────────────────────────────────────────────── */
-  function laneItems() { return unlockedAmmo().map((a, i) => ({ label: a.name, sub: a.sub, ix: i })); }
+  function laneItems() {
+    return unlockedAmmo().map((a, i) => ({ label: a.name, sub: a.sub, ix: i, remaining: G.ammoRemaining(a) }));
+  }
   function laneLen() { return laneItems().length; }
 
   function renderChips() {
@@ -198,7 +361,9 @@ RT.ui = (function () {
       const b = document.createElement('button');
       b.className = 'chip';
       b.type = 'button';
-      b.innerHTML = it.sub ? `${it.label}<span class="sub">${it.sub}</span>` : it.label;
+      const sub = isFinite(it.remaining) ? `${it.sub} · ${it.remaining} left` : it.sub;
+      b.innerHTML = sub ? `${it.label}<span class="sub">${sub}</span>` : it.label;
+      if (it.remaining <= 0) b.classList.add('depleted');
       if (state.locked.ammo && state.pick.ammo === it.ix) b.classList.add('picked');
       if (!state.locked.ammo && state.last.ammo === it.ix) b.classList.add('last');
       if (state.stage === 'ammo' && state.scan === it.ix) b.classList.add('focus');
@@ -225,7 +390,9 @@ RT.ui = (function () {
   }
   function announceFocus() {
     const it = laneItems()[state.scan];
-    if (it) U.speak(`${it.label}. ${it.sub}`);
+    if (!it) return;
+    const remText = isFinite(it.remaining) ? ` ${it.remaining} left this level.` : '';
+    U.speak(`${it.label}. ${it.sub}.${remText}`);
   }
 
   /* ── Meters ───────────────────────────────────────────────────────────── */
@@ -343,6 +510,116 @@ RT.ui = (function () {
     state.previewAt = now;
     const yawRad = clampYaw(state.yawDeg) * Math.PI / 180;
     previewTrace = G.traceShot(currentAmmo(), yawRad, state.rangePct);
+    G.updateAimPreview(previewTrace);
+    drawMinimap();
+  }
+
+  /* ── Minimap ──────────────────────────────────────────────────────────────
+   * A top-down read of the same window the meters already work in: the
+   * castle's footprint, every surviving crown as its own objective marker,
+   * the yaw sweep's cone, and where the current trace actually lands — the
+   * ballista's own -Z-forward, +X-right axes (see data.js's coordinate-
+   * system note) mapped straight onto the canvas with "up" as downrange, no
+   * separate projection math to keep in sync. Thick strokes and an ink
+   * outline behind every bright marker on purpose — same "big, high-
+   * contrast, no fine detail" language the 3D art already uses for Ben's
+   * low vision (see js/art.js's ink()/outline()). syncMinimapSize() in
+   * tick() drives whether this is even legible-sized right now; drawing
+   * always happens at the canvas's one native resolution regardless.
+   */
+  /** Applies the Settings overlay's Minimap Size choice to the live element
+   *  — 'none' hides it outright (both shrunk and while aiming), 'medium'
+   *  shrinks how big the .big (aiming) state gets via the CSS variable
+   *  index.html's #minimap.big rule reads, 'large' is the CSS default so
+   *  it just needs the variable put back. The shrunk (locked-in) size never
+   *  changes — this setting is only about how big it gets *while aiming*. */
+  const MM_BIG = { large: ['520px', '632px'], medium: ['300px', '364px'] };
+  function applyMinimapSize() {
+    if (!els.minimap) return;
+    const size = (G.save && G.save.minimapSize) || 'large';
+    els.minimap.classList.toggle('mm-hidden', size === 'none');
+    const [w, h] = MM_BIG[size] || MM_BIG.large;
+    els.minimap.style.setProperty('--mm-big-w', w);
+    els.minimap.style.setProperty('--mm-big-h', h);
+  }
+
+  const INK = '#2f231a';
+  function drawMinimap() {
+    const cvs = els.minimap;
+    if (!cvs) return;
+    const ctx = els.minimapCtx;
+    const w = cvs.width, h = cvs.height, pad = 14;
+    ctx.clearRect(0, 0, w, h);
+
+    const lvl = level();
+    const bounds = D.castleBounds(lvl);
+    const win = D.rangeWindow(lvl);
+    const yawH = yawHalfDeg() * Math.PI / 180;
+
+    const maxDist = win.max * 1.08;
+    const maxLat = Math.max(bounds.halfWidth + CFG.YAW_PAD_CELLS, maxDist * Math.sin(yawH)) * 1.15;
+    const scale = Math.min((w - pad * 2) / (maxLat * 2), (h - pad * 2) / maxDist);
+    const originX = w / 2, originY = h - pad;
+    const toCanvas = (x, dist) => [originX + x * scale, originY - dist * scale];
+
+    // Sweep cone — how far the aim meter can swing left/right at this range.
+    ctx.strokeStyle = 'rgba(255,255,255,.32)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([7, 10]);
+    [-yawH, yawH].forEach((yaw) => {
+      const [ex, ey] = toCanvas(Math.sin(yaw) * maxDist, Math.cos(yaw) * maxDist);
+      ctx.beginPath(); ctx.moveTo(originX, originY); ctx.lineTo(ex, ey); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // The castle's footprint.
+    const [cx1, cy1] = toCanvas(-bounds.halfWidth, bounds.far);
+    const [cx2, cy2] = toCanvas(bounds.halfWidth, bounds.near);
+    ctx.fillStyle = 'rgba(190,190,200,.4)';
+    ctx.strokeStyle = 'rgba(235,235,240,.85)';
+    ctx.lineWidth = 4;
+    ctx.fillRect(cx1, cy1, cx2 - cx1, cy2 - cy1);
+    ctx.strokeRect(cx1, cy1, cx2 - cx1, cy2 - cy1);
+
+    const crownColor = getComputedStyle(document.body).getPropertyValue('--crown').trim() || '#ffc93c';
+    const focus = getComputedStyle(document.body).getPropertyValue('--focus').trim() || '#ffd400';
+
+    // Objectives — every crown still alive, wherever it actually sits (a
+    // crown can be a legitimate target while fully hidden behind another
+    // layer; this marks it regardless of line of sight). An open ring, not
+    // a filled dot, on purpose: the landing crosshair below is a filled
+    // dot, and the two markers legitimately coincide whenever a shot is
+    // actually lined up on a crown — a ring reads through a dot on top of
+    // it, a dot on top of a dot would just merge into one blob.
+    G.crownPositions().forEach((c) => {
+      const [px, py] = toCanvas(c.x, -c.z);
+      ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2);
+      ctx.lineWidth = 7; ctx.strokeStyle = INK; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2);
+      ctx.lineWidth = 4; ctx.strokeStyle = crownColor; ctx.stroke();
+    });
+
+    // The ballista itself.
+    ctx.fillStyle = focus;
+    ctx.strokeStyle = INK; ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(originX, originY - 15); ctx.lineTo(originX - 13, originY + 8); ctx.lineTo(originX + 13, originY + 8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // Landing crosshair — the brightest, boldest thing on the map, since
+    // it's the one answer the whole minimap exists to give.
+    if (previewTrace) {
+      const last = previewTrace.points[previewTrace.points.length - 1];
+      const [lx, ly] = toCanvas(last.x, -last.z);
+      const arm = 21;
+      ctx.lineWidth = 8; ctx.strokeStyle = INK;
+      ctx.beginPath(); ctx.moveTo(lx - arm, ly); ctx.lineTo(lx + arm, ly); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lx, ly - arm); ctx.lineTo(lx, ly + arm); ctx.stroke();
+      ctx.lineWidth = 4; ctx.strokeStyle = focus;
+      ctx.beginPath(); ctx.moveTo(lx - arm, ly); ctx.lineTo(lx + arm, ly); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lx, ly - arm); ctx.lineTo(lx, ly + arm); ctx.stroke();
+      ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.fillStyle = focus; ctx.fill();
+    }
   }
 
   function previewPhrase() {
@@ -404,6 +681,8 @@ RT.ui = (function () {
 
   function commitAmmo() {
     if (state.scan === -1) { U.speak('Nothing highlighted. Press space to keep scanning.'); return; }
+    const chosen = laneItems()[state.scan];
+    if (chosen.remaining <= 0) { U.speak(`No ${chosen.label} left this level. Press space to keep scanning.`); return; }
     state.pick.ammo = state.scan;
     state.locked.ammo = true;
     sfx('select', 0.6);
@@ -449,11 +728,25 @@ RT.ui = (function () {
   }
 
   function backOut() {
+    // Inside the context menu, Return-hold walks back the way it came:
+    // sub-screen -> root -> closed. Same gesture, one level at a time.
+    if (G.CAM.phase === 'MENU') {
+      sfx('hover', 0.5);
+      if (menuScreen !== 'root') { gotoMenuScreen('root'); return; }
+      G.closeMenu();
+      return;
+    }
     if (overlayPhase()) { U.speak('Nothing to go back to here — press space then return to choose.'); return; }
     const order = stageOrder();
     const i = order.indexOf(state.stage);
     if (i <= 0) {
-      U.speak('No pause menu yet.');   // steps 5-7 build the menu system
+      // Nothing left to back out of, so this is the context menu — AGENTS.md's
+      // "Return-hold opens Pause/Context from every screen" rule. It still
+      // can't be opened mid-cinematic (that needs a real freeze/resume of the
+      // camera director, not a phase swap), which is the one part of that
+      // rule still outstanding.
+      sfx('select', 0.5);
+      G.openMenu();   // tick()'s overlay edge-detect renders/announces it next frame
       return;
     }
     const prev = order[i - 1];
@@ -573,8 +866,12 @@ RT.ui = (function () {
       valPower: U.$('valPower'), btnFire: U.$('btnFire'),
       ftrMode: U.$('ftrMode'), ftrTarget: U.$('ftrTarget'),
       overlay: U.$('overlay'), panelTitle: U.$('panelTitle'), panelSub: U.$('panelSub'),
-      panelList: U.$('panelList'), panelNote: U.$('panelNote')
+      panelList: U.$('panelList'), panelNote: U.$('panelNote'),
+      minimap: U.$('minimap'),
+      btnHelp: U.$('btnHelp'), btnSet: U.$('btnSet'), btnExit: U.$('btnExit')
     };
+    if (els.minimap) els.minimapCtx = els.minimap.getContext('2d');
+    applyMinimapSize();
 
     bindMeter(els.meterAim, 'aim');
     bindMeter(els.meterPower, 'range');
@@ -582,6 +879,20 @@ RT.ui = (function () {
     window.addEventListener('touchend', () => { if (meterStage()) releaseMeter(); });
     els.btnLockAim.addEventListener('click', () => { if (canAct() && state.stage === 'aim') lockAim(); });
     els.btnFire.addEventListener('click', () => { if (canAct() && state.stage === 'range') confirmShot(); });
+
+    /* Header buttons are a mouse/touch shortcut into the very same context
+       menu Return-hold opens — never a separate path with its own state, so
+       there's nothing a pointer can reach that a switch can't. Each one just
+       opens the menu and jumps to the screen it names. */
+    function openMenuAt(screen) {
+      if (!canAct()) return;
+      sfx('select', 0.5);
+      pendingMenuScreen = screen;   // consumed by enterOverlay() on the next tick
+      G.openMenu();
+    }
+    if (els.btnHelp) els.btnHelp.addEventListener('click', () => openMenuAt('howto'));
+    if (els.btnSet) els.btnSet.addEventListener('click', () => openMenuAt('settings'));
+    if (els.btnExit) els.btnExit.addEventListener('click', () => openMenuAt('root'));
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
@@ -606,6 +917,11 @@ RT.ui = (function () {
     const actable = canAct();
     if (actable && !wasActable) enterShot(false);
     wasActable = actable;
+    // Big and legible while actually composing a shot; shrinks out of the
+    // way the instant it's locked in (canAct() goes false the moment
+    // doFire() hands off to the camera director) and again while an
+    // overlay owns the screen.
+    if (els.minimap) els.minimap.classList.toggle('big', actable);
 
     const inOverlay = overlayPhase();
     if (inOverlay && !wasOverlay) enterOverlay();
