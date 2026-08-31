@@ -358,62 +358,54 @@ RT.art = (function () {
    *  to a primitive-box arm is a visible style mismatch in a way the
    *  tyrant's simpler single-piece fallback isn't (see the ballista-3d
    *  plan's hero-ballista section). */
-  const HERO_BALLISTA_PARTS = ['ballista-base', 'ballista-arm', 'ballista-limb'];
+  const HERO_BALLISTA_PARTS = ['ballista-base', 'ballista-mech'];
 
-  /* model_prep.py's normalize_part fits a mesh's own bbox into the target
-     box UNIFORMLY, never stretched — so a source reconstruction whose
-     proportions don't match the target box comes out short, not distorted.
-     Both the arm and limb generations reconstruct as genuinely thin rods,
-     but only ~5:1 (long:cross-section), not the ~12:1 this assembly's
-     pivot geometry actually wants — Hunyuan3D's voxel diffusion can't
-     resolve a thinner rod than that from one photo (confirmed by two failed
-     framing attempts before this one — see [[ballista-3d-rework]]). So a
-     small deliberate axial stretch is applied here, once, on top of
-     model_prep's honest fit, to reach the length the pivot's aim geometry
-     assumes — pure elongation along the rod's own long axis, which doesn't
-     distort the cross-section or any surface detail. Numbers are read
-     directly off each baked mesh's own local bounding box (measured live in
-     a throwaway Three.js page, not guessed); re-measure and update these if
-     either source mesh is ever regenerated.
-     Both meshes also reconstruct with their long axis along local X, not
-     the Z axis this assembly's arm/bow geometry has always used — a
-     side-effect of the photo framing that gave Hunyuan3D real depth cues to
-     reconstruct a round cross-section (flat/soft-lit framings collapsed
-     into a near-flat plate instead) — hence the fixed +90° Y correction. */
-  const HERO_ARM_SCALE = [3.0 / 0.984, 1, 0.24 / 0.2];
-  const HERO_LIMB_SCALE = [1.3 / 0.794, 1, 0.14 / 0.134];
+  /* 2026-08-31: the three-piece tall A-frame (base + straight arm + two
+     mirrored bow-limbs) was scrapped for a low-profile two-piece crossbow —
+     the A-frame obstructed the AIM camera's view downrange. See
+     [[comfyui-mesh-generation-pipeline]] for the regeneration itself.
+     ballista-mech now fuses what used to be three separate parts (arm,
+     both limbs, and the trigger housing) into ONE mesh, so it needs only
+     one rotation/position, not three, and — being a single wide bent prod
+     rather than a thin rod — never hit the old ~5:1 aspect-ratio ceiling
+     that forced HERO_ARM_SCALE/HERO_LIMB_SCALE's axial stretch hack. Box-fit
+     at its own native proportions (no stretch): `normalize_part`'s scale is
+     1.0 on every axis for both new pieces. Long axis is still local X, not
+     the Z this assembly's aim geometry uses — same photo-framing effect as
+     before — hence HERO_AXIS_FIX_Y is kept and reused. */
   const HERO_AXIS_FIX_Y = Math.PI / 2;
   /* normalize_part centres the baked base on all three axes, including Y —
      there's no floor convention for `part` kind (see model_prep.py) — so it
      has to be lifted by its own half-height to rest on the ground the way
-     the sled/wheels it replaces always did. Read off the same live bbox
-     measurement as the scale constants above. */
-  const HERO_BASE_LIFT_Y = 0.707;
-  /* CFG.MUZZLE_Y (the pivot's world height) is a gameplay constant — real
-     shots spawn from it, so it must never move for a cosmetic reason. But
-     the generated A-frame CONVERGES to a narrow peak well below its own
-     bbox top (unlike the procedural version's two flat-topped posts), so
-     the pivot's nominal clearance above that bbox top — nearly invisible
-     against the original's flat posts — reads as the arm floating detached
-     above the hero base, confirmed side-by-side against the procedural
-     version at the same camera angle. Fixed by drawing the arm/bow meshes
-     slightly below the pivot's actual rotation origin (cosmetic only: this
-     offsets where they're drawn within pivot-local space, not the pivot's
-     own world position or rotation point, so aim/trajectory math is
-     untouched). Tuned by eye against the hero base's actual peak height,
-     not derived from a measurement — re-tune if the base is ever
+     the sled/wheels it replaces always did. Read straight off model_prep's
+     own printed bbox for the low-profile base (half-height 0.398); re-tune
+     if the base is ever regenerated. */
+  const HERO_BASE_LIFT_Y = 0.398;
+  /* CFG.MUZZLE_Y (the pivot's world height, 2.35) is a gameplay constant —
+     real shots spawn from it and every trajectory in data.js is solved
+     against it, so it must never move for a cosmetic reason (changing it
+     would need re-auditing all twelve levels' reachability, same caveat as
+     CFG.GRAVITY). The new mechanism sits much lower than that on purpose
+     (that's the whole point of the low-profile rework), so — same trick the
+     old arm used — it's drawn well below the pivot's actual rotation origin
+     purely cosmetically: this offsets where the mesh is drawn within
+     pivot-local space, not the pivot's own world position, so aim/trajectory
+     math is completely untouched. Tuned by eye against the real AIM camera
+     pose, not derived from a measurement — re-tune if either piece is ever
      regenerated (this is a bigger offset than the base's own lift because
-     Bryan's low-profile revision of the base pass — see [[ballista-3d-rework]]
-     — is noticeably shorter than the first approved base, while the pivot's
-     world height obviously didn't move). */
-  const HERO_ARM_DRAW_Y = -1.1;
+     world height obviously didn't move — the new mechanism sits close to
+     its own low base, nowhere near as far below the pivot as the old tall
+     A-frame's arm did). */
+  const HERO_MECH_DRAW_Y = -1.29;
 
   /**
    * The ballista itself: a paper-craft siege engine sitting at the world
    * origin, facing -Z (downrange — see data.js's coordinate-system note).
-   * Uses the three generated hero pieces once all three are baked (see
-   * HERO_BALLISTA_PARTS); falls back to the original chunky-primitive body
-   * otherwise. The shot pipeline needs to swing the arm to the solved
+   * Uses the two generated hero pieces once both are baked (see
+   * HERO_BALLISTA_PARTS): a static low wheeled base, and a single mechanism
+   * mesh (arms + firing mechanism fused into one) that rotates with the
+   * pivot for aim. Falls back to the original chunky-primitive body
+   * otherwise. The shot pipeline needs to swing the mechanism to the solved
    * elevation and yaw, so the whole assembly is returned with named parts a
    * later step can rotate rather than being baked into one mesh.
    */
@@ -443,38 +435,24 @@ RT.art = (function () {
       base.position.y = HERO_BASE_LIFT_Y;
       root.add(tag(base, 'wood'));
 
-      /* No outline on the arm specifically — the aim camera always looks
-         nearly straight down its length (it points along -Z, same as the
+      /* No outline on the mechanism specifically — the aim camera always
+         looks nearly straight down it (it points along -Z, same as the
          camera's own view direction), and an ink-outlined faceted mesh
          viewed almost end-on shows every facet edge radiating from a single
          point, a "star" that reads as a tangled scribble rather than a
          beam. A box never had this problem (an end-on box outline is just
          four clean corners); this hero mesh's extra facets do. Confirmed by
          a direct side-by-side render with/without the outline at the real
-         AIM camera pose — bumping the outline's edge-angle threshold first
-         (up to 55°) did not help, since the tangle comes from genuinely
-         sharp facet boundaries compressing together, not fine relief noise. */
-      const armMesh = part(RT.models.geometry('ballista-arm'), steel, {
-        pos: [0, HERO_ARM_DRAW_Y, -0.4]
+         AIM camera pose on the old single-arm piece — bumping the outline's
+         edge-angle threshold first (up to 55°) did not help, since the
+         tangle comes from genuinely sharp facet boundaries compressing
+         together, not fine relief noise. Same shape problem applies to this
+         mesh end-on, so kept off here too. */
+      const mechMesh = part(RT.models.geometry('ballista-mech'), steel, {
+        pos: [0, HERO_MECH_DRAW_Y, -0.4]
       });
-      armMesh.scale.set(HERO_ARM_SCALE[0], HERO_ARM_SCALE[1], HERO_ARM_SCALE[2]);
-      armMesh.rotation.y = HERO_AXIS_FIX_Y;
-      pivot.add(tag(armMesh, 'steel'));
-
-      /* One limb generated, mirrored for the other side (see
-         mirrorGeometryZ) — a true geometry mirror, not a negative scale,
-         which would flip winding without correcting it and render
-         inside-out under this game's FrontSide materials. */
-      const limbGeo = RT.models.geometry('ballista-limb');
-      const limbGeoMirrored = mirrorGeometryZ(limbGeo);
-      [-1, 1].forEach((side) => {
-        const bow = part(side < 0 ? limbGeoMirrored : limbGeo, wood, {
-          pos: [side * 0.55, HERO_ARM_DRAW_Y, -1.7], outline: true
-        });
-        bow.scale.set(HERO_LIMB_SCALE[0], HERO_LIMB_SCALE[1], HERO_LIMB_SCALE[2]);
-        bow.rotation.y = HERO_AXIS_FIX_Y + side * 0.5;
-        pivot.add(tag(bow, 'wood'));
-      });
+      mechMesh.rotation.y = HERO_AXIS_FIX_Y;
+      pivot.add(tag(mechMesh, 'steel'));
     } else {
       /* Base sled: a low, wide plank the whole engine sits on. */
       const base = part(new THREE.BoxGeometry(1.6, 0.32, 2.6), wood, {
@@ -519,28 +497,6 @@ RT.art = (function () {
     setShadow(root, true, false);
 
     return { root: root, pivot: pivot };
-  }
-
-  /** True mirror across local Z (one of the limb's two cross-section axes,
-   *  chosen since it's the one that lies in the horizontal splay plane once
-   *  rotated into place) — clone, negate, and reverse each triangle's
-   *  winding, never mesh.scale.z = -1 (see HERO_BALLISTA_PARTS' comment on
-   *  why that renders inside-out here). */
-  function mirrorGeometryZ(geo) {
-    const mirrored = geo.clone();
-    const pos = mirrored.attributes.position;
-    for (let i = 0; i < pos.count; i++) pos.setZ(i, -pos.getZ(i));
-    pos.needsUpdate = true;
-    const idx = mirrored.getIndex();
-    if (idx) {
-      const arr = idx.array;
-      for (let i = 0; i + 2 < arr.length; i += 3) {
-        const tmp = arr[i + 1]; arr[i + 1] = arr[i + 2]; arr[i + 2] = tmp;
-      }
-      idx.needsUpdate = true;
-    }
-    mirrored.computeVertexNormals();
-    return mirrored;
   }
 
   /** The projectile. A plain sphere is enough to read clearly against the

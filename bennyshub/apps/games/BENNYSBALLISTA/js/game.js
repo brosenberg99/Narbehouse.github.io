@@ -835,7 +835,7 @@ RT.game = (function () {
            sounds like. */
         b._lastHitSpeed = drop;
         sfx('impact', b.mat, drop, panFor(b.mesh.position));
-        b.hp -= (drop - CFG.IMPACT_THRESHOLD) * CFG.IMPACT_DMG_SCALE;
+        b.hp -= (drop - CFG.IMPACT_THRESHOLD) * CFG.IMPACT_DMG_SCALE * (b.mat.fallDmgMult || 1);
         applyCrush(b, drop);
         b._peakResolved = true;
         if (b.hp <= 0) destroyBlockRec(b);
@@ -872,7 +872,7 @@ RT.game = (function () {
       if (gap < -0.05 || gap > 0.1) continue;  // resting ON other, not through or beside it
       other._lastHitSpeed = drop;
       sfx('impact', other.mat, drop, panFor(other.mesh.position));
-      other.hp -= crushDmg;
+      other.hp -= crushDmg * (other.mat.fallDmgMult || 1);
       if (!other.mat.static) P.addVelocity(other.body, 0, -drop * 0.15, 0);
       if (other.hp <= 0) destroyBlockRec(other);
     }

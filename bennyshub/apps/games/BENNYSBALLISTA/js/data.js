@@ -174,7 +174,16 @@ RT.data = (function () {
        already stretches to whatever w/h/d js/levels.js hands it, so `B` below
        stays mergeable with a plain box, never `shape:'board'`. */
     T:{ id:'T', name:'powder keg',        hp: 20,  css:'--barrel', explodes:true, shape:'barrel' },
-    K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true, shape:'crown' },
+    /* fallDmgMult: the crown model is a person (the tyrant), not a slab of
+       stone — a fall that only chips a stone block should kill him. Scales
+       ONLY the impact/crush damage he takes (see js/game.js's
+       stepPhysicsWithImpacts/applyCrush), not IMPACT_THRESHOLD itself, so
+       what counts as "a real fall" — and every other material's collapse
+       survivability, already covered by auditLevels()'s standing-castle
+       check — stays exactly as tuned. 3x makes a single castle-layer's worth
+       of fall height (~3 units) reliably lethal on its own; confirmed
+       against auditLevels()/auditReach() still passing, not just eyeballed. */
+    K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 3.0 },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     /* `plank` is read only by js/levels.js's parser (matches the existing
        small/static/glass/explodes pattern) — it thins the block to
