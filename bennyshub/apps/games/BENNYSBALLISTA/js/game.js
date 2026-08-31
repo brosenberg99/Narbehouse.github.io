@@ -326,6 +326,13 @@ RT.game = (function () {
     b.alive = false;
     levelScore += b.mat.crown ? 500 : 100;
     sfx('destroy', b.mat, b._lastHitSpeed || 24, panFor(b.mesh.position));
+    /* A powder keg's own death is an explosion, wired through the same
+       applySplash() the Powder Bomb ammo uses. Runs before the mesh/body
+       teardown below so impactPos still has somewhere to read a position
+       from; a keg's blast can chain into a neighbouring keg (applySplash
+       excludes only the primary block, so a second keg dies and calls back
+       in here), which is the chain-reaction spectacle, not a bug. */
+    if (b.mat.explodes) applySplash(D.KEG_BLAST, b.mesh.position, b);
     scene.remove(b.mesh);
     disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);

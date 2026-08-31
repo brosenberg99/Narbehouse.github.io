@@ -45,12 +45,12 @@ RT.data = (function () {
      * rather than being absolute, so a meter never has dead travel at one end
      * just because a castle happens to sit close in or far out.
      */
-    YAW_DEG_PER_S   : 4.5,    // sweep speed; ~7s from one edge to the other
+    YAW_DEG_PER_S   : 6,      // sweep speed; ~5.3s from one edge to the other
     YAW_TICK_DEG    : 3,      // soft tick every this many degrees while sweeping
     YAW_PAD_CELLS   : 2.0,    // sweep this far past each side of the castle
     YAW_MIN_HALF_DEG: 7,      // ...but never a sweep narrower than this
 
-    RANGE_PCT_PER_S : 5,      // 0 -> 100% in twenty seconds
+    RANGE_PCT_PER_S : 8,      // 0 -> 100% in 12.5s
     RANGE_TICK_PCT  : 10,     // beep every this much
     RANGE_PAD_NEAR  : 7.0,    // meter starts this far short of the castle front
     RANGE_PAD_FAR   : 7.0,    // ...and ends this far past its back
@@ -86,7 +86,7 @@ RT.data = (function () {
        neighbour. Ported from the 2D version and re-tuned for 3D masses. */
     IMPACT_THRESHOLD  : 7.5,   // units/s of lost speed before damage starts
     IMPACT_DMG_SCALE  : 5.0,
-    KNOCK_SCALE       : 0.55,  // how much of a bolt's velocity goes to what it hits
+    KNOCK_SCALE       : 0.75,  // how much of a bolt's velocity goes to what it hits
 
     /* ── Level geometry ───────────────────────────────────────────────────── */
     MUZZLE_Y        : 2.35,   // height the bolt leaves the ballista at
@@ -124,8 +124,19 @@ RT.data = (function () {
     { id:'fire',     name:'Fire Bolt',  sub:'Flat, burns wood', speed:24.0, dmg:1.00, r:0.20, lob:false, unlockAt:6 },
     { id:'splitter', name:'Splitter',   sub:'Lobs, splits in 3', speed:22.0, dmg:0.62, r:0.20, lob:true,  unlockAt:9 },
     { id:'bomb',     name:'Powder Bomb', sub:'Lobs, blasts a wide radius — one per level',
-      speed:19.0, dmg:1.40, r:0.34, lob:true, unlockAt:10, limit:1, splash:true, splashRadius:2.6, splashDmgScale:0.6 }
+      speed:19.0, dmg:1.40, r:0.34, lob:true, unlockAt:10, limit:1, splash:true, splashRadius:3.2, splashDmgScale:0.6 }
   ];
+
+  /* A powder keg's own death-explosion, fed through the same applySplash()
+   * the Powder Bomb uses (js/game.js) rather than separate blast physics.
+   * Not a real AMMO entry (never fired, never listed) — just enough of the
+   * shape applySplash()/damageFor() expect: id (won't match either ammo-
+   * specific damage bonus above, which is correct — a keg isn't a fire bolt
+   * or a boulder), dmg/speed for damageFor()'s base and the outward kick,
+   * splashRadius/splashDmgScale for the falloff. Deliberately more modest
+   * than the bomb's own blast — this is a bonus chain-reaction, not a second
+   * bomb hiding in every level. */
+  const KEG_BLAST = { id:'keg', speed:14.0, dmg:0.55, splashRadius:2.0, splashDmgScale:0.7 };
 
   /* ── Materials ──────────────────────────────────────────────────────────
    * `family` is what ammo bonuses check (fire vs wood, boulder vs stone) and
@@ -330,7 +341,7 @@ RT.data = (function () {
   }
 
   return {
-    CFG, AMMO, MAT,
+    CFG, AMMO, MAT, KEG_BLAST,
     solveElevation, maxRange, minRange, flatRangeOf,
     castleBounds, rangeWindow, yawLimit,
     pctToRange, rangeToPct, launchFor, damageFor
