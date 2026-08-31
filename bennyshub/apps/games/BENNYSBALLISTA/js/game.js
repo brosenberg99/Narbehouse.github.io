@@ -40,6 +40,8 @@ RT.game = (function () {
   let scene, camera, renderer;
   let world = null;      // world.js handles (sky/ground/lights)
   let ballista = null;   // { root, pivot }
+  let guardDecor = null;  // decorative baked model beside the ballista, or null if not baked
+  let guardDecor2 = null; // second decorative guard, mirrored on the other side
   let physicsReady = false;
   let blocks = [];       // { mesh, body, mat, half:Vector3, hp, alive } — the live level's blocks
   let shots = [];        // live bolts: { mesh, ammo, trace, t, resolved }
@@ -126,7 +128,7 @@ RT.game = (function () {
    */
   const PALETTE_VARS = [
     'sky1', 'sky2', 'ground', 'focus', 'ink',
-    'wood', 'stone', 'glass', 'barrel', 'crown', 'steel'
+    'wood', 'stone', 'glass', 'barrel', 'crown', 'steel', 'guard'
   ];
   let PAL = {};
 
@@ -186,6 +188,15 @@ RT.game = (function () {
     ballista = A.buildBallista(css('wood'), css('steel'));
     ballista.pivot.rotation.order = 'YXZ';   // yaw about world-up first, then pitch — a turret, not a gimbal
     scene.add(ballista.root);
+
+    /* Decorative only — no physics body, not in `blocks[]`, invisible to
+       auditLevels()/auditReach(). Baked hero models (see js/models.js, Part
+       D); stand beside each wheel, facing -Z like the ballista itself. */
+    guardDecor = A.buildModel('guard-spear', css('guard'), 'guard');
+    if (guardDecor) { guardDecor.position.set(1.5, 0, 0.6); scene.add(guardDecor); }
+    guardDecor2 = A.buildModel('guard-halberd', css('guard'), 'guard');
+    if (guardDecor2) { guardDecor2.position.set(-1.5, 0, 0.6); scene.add(guardDecor2); }
+
     buildAimPreview();
   }
 
@@ -800,6 +811,8 @@ RT.game = (function () {
     W.refresh(world, worldPalette(), scene);
     repaintBlocks();
     if (ballista) A.repaint(ballista.root, { wood: css('wood'), steel: css('steel') });
+    if (guardDecor) A.repaint(guardDecor, { guard: css('guard') });
+    if (guardDecor2) A.repaint(guardDecor2, { guard: css('guard') });
     if (previewMat) previewMat.color.set(css('focus'));
   }
 

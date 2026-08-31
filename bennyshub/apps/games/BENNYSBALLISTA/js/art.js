@@ -281,17 +281,20 @@ RT.art = (function () {
       return new THREE.CylinderGeometry(r, r, h, 10);
     }
     if (shape === 'crown') {
-      /* A faceted gem. The crown is the win condition, so it is the one thing
-       * that must never be ambiguous — and up to now it relied on glow()'s
-       * emissive to stand out. That works in the three lit profiles and does
-       * nothing at all in High Contrast, where materials are unlit and every
-       * colour is already at full value: there the crown was a yellow box
-       * among orange boxes, i.e. distinguished by hue alone, in exactly the
-       * profile that exists because hue alone is not enough.
-       *
-       * Sized to the cell's inscribed radius so it fills the cell without
-       * overhanging it (the interpenetration audit has to stay honest).
-       * Interim: Part D replaces this with the tyrant model. */
+      /* The crown is the win condition, so it is the one thing that must
+       * never be ambiguous — and up to now it relied on glow()'s emissive to
+       * stand out. That works in the three lit profiles and does nothing at
+       * all in High Contrast, where materials are unlit and every colour is
+       * already at full value: there the crown was a yellow box among orange
+       * boxes, i.e. distinguished by hue alone, in exactly the profile that
+       * exists because hue alone is not enough. A real humanoid silhouette
+       * (the baked tyrant model, once approved — see js/models.js) solves
+       * that on shape alone, same as every other block here; the faceted
+       * gem is the fallback for as long as that model isn't baked yet. */
+      const tyrant = RT.models.geometry('tyrant');
+      if (tyrant) return tyrant;
+      /* Sized to the cell's inscribed radius so it fills the cell without
+       * overhanging it (the interpenetration audit has to stay honest). */
       return new THREE.OctahedronGeometry(Math.min(w, h, d) * 0.5);
     }
     return new THREE.BoxGeometry(w, h, d);
@@ -382,9 +385,23 @@ RT.art = (function () {
     });
   }
 
+  /**
+   * A baked hero model (see js/models.js), painted and outlined exactly like
+   * every procedural part above. Returns null when the name hasn't been
+   * baked yet, so a caller can no-op rather than build a placeholder — same
+   * "not approved yet" convention `RT.models.geometry()` itself documents.
+   */
+  function buildModel(name, color, pal) {
+    const geo = RT.models.geometry(name);
+    if (!geo) return null;
+    const mesh = part(geo, paper(color), { outline: true });
+    if (pal) mesh.userData.pal = pal;
+    return mesh;
+  }
+
   return {
     paperTexture, skyTexture,
-    paper, glow, outline, ink, part, setShadow,
+    paper, glow, outline, ink, part, setShadow, buildModel,
     buildBlock, blockGeometry, buildBallista, buildBolt,
     setFlat, isFlatProfile, clearMatCache, setInk, repaint,
     INK

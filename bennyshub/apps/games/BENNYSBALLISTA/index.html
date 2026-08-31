@@ -16,7 +16,7 @@
   --accent:#ff5c00; --accent2:#22d3ee; --violet:#8b5cf6;
   --focus:#ffd400; --good:#3ddc84; --bad:#ff5470;
   --sky1:#1b2a4a; --sky2:#3d5a80; --hill:#22304a; --ground:#3a5a40; --dirt:#2b3f30;
-  --wood:#a9682f; --stone:#8d939c; --glass:#7fe6ff; --barrel:#c9442f; --crown:#ffc93c; --steel:#4a5160;
+  --wood:#a9682f; --stone:#8d939c; --glass:#7fe6ff; --barrel:#c9442f; --crown:#ffc93c; --steel:#4a5160; --guard:#5f7a3c;
   /* The outline colour every 3D model and the minimap are drawn with. It used
      to be a hardcoded constant in two files, which meant High Contrast kept
      inking in dark brown on a black background — i.e. the outlines that buy
@@ -32,7 +32,7 @@ body[data-theme="dark"]{
   --accent:#7aa2f7; --accent2:#9ece6a; --violet:#bb9af7;
   --focus:#e0af68; --good:#9ece6a; --bad:#f7768e;
   --sky1:#12161d; --sky2:#2a3140; --hill:#1a1f29; --ground:#39433a; --dirt:#282f29;
-  --wood:#96683c; --stone:#8a909a; --glass:#8fd3e8; --barrel:#b8574a; --crown:#e0af68; --steel:#454b57;
+  --wood:#96683c; --stone:#8a909a; --glass:#8fd3e8; --barrel:#b8574a; --crown:#e0af68; --steel:#454b57; --guard:#566b38;
   --ink:#12151a;
 }
 body[data-theme="light"]{
@@ -43,7 +43,7 @@ body[data-theme="light"]{
      against it — a darker orange here drops below 4.5:1. */
   --focus:#e08900; --good:#137a44; --bad:#b3123a;
   --sky1:#bfe0ff; --sky2:#e8f4ff; --hill:#9dc0a6; --ground:#6aa06f; --dirt:#4d7350;
-  --wood:#b8763a; --stone:#a9b0ba; --glass:#6fd0ea; --barrel:#d1503a; --crown:#e3a900; --steel:#6b7385;
+  --wood:#b8763a; --stone:#a9b0ba; --glass:#6fd0ea; --barrel:#d1503a; --crown:#e3a900; --steel:#6b7385; --guard:#6f8a46;
   --ink:#2a2018;
 }
 body[data-theme="contrast"]{
@@ -52,7 +52,7 @@ body[data-theme="contrast"]{
   --accent:#ffff00; --accent2:#00ffff; --violet:#ff00ff;
   --focus:#ffff00; --good:#00ff66; --bad:#ff3b3b;
   --sky1:#000000; --sky2:#101010; --hill:#202020; --ground:#303030; --dirt:#181818;
-  --wood:#ffa500; --stone:#ffffff; --glass:#00ffff; --barrel:#ff3b3b; --crown:#ffff00; --steel:#8a8a8a;
+  --wood:#ffa500; --stone:#ffffff; --glass:#00ffff; --barrel:#ff3b3b; --crown:#ffff00; --steel:#8a8a8a; --guard:#00ff00;
   /* Black ink on a black ground is no outline at all. Here the edging has to
      invert: white, matching --line, so every block still has a hard border. */
   --ink:#ffffff;
@@ -316,6 +316,7 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
 <script src="js/three.min.js"></script>
 <script src="js/ammo.js"></script>
 <script src="js/util.js"></script>
+<script src="js/models.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/data.js"></script>
 <script src="js/levels.js"></script>
