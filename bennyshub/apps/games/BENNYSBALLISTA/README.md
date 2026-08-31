@@ -86,6 +86,25 @@ In the ammunition list the highlight passes through a blank "deadzone" step
 before it wraps, same as every other list in the hub, and the list only ever
 contains legal choices, so a selection can never fail.
 
+### Select-Target aim mode
+
+An alternative to sweeping and charging, switched on from **Settings** →
+**Aim Mode**. Instead of two meters, it's one scan list of every destructible
+piece in the castle (steel girders excluded — they never break) sorted
+left-to-right, same reading order the sweep meter already uses. Scan to a
+piece, and Return works the same two-press rhythm every meter uses — first
+press **locks** it (speaks the real predicted outcome, spends nothing),
+second press **fires**. A Return-hold while locked clears the lock and
+resumes scanning at the same spot rather than backing out a whole stage, so
+changing your mind never costs a scan position.
+
+Locking a piece doesn't guarantee a hit on that exact piece — the trace
+already speaks the real predicted outcome (something else may be in the way,
+the same ambiguity sweep mode has), and the minimap marks the two separately:
+an open diamond at what's highlighted, the usual crosshair at where the shot
+will actually land. Switching modes mid-shot (from the Settings menu) starts
+the current shot over in the new mode, the same reset a retry goes through.
+
 ## What is in a castle
 
 | Letter | Piece | Behaviour |
@@ -243,9 +262,9 @@ A top-down minimap (top-right) shows the sweep cone, every surviving crown as
 its own ring marker, and a bold crosshair at exactly where the current aim
 and range will land — big while you're actually composing a shot, shrinking
 out of the way the instant it's locked in. **Settings** (in the menu) lets
-you pick its size (Large / Medium / Off), and also holds Colour Profile,
-Steady Camera, Endless Bolts and Sound — see their own sections above/below
-for what each does.
+you pick its size (Large / Medium / Off), and also holds Aim Mode, Colour
+Profile, Steady Camera, Endless Bolts and Sound — see their own sections
+above/below for what each does.
 
 ## Colour profiles
 

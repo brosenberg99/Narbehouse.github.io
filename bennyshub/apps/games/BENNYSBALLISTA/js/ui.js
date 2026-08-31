@@ -53,13 +53,15 @@ RT.ui = (function () {
   let overlayIx = -1;   // focus within the results/out-of-bolts panel; -1 = deadzone
 
   const state = {
-    stage: 'ammo',              // 'ammo' | 'aim' | 'range'
+    stage: 'ammo',              // 'ammo' | 'aim' | 'range' | 'target'
     pick: { ammo: 0 },
     last: { ammo: 0, yawDeg: 0, rangePct: CFG.DEFAULT_RANGE_PCT },
     locked: {},
     scan: -1,                   // ammo list highlight; -1 = deadzone
     yawDeg: 0, yawDir: 1, yawSwept: false, aiming: false, yawTick: 0,
     rangePct: CFG.DEFAULT_RANGE_PCT, charging: false, charged: false, rangeTick: 0,
+    targetScan: -1,             // select-target mode's scan-list highlight; -1 = deadzone
+    targetLocked: false,        // true after a first Return locks the highlighted target
     previewAt: 0
   };
   let previewTrace = null;
@@ -75,7 +77,16 @@ RT.ui = (function () {
   function yawHalfDeg() { return D.yawLimit(level()) * 180 / Math.PI; }
   function clampYaw(deg) { const h = yawHalfDeg(); return U.clamp(deg, -h, h); }
   function unlockedAmmo() { return G.unlockedAmmo(); }
-  function stageOrder() { return unlockedAmmo().length > 1 ? ['ammo', 'aim', 'range'] : ['aim', 'range']; }
+  /** Select-target mode replaces 'aim'+'range' with one 'target' stage —
+   *  picking a block determines yaw *and* range in one act, so it's a
+   *  substitution, not a third stage on top of the other two. The two
+   *  modes never mix: 'aim'/'range' only ever appear together, 'target'
+   *  only ever appears alone. */
+  function stageOrder() {
+    const withAmmo = unlockedAmmo().length > 1;
+    if (G.aimModeOn()) return withAmmo ? ['ammo', 'target'] : ['target'];
+    return withAmmo ? ['ammo', 'aim', 'range'] : ['aim', 'range'];
+  }
 
   /* UI blips come from js/audio.js now rather than the shared SafeAudio — see
    * that file's header for why this game diverges. The three names the rest of
@@ -181,6 +192,19 @@ RT.ui = (function () {
     afterSettingChange(next
       ? 'Steady Camera on. The view stays still through every shot.'
       : 'Steady Camera off. The camera chases the bolt and cuts to the impact.');
+  }
+  /** Switching modes reshuffles stageOrder() entirely ('aim'+'range' <->
+   *  'target'), so the shot in progress is restarted fresh in the new mode
+   *  rather than left on a stage name that no longer exists in the new
+   *  order — enterShot(false) is the same reset every retry/level-load
+   *  already goes through, just triggered here instead. */
+  function cycleAimMode() {
+    const next = G.aimModeOn() ? 'sweep' : 'target';
+    G.setAimMode(next);
+    enterShot(false);
+    afterSettingChange(next === 'target'
+      ? 'Select-Target aim mode on. Scan the castle and lock onto a specific piece instead of sweeping.'
+      : 'Select-Target aim mode off. Back to sweeping the aim and charging the range.');
   }
   function toggleEndlessBolts() {
     const next = !G.save.endlessBolts;
@@ -293,13 +317,16 @@ RT.ui = (function () {
       return {
         title: 'Settings',
         sub: 'Adjust how Benny’s Ballista looks and plays.',
-        note: 'Minimap Size sets how big the top-down map gets while you’re composing a shot. '
+        note: 'Aim Mode switches between sweeping the aim and charging the range, or scanning the '
+          + 'castle and locking onto a specific piece to aim at instead. '
+          + 'Minimap Size sets how big the top-down map gets while you’re composing a shot. '
           + 'Steady Camera holds one fixed view instead of chasing the bolt. '
           + 'Endless Bolts means running out never blocks you — it only affects your star rating. '
           + 'Sound turns the shot and impact effects on or off; it does not affect speech. '
           + 'Colour Profile repaints the whole game, the 3D world included — High Contrast '
           + 'uses solid colours and white outlines on black.',
         items: [
+          { label: '🎯 Aim Mode', sub: G.aimModeOn() ? 'Select-Target' : 'Sweep', action: cycleAimMode },
           { label: '🎨 Colour Profile', sub: currentTheme().name, action: cycleTheme },
           { label: '🗺 Minimap Size', sub: MINIMAP_SIZE_LABEL[G.save.minimapSize || 'large'], action: cycleMinimapSize },
           { label: '🎥 Steady Camera', sub: onOff(G.steadyCameraOn()), action: toggleSteadyCamera },
@@ -443,21 +470,88 @@ RT.ui = (function () {
 
   function scanStep(dir) {
     if (overlayPhase()) { overlayScanStep(dir); return; }
-    if (state.stage !== 'ammo') return;
-    const n = laneLen();
-    let v = (state.scan === -1) ? n : state.scan;
-    v = (v + dir + (n + 1)) % (n + 1);
-    state.scan = (v === n) ? -1 : v;
+    if (state.stage === 'ammo') {
+      const n = laneLen();
+      let v = (state.scan === -1) ? n : state.scan;
+      v = (v + dir + (n + 1)) % (n + 1);
+      state.scan = (v === n) ? -1 : v;
 
-    renderChips(); updatePreview(true); updateFooter();
-    if (state.scan === -1) sfx('hover', 0.25);
-    else { sfx('hover', 0.5); announceFocus(); }
+      renderChips(); updatePreview(true); updateFooter();
+      if (state.scan === -1) sfx('hover', 0.25);
+      else { sfx('hover', 0.5); announceFocus(); }
+      return;
+    }
+    if (state.stage === 'target' && !state.targetLocked) {
+      const n = targetLaneLen();
+      let v = (state.targetScan === -1) ? n : state.targetScan;
+      v = (v + dir + (n + 1)) % (n + 1);
+      state.targetScan = (v === n) ? -1 : v;
+
+      renderTargetChips(); updatePreview(true); updateFooter();
+      if (state.targetScan === -1) sfx('hover', 0.25);
+      else { sfx('hover', 0.5); announceTargetFocus(); }
+      return;
+    }
   }
   function announceFocus() {
     const it = laneItems()[state.scan];
     if (!it) return;
     const remText = isFinite(it.remaining) ? ` ${it.remaining} left this level.` : '';
     U.speak(`${it.label}. ${it.sub}.${remText}`);
+  }
+
+  /* ── Select-target aim mode's scan list ──────────────────────────────────
+   * A castle can have dozens of blocks, so this is a single "current focus"
+   * readout (material name + position + predicted outcome), not one DOM chip
+   * per block the way the (≤5-item) ammo strip is — see renderTargetChips().
+   */
+  function targetLaneItems() {
+    const lvl = level();
+    return G.targetableBlocks().map((b, i) => ({
+      label: b.matName, matId: b.matId, crown: b.crown, ix: i, x: b.x, z: b.z,
+      solved: D.solveTarget(lvl, b.x, b.z)
+    }));
+  }
+  function targetLaneLen() { return targetLaneItems().length; }
+
+  /** The yaw/range a shot at `it` would actually use — clamped through the
+   *  same clampYaw() the sweep meter uses, so a target beyond the ballista's
+   *  physical swing (solved.withinYaw === false) fires at the sweep limit
+   *  and honestly lands short/wide rather than silently ignoring the clamp.
+   *  Preview and the real fire() call both derive from this one function so
+   *  they can never drift apart — "the dots never lie". */
+  function targetShotParams(it) {
+    const yawDeg = clampYaw(it.solved.yawRad * 180 / Math.PI);
+    return { yawRad: yawDeg * Math.PI / 180, rangePct: it.solved.rangePct };
+  }
+
+  function renderTargetChips() {
+    const show = stageOrder().indexOf('target') !== -1;
+    els.laneTarget.hidden = !show;
+    if (!show) return;
+
+    const items = targetLaneItems();
+    const it = state.targetScan === -1 ? null : items[state.targetScan];
+    if (!it) {
+      els.targetFocus.textContent = state.targetLocked ? '' : 'Press space to scan targets.';
+    } else {
+      const pos = `${it.ix + 1} of ${items.length}`;
+      const reach = it.solved.withinYaw ? '' : ' (out of range)';
+      els.targetFocus.textContent = `${it.label} — ${pos}${it.crown && it.label.toLowerCase() !== 'crown' ? ' — crown' : ''}${reach}`;
+    }
+    els.laneTarget.classList.toggle('active', state.stage === 'target');
+    els.laneTarget.classList.toggle('locked', !!state.targetLocked);
+    els.btnLockTarget.disabled = state.stage !== 'target' || state.targetLocked || state.targetScan === -1;
+    els.btnFireTarget.disabled = state.stage !== 'target' || !state.targetLocked;
+  }
+
+  function announceTargetFocus() {
+    const items = targetLaneItems();
+    const it = items[state.targetScan];
+    if (!it) return;
+    const crownNote = it.crown ? ' This is a crown.' : '';
+    const reach = it.solved.withinYaw ? '' : ' Out of the sweep range — a shot will land short of it.';
+    U.speak(`${it.label}, ${it.ix + 1} of ${items.length}.${crownNote} This shot ${previewPhrase()}.${reach}`);
   }
 
   /* ── Meters ───────────────────────────────────────────────────────────── */
@@ -482,6 +576,9 @@ RT.ui = (function () {
     els.valPower.textContent = pct + '%';
     els.meterPower.setAttribute('aria-valuenow', pct);
 
+    const order = stageOrder();
+    els.laneAim.hidden = order.indexOf('aim') === -1;
+    els.lanePower.hidden = order.indexOf('range') === -1;
     els.laneAim.classList.toggle('active', state.stage === 'aim');
     els.laneAim.classList.toggle('moving', state.aiming);
     els.laneAim.classList.toggle('locked', !!state.locked.aim);
@@ -494,7 +591,7 @@ RT.ui = (function () {
   }
 
   function updateFooter() {
-    const names = { ammo: 'Ammo', aim: 'Aim', range: 'Range' };
+    const names = { ammo: 'Ammo', aim: 'Aim', range: 'Range', target: 'Target' };
     els.ftrMode.textContent = names[state.stage] || state.stage;
     els.ftrTarget.textContent = previewTrace ? previewPhrase() : '';
   }
@@ -624,8 +721,15 @@ RT.ui = (function () {
     const now = performance.now();
     if (!force && now - state.previewAt < CFG.METER_PREVIEW_MS) return;
     state.previewAt = now;
-    const yawRad = clampYaw(state.yawDeg) * Math.PI / 180;
-    previewTrace = G.traceShot(currentAmmo(), yawRad, state.rangePct);
+    let yawRad, rangePct;
+    if (state.stage === 'target' && state.targetScan !== -1) {
+      const p = targetShotParams(targetLaneItems()[state.targetScan]);
+      yawRad = p.yawRad; rangePct = p.rangePct;
+    } else {
+      yawRad = clampYaw(state.yawDeg) * Math.PI / 180;
+      rangePct = state.rangePct;
+    }
+    previewTrace = G.traceShot(currentAmmo(), yawRad, rangePct);
     G.updateAimPreview(previewTrace);
     drawMinimap();
   }
@@ -754,6 +858,25 @@ RT.ui = (function () {
       ctx.lineWidth = 4; ctx.strokeStyle = crownColor; ctx.stroke();
     });
 
+    // Select-target mode's current focus — an open diamond, distinct from
+    // both the crown ring and the landing crosshair below, since the
+    // trace's actual hit can differ from the block the player picked
+    // (something else may be in the way, same ambiguity sweep mode already
+    // has) — "what I'm pointing at" and "what will actually get hit" both
+    // need to stay visible even when they disagree.
+    if (state.stage === 'target' && state.targetScan !== -1) {
+      const it = targetLaneItems()[state.targetScan];
+      if (it) {
+        const [tx, ty] = toCanvas(it.x, -it.z);
+        const r = 13;
+        ctx.save();
+        ctx.translate(tx, ty); ctx.rotate(Math.PI / 4);
+        ctx.lineWidth = 7; ctx.strokeStyle = INK; ctx.strokeRect(-r, -r, r * 2, r * 2);
+        ctx.lineWidth = 4; ctx.strokeStyle = focus; ctx.strokeRect(-r, -r, r * 2, r * 2);
+        ctx.restore();
+      }
+    }
+
     // The ballista itself.
     ctx.fillStyle = focus;
     ctx.strokeStyle = INK; ctx.lineWidth = 3.5;
@@ -788,6 +911,12 @@ RT.ui = (function () {
   /* ── Stage machine ────────────────────────────────────────────────────── */
   function stageHint() {
     if (state.stage === 'ammo') return 'Choose ammunition. Press space to scan.';
+    if (state.stage === 'target') {
+      if (state.targetLocked) return 'Target locked. Press return to fire, or hold return to pick a different target.';
+      return autoScanOn()
+        ? 'Choose a target. Scanning automatically — press return to lock the highlighted one.'
+        : 'Choose a target. Press space to scan, return to lock it in.';
+    }
     if (state.stage === 'aim') return autoScanOn()
       ? 'Aiming. The aim is sweeping — press return to stop it.'
       : 'Aiming. Hold space to sweep left and right, let go to stop it.';
@@ -806,6 +935,9 @@ RT.ui = (function () {
     if (stage === 'ammo') {
       if (!opts.keep) state.scan = -1;
       resetAutoScan();
+    } else if (stage === 'target') {
+      if (!opts.keep) { state.targetScan = -1; state.targetLocked = false; }
+      resetAutoScan();
     } else if (stage === 'aim') {
       if (!opts.keep) { state.yawDir = 1; state.yawSwept = false; }
       if (autoScanOn()) { state.aiming = true; state.yawSwept = true; }
@@ -813,12 +945,14 @@ RT.ui = (function () {
       if (!opts.keep) { state.rangePct = 0; state.charged = false; state.rangeTick = 0; }
       if (autoScanOn()) state.charging = true;
     }
-    renderChips(); renderMeters(); updatePreview(true); updateFooter();
+    renderChips(); renderTargetChips(); renderMeters(); updatePreview(true); updateFooter();
   }
 
   function enterShot(fresh) {
     state.locked = {};
     state.scan = -1;
+    state.targetScan = -1;
+    state.targetLocked = false;
     state.yawDeg = clampYaw(state.last.yawDeg);
     state.rangePct = state.last.rangePct;
     state.charged = false;
@@ -832,6 +966,7 @@ RT.ui = (function () {
     if (state.stage === 'ammo') return commitAmmo();
     if (state.stage === 'aim') return lockAim();
     if (state.stage === 'range') return confirmShot();
+    if (state.stage === 'target') return commitTarget();
   }
 
   function commitAmmo() {
@@ -882,6 +1017,39 @@ RT.ui = (function () {
     // the moment that happens.
   }
 
+  /** Select-target mode's commit, two-press lock-then-fire: the first Return
+   *  just locks the highlighted block (no ammo spent, no camera transition)
+   *  and speaks the real predicted outcome; a second Return actually fires.
+   *  Locking never changes `state.stage` — unlike the ammo/aim stages, which
+   *  move on once committed, target mode stays put so Return-hold can back
+   *  out of a lock without losing the scan position (see backOut()). */
+  function commitTarget() {
+    if (state.targetLocked) {
+      sfx('select', 0.6);
+      const it = targetLaneItems()[state.targetScan];
+      U.speak(`Firing at the ${it.label}.`);
+      doFireTarget();
+      return;
+    }
+    if (state.targetScan === -1) { U.speak('Nothing highlighted. Press space to keep scanning.'); return; }
+    state.targetLocked = true;
+    sfx('select', 0.6);
+    renderTargetChips(); updateFooter();
+    const it = targetLaneItems()[state.targetScan];
+    U.speak(`${it.label} locked. This shot ${previewPhrase()}. `
+      + 'Press return to fire, or hold return to pick a different target.');
+  }
+
+  function doFireTarget() {
+    const ammo = unlockedAmmo()[state.pick.ammo];
+    const it = targetLaneItems()[state.targetScan];
+    const p = targetShotParams(it);
+    G.fire(ammo, p.yawRad, p.rangePct);
+    state.last = { ammo: state.pick.ammo, yawDeg: p.yawRad * 180 / Math.PI, rangePct: p.rangePct };
+    sfx('bust', 0.35);
+    // No enterShot() here — same reasoning as doFire() above.
+  }
+
   function backOut() {
     // Inside the context menu, Return-hold walks back the way it came:
     // sub-screen -> root -> closed. Same gesture, one level at a time.
@@ -892,6 +1060,13 @@ RT.ui = (function () {
       return;
     }
     if (overlayPhase()) { U.speak('Nothing to go back to here — press space then return to choose.'); return; }
+    if (state.stage === 'target' && state.targetLocked) {
+      state.targetLocked = false;
+      sfx('hover', 0.5);
+      renderTargetChips(); updatePreview(true); updateFooter();
+      U.speak(`Target cleared. ${stageHint()}`);
+      return;
+    }
     const order = stageOrder();
     const i = order.indexOf(state.stage);
     if (i <= 0) {
@@ -925,7 +1100,9 @@ RT.ui = (function () {
    * in the aim/range stages — scoping it by stage is what lets both be true
    * without either one surprising the player.
    */
-  function inScanList() { return state.stage === 'ammo' || overlayPhase(); }
+  function inScanList() {
+    return state.stage === 'ammo' || (state.stage === 'target' && !state.targetLocked) || overlayPhase();
+  }
   function scanNext() { scanStep(1); resetAutoScan(); }
   function scanPrev() { scanStep(-1); }
   function selectCurrent() { commit(); }
@@ -1021,6 +1198,8 @@ RT.ui = (function () {
   function init() {
     els = {
       laneAmmo: U.$('laneAmmo'), chipsAmmo: U.$('chipsAmmo'),
+      laneTarget: U.$('laneTarget'), targetFocus: U.$('targetFocus'),
+      btnLockTarget: U.$('btnLockTarget'), btnFireTarget: U.$('btnFireTarget'),
       laneAim: U.$('laneAim'), meterAim: U.$('meterAim'), fillAim: U.$('fillAim'),
       valAim: U.$('valAim'), btnLockAim: U.$('btnLockAim'),
       lanePower: U.$('lanePower'), meterPower: U.$('meterPower'), fillPower: U.$('fillPower'),
@@ -1045,6 +1224,8 @@ RT.ui = (function () {
     window.addEventListener('touchend', () => { if (meterStage()) releaseMeter(); });
     els.btnLockAim.addEventListener('click', () => { if (canAct() && state.stage === 'aim') lockAim(); });
     els.btnFire.addEventListener('click', () => { if (canAct() && state.stage === 'range') confirmShot(); });
+    els.btnLockTarget.addEventListener('click', () => { if (canAct() && state.stage === 'target' && !state.targetLocked) commitTarget(); });
+    els.btnFireTarget.addEventListener('click', () => { if (canAct() && state.stage === 'target' && state.targetLocked) commitTarget(); });
 
     /* Header buttons are a mouse/touch shortcut into the very same context
        menu Return-hold opens — never a separate path with its own state, so

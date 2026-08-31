@@ -88,6 +88,7 @@ RT.game = (function () {
       endlessBolts: true, // recommended default, matches the hub's no-fail philosophy
       minimapSize: 'large', // 'large' | 'medium' | 'none' — js/ui.js's Settings screen
       theme: 'ben',      // 'ben' | 'dark' | 'light' | 'contrast' — the four colour profiles
+      aimMode: 'sweep',  // 'sweep' | 'target' — js/ui.js's Settings screen
       // null = follow the OS's prefers-reduced-motion; true/false = the player
       // overrode it in Settings. Kept tri-state rather than baking the OS value
       // in at first save, so someone who later turns reduced-motion on still
@@ -1167,6 +1168,19 @@ RT.game = (function () {
     return blocks.filter((b) => b.alive && b.mat.crown).map((b) => ({ x: b.mesh.position.x, z: b.mesh.position.z }));
   }
 
+  /** Select-target aim mode's scan list: every alive, non-static block —
+   *  steel girders excluded, same "never breaks, go around it" reasoning as
+   *  crownPositions() only ever mattering for the destructible ones. Sorted
+   *  left-to-right by yaw so a player who already knows the sweep meter
+   *  carries the same mental model over, distance as a tiebreaker for two
+   *  blocks stacked in depth at the same angle. */
+  function targetableBlocks() {
+    return blocks
+      .filter((b) => b.alive && !b.mat.static)
+      .map((b) => ({ x: b.mesh.position.x, z: b.mesh.position.z, matId: b.mat.id, matName: b.mat.name, crown: !!b.mat.crown }))
+      .sort((a, c) => Math.atan2(a.x, -a.z) - Math.atan2(c.x, -c.z) || (Math.hypot(a.x, a.z) - Math.hypot(c.x, c.z)));
+  }
+
   /* ── Results / out-of-bolts overlays ──────────────────────────────────────
    * js/ui.js renders these (the #overlay markup already in index.html) and
    * calls back into whichever of these the player picks. Both just resolve
@@ -1203,6 +1217,9 @@ RT.game = (function () {
     persistSave();
   }
   function setSteadyCamera(on) { save.steadyCamera = !!on; persistSave(); }
+
+  function aimModeOn() { return (save && save.aimMode) === 'target'; }
+  function setAimMode(mode) { save.aimMode = mode === 'target' ? 'target' : 'sweep'; persistSave(); }
 
   /* ── Colour profile ───────────────────────────────────────────────────────
    * index.html has carried four full palettes since the step-2 rewrite, but
@@ -1316,10 +1333,10 @@ RT.game = (function () {
   return {
     init, loadAttract, update,
     onThemeChanged, isFlat,
-    unlockedAmmo, ammoRemaining, currentLevel, crownPositions, fire, traceShot, updateAimPreview,
+    unlockedAmmo, ammoRemaining, currentLevel, crownPositions, targetableBlocks, fire, traceShot, updateAimPreview,
     confirmResults, retryLevel, enableEndlessAndContinue,
     openMenu, closeMenu, setMinimapSize, setSteadyCamera, setEndlessBolts, steadyCameraOn,
-    getTheme, setTheme,
+    getTheme, setTheme, aimModeOn, setAimMode,
     get CAM() { return CAM; },
     get levelIx() { return levelIx; },
     get lastResult() { return lastResult; },

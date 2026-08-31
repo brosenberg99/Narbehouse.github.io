@@ -321,6 +321,21 @@ RT.data = (function () {
   }
 
   /**
+   * Select-target aim mode's whole solver: given a block's world x/z, what
+   * yaw and range meter reading points the ballista straight at it? The
+   * muzzle sits at the world origin (see launchFor() above), so this is
+   * just the inverse of the polar coordinates the sweep/charge meters
+   * already work in — `withinYaw` tells the caller whether the sweep could
+   * physically reach that far around without the yaw meter clamping it.
+   */
+  function solveTarget(level, x, z) {
+    const yawRad = Math.atan2(x, -z);
+    const dist = Math.sqrt(x * x + z * z);
+    return { yawRad: yawRad, dist: dist, rangePct: rangeToPct(level, dist),
+             withinYaw: Math.abs(yawRad) <= yawLimit(level) };
+  }
+
+  /**
    * Full launch state for a shot. `yaw` is radians, + to the player's right.
    * Returns null if the requested range is unreachable, which the caller must
    * handle — though rangeWindow() is built so it never should be.
@@ -360,6 +375,6 @@ RT.data = (function () {
     CFG, AMMO, MAT, KEG_BLAST,
     solveElevation, maxRange, minRange, flatRangeOf,
     castleBounds, rangeWindow, yawLimit,
-    pctToRange, rangeToPct, launchFor, damageFor
+    pctToRange, rangeToPct, launchFor, damageFor, solveTarget
   };
 })();

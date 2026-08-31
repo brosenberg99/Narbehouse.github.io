@@ -188,6 +188,19 @@ body[data-theme="light"] #minimap{background:rgba(255,255,255,.78)}
     transparent 0 calc(10% - 2px), rgba(255,255,255,.18) calc(10% - 2px) 10%);
 }
 
+/* ── Select-target aim mode's focus readout ──────────────────────────────
+ * One box, not one chip per block (a castle can have dozens) — see
+ * js/ui.js's renderTargetChips(). Same box language as .meter above so it
+ * reads as "the same kind of control", just showing text instead of a fill.
+ */
+.targetFocus{
+  flex:1 1 auto; min-height:2.9rem; border-radius:.55rem;
+  background:var(--panel2); border:2px solid var(--line);
+  display:flex; align-items:center; padding:0 .75rem;
+  font-weight:800; font-size:1rem; color:var(--text);
+}
+.lane.locked .targetFocus{border-color:var(--good)}
+
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 #ftr{
   flex:0 0 auto; display:flex; align-items:center; gap:.9rem; flex-wrap:wrap;
@@ -272,6 +285,17 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
 
     <div id="shotbar">
       <div class="lane" id="laneAmmo"  hidden><span class="laneLabel">Ammo</span><div class="chips" id="chipsAmmo"></div></div>
+      <!-- Select-target aim mode: replaces the Aim/Range lanes below rather
+           than joining them — picking a block sets yaw and range in one act.
+           laneAim/lanePower hide themselves when this mode is on (see
+           js/ui.js's renderMeters()), same shown/hidden discipline laneAmmo
+           already uses for the one-ammo-unlocked case. -->
+      <div class="lane" id="laneTarget" hidden>
+        <span class="laneLabel">Target</span>
+        <div class="targetFocus" id="targetFocus">Press space to scan targets.</div>
+        <button class="chip act" id="btnLockTarget" type="button">Lock</button>
+        <button class="chip act" id="btnFireTarget" type="button">Fire</button>
+      </div>
       <div class="lane" id="laneAim">
         <span class="laneLabel">Aim</span>
         <!-- ids stay the historical "Aim" from the 2D angle meter; it now
