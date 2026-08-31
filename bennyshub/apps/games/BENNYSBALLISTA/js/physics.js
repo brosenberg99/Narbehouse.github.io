@@ -173,6 +173,16 @@ RT.physics = (function () {
     body.setLinearVelocity(_v0);
   }
 
+  /** Wakes a body with no velocity change — unlike addVelocity() above, this
+   *  is for a block that needs to notice its own support just vanished.
+   *  removeRigidBody() (destroyBlock() above) carries no collision event, so
+   *  Bullet never wakes a sleeping body just because whatever it was resting
+   *  on got removed from the world; without this it floats in place forever,
+   *  asleep, even with nothing left underneath it. */
+  function wake(body) {
+    body.activate(true);
+  }
+
   function dispose() {
     if (!world) return;
     for (const key in shapeCache) { Ammo.destroy(shapeCache[key]); delete shapeCache[key]; }
@@ -186,5 +196,5 @@ RT.physics = (function () {
     world = null;
   }
 
-  return { init, addBlock, destroyBlock, step, sync, speed, isAwake, addVelocity, dispose };
+  return { init, addBlock, destroyBlock, step, sync, speed, isAwake, addVelocity, wake, dispose };
 })();

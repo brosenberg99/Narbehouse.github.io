@@ -93,9 +93,10 @@ contains legal choices, so a selection can never fail.
 | `W` | Wood beam | Breaks easily. Fire Bolts burn straight through it. |
 | `S` | Stone block | Needs a hard hit. Boulders are best against it. |
 | `I` | Glass pane | Shatters at a touch, but holds almost nothing up. |
-| `T` | Powder keg | Fragile (low hp), no bonus. Drawn as a barrel, not a box. The 2D version's keg actually exploded and took its neighbours with it; that carried over as an `explodes:true` flag in `js/data.js`'s `MAT.T` but nothing reads it yet in the 3D port — currently just a weak plain block. |
+| `T` | Powder keg | Fragile (low hp), no bonus. Drawn as a barrel, not a box. Explodes on death (`js/data.js`'s `KEG_BLAST`, fed through the same `applySplash()` the Powder Bomb ammo uses) — real area damage and outward knock, and a keg can chain into a neighbouring keg the same way. |
 | `K` | Crown | The target. Destroy them all to win. Drawn as a faceted gem, not a box. |
 | `X` | Steel girder | Never breaks and never moves. Go around it. |
+| `B` | Timber board | Thin (15% of a cell) and mergeable, sitting flush on its own row's floor instead of filling the cell — for bridges, ceilings and floors. See "Boards" below. |
 | `w` / `s` / `i` | Small rubble | Half-size, lighter, never welds to a neighbour — loose debris. |
 
 **Some pieces have their own silhouette, and that is deliberate.** Two things
@@ -135,10 +136,24 @@ not one block quietly vanishing.
 A bolt striking a piece doesn't just deal damage, either — it hands the
 piece some of its own velocity, so a hit that doesn't destroy something
 still knocks it loose to go tumbling. Impact damage (from a hard landing, or
-one piece crashing into another) works by watching for a sudden drop in a
-piece's own speed — the physics engine doesn't need to be told when that
-happens, the game just notices it (`stepPhysicsWithImpacts()` in
-`js/game.js`).
+one piece crashing into another) works by watching for a drop in a piece's
+own speed since it last came to rest — the physics engine doesn't need to be
+told when that happens, the game just notices it (`stepPhysicsWithImpacts()`
+in `js/game.js`). That comparison is against the *peak* speed reached since
+the last landing, evaluated once the piece actually settles, not a plain
+frame-to-frame delta — Bullet's own contact resolution spreads a hard stop's
+deceleration across several frames, so comparing only consecutive frames (or
+resetting the moment any single frame crosses the threshold) catches just a
+fragment of a real multi-unit fall and badly under-credits it.
+
+A hard landing also hurts whatever the landing piece is now resting directly
+on top of (`applyCrush()`), separately from the landing piece's own damage —
+a support knocked out from under a heavy span genuinely crushes what the span
+comes down on. And destroying a piece wakes whatever was resting on it
+(`wakeBlocksAbove()`, backed by `js/physics.js`'s `wake()`): removing a body
+from the physics world carries no collision event on its own, so without this
+a sleeping piece would float in place forever with nothing left underneath
+it, support or no support.
 
 Gravity (`CFG.GRAVITY`) is set well above real-world for a 1-unit block on
 purpose — that's what makes a collapse read as chunky and toy-like rather
@@ -176,6 +191,30 @@ both already used by the shipped levels:
 - **A hidden crown.** A solid front layer can hide a back layer's crown from
   a flat shot completely — see "What is in a castle" above for why that's a
   legitimate level design now rather than a broken one.
+
+### Boards
+
+`B` (timber board) is the one material that doesn't fill its whole cell — it
+sits flush on its own row's floor, claiming only the bottom 15% of the row's
+vertical budget (`PLANK_FRAC` in `js/levels.js`), so a run of it can bridge a
+gap with nothing but open air underneath. It's still mergeable and still just
+a plain box (`js/art.js`'s `blockGeometry()` fallthrough — a board only needs
+a different *proportion*, not a different *shape*, so it never sets `shape`
+the way the keg/crown do), so row-merge, depth-merge and cladding all work on
+it exactly like any other material.
+
+This opens up patterns the other materials can't: a bridge spanning a gap on
+two end supports with an open shaft in between (see "The Bridge"), or a roof
+over a crown that a lob thuds into while a flat shot sails underneath at the
+crown's own height (see "The Vaulted Hall" family). **Hard rule: never draw
+anything — especially `K` — directly above a board's row in the same column**
+unless a visible drop-and-thud on load is the intent. Every other row's block
+computes its height purely from its own row index, blind to what's actually
+beneath it; that was always safe before because every material filled its
+whole cell. A crown drawn directly above a board has an ~0.85-unit gap to
+fall through before settling, and `auditLevels()`'s 0.05-unit-drift check will
+correctly fail it — that's the safety net working, but only if you know the
+rule going in rather than finding out from the boot error.
 
 ## Ammunition
 

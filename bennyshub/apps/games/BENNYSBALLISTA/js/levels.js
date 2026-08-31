@@ -42,6 +42,11 @@ RT.levels = (function () {
    *  physics.js's happy range for Bullet. */
   const CELL = 1.0;
 
+  /** How much of a cell's vertical budget a `plank:true` material (js/data.js's
+   *  `B`) claims, sitting flush on its own row's floor rather than filling the
+   *  cell like every other material. Tunable — not a locked design constant. */
+  const PLANK_FRAC = 0.15;
+
   /** Same-letter runs within one row of one layer, exactly as the 2D
    *  version's buildLevel() found them. */
   function rowRuns(rows) {
@@ -116,10 +121,11 @@ RT.levels = (function () {
           z = layerZ(li);
         } else {
           w = run.len * CELL;
-          h = CELL;
+          h = mat.plank ? CELL * PLANK_FRAC : CELL;
           d = (endLayer - li + 1) * CELL;
           x = (run.col + run.len / 2 - cols / 2) * CELL;
-          y = (rows - run.row - 1 + 0.5) * CELL;
+          const bottom = (rows - run.row - 1) * CELL;   // this row's own floor
+          y = bottom + h / 2;
           z = (layerZ(li) + layerZ(endLayer)) / 2;
         }
         blocks.push({ matId: run.matId, x: x, y: y, z: z, w: w, h: h, d: d });
@@ -267,7 +273,54 @@ RT.levels = (function () {
         '.W.....W.',
         '.WWWWWWW.'
       ]
-    ] }
+    ] },
+    /* The first two levels built around `B` (js/data.js's timber board) — a
+     * thin, mergeable piece that sits flush on its own row's floor instead of
+     * filling the cell, so a run of it can bridge a gap between two supports
+     * with nothing but open air underneath. Both keep the crown a full empty
+     * row below the board (never directly touching it), per the authoring
+     * rule in README.md. */
+    { name: 'The Bridge', par: 2, bolts: 7, dist: 28, layers: [[
+      '..BBBBB..',   // the span itself — rests only on the two pillars below
+      '..W...W..',   // pillar tops; the three middle columns are open shaft
+      '..W.K.W..'    // pillar bases, and the crown standing in the open gap
+    ]] },
+    /* Deliberately NOT independently reachable — the point of this one.
+     * The roof rests on two single-block pillars, each in turn resting on a
+     * static steel ledge (steel needs no support underneath it — see
+     * Cliffside Fort/The Palisade above — so the ledge can float over an
+     * open pit with nothing propping it up). Destroy either single-block
+     * pillar (one hit; nothing stacked above it to catch the gap the way a
+     * taller pillar would) and the roof, now held at only one end, swings
+     * down into the pit onto whatever's below — a genuine multi-unit fall,
+     * not a token one-row drop, so it actually crosses the damage threshold.
+     * Verified in-browser (RT.game.__test): destroying a pillar really does
+     * bring the roof down hard enough to kill a crown underneath, not
+     * assumed from the fall-height arithmetic alone (see
+     * [[ballista-3d-rework]] for why a short drop doesn't reliably cross the
+     * threshold, and why "shoot the base" alone never used to be enough —
+     * a destroyed support's neighbours don't wake on their own). */
+    /* The crown sits on a cantilevered LEDGE (one wide merged run poking one
+     * cell further than the wall above and below it — `W` at col0-1 doesn't
+     * merge with the `K` beside it, different materials never do, but the
+     * ledge row's own col0-2 run is one single rigid body). Destroy that one
+     * row and the wall above simply settles 1 unit onto the wall below (an
+     * ordinary, harmless resettle) — but col2 has nothing at ANY row below
+     * the ledge, all the way to the ground, so the crown genuinely free-
+     * falls the full six units with nothing to catch it partway, unlike a
+     * continuously-touching stack (which only ever closes by the height of
+     * whatever's removed — see [[ballista-3d-rework]] for how that was
+     * confirmed, and why a supported crown never has to be independently
+     * reachable to begin with). Verified in-browser, not assumed. */
+    { name: 'The Cantilever', par: 3, bolts: 8, dist: 29, layers: [[
+      'WWK......',   // the crown, resting on nothing but the ledge below it
+      'WWW......',   // the ledge — one merged run, one hit clears it entirely
+      'WW.......',
+      'WW.......',
+      'WW.......',
+      'WW.......',
+      'WW.......'    // wall base, unrelated to whatever col2 is doing above
+    ]] }
   ];
 
   // Compute and cache each level's footprint once, at load — data.js's

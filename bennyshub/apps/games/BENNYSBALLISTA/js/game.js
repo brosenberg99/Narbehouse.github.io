@@ -333,9 +333,35 @@ RT.game = (function () {
        excludes only the primary block, so a second keg dies and calls back
        in here), which is the chain-reaction spectacle, not a bug. */
     if (b.mat.explodes) applySplash(D.KEG_BLAST, b.mesh.position, b);
+    wakeBlocksAbove(b);
     scene.remove(b.mesh);
     disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);
+  }
+
+  const _wakeBox = new THREE.Box3(), _wakeOtherBox = new THREE.Box3();
+  /** See physics.js's wake() for why this exists at all: removing a body
+   *  from the world wakes nothing resting on it, so without this, anything
+   *  asleep on top of a block that just died would float in place forever
+   *  with nothing underneath it. Same geometric "resting directly on top
+   *  of" test as applyCrush() below, just to wake rather than to damage —
+   *  real gravity, not this function, decides whether it actually falls.
+   *  Own scratch Box3s, not shared with applyCrush()'s, since this runs from
+   *  inside destroyBlockRec() and applyCrush() can itself call
+   *  destroyBlockRec() (a crushed block dying) while its own scratch boxes
+   *  are still in use partway through its loop. */
+  function wakeBlocksAbove(b) {
+    _wakeBox.setFromObject(b.mesh);
+    for (const other of blocks) {
+      if (!other.alive || other === b || other.mat.static) continue;
+      _wakeOtherBox.setFromObject(other.mesh);
+      const xzOverlap = _wakeBox.max.x > _wakeOtherBox.min.x && _wakeBox.min.x < _wakeOtherBox.max.x &&
+                         _wakeBox.max.z > _wakeOtherBox.min.z && _wakeBox.min.z < _wakeOtherBox.max.z;
+      if (!xzOverlap) continue;
+      const gap = _wakeOtherBox.min.y - _wakeBox.max.y;
+      if (gap < -0.05 || gap > 0.1) continue;   // resting ON b, not through or beside it
+      P.wake(other.body);
+    }
   }
 
   /**
@@ -779,15 +805,27 @@ RT.game = (function () {
    */
   function stepPhysicsWithImpacts(dt) {
     for (const b of blocks) {
-      if (b.alive && !b.mat.static) b._preSpeed = P.speed(b.body);
+      if (b.alive && !b.mat.static) b._peakSpeed = Math.max(b._peakSpeed || 0, P.speed(b.body));
     }
     P.step(dt);
     for (const b of blocks) {
       if (!b.alive) continue;
       P.sync(b.mesh, b.body);
       if (b.mat.static) continue;
-      const drop = (b._preSpeed || 0) - P.speed(b.body);
-      if (drop > CFG.IMPACT_THRESHOLD) {
+      const cur = P.speed(b.body);
+      /* Peak-since-last-rest, evaluated once the block is actually settled
+         (below SLEEP_LINEAR), not frame-to-frame: Bullet's own contact
+         resolution spreads a hard stop's deceleration across several frames
+         (a multi-unit fall measurably lands over ~10+ frames, not one), so
+         comparing consecutive frames — or even resetting the peak the first
+         frame a drop crosses the threshold — only ever catches a fragment of
+         the real fall, never the whole energy lost. Waiting for it to settle
+         and comparing against the PEAK it actually reached is what makes "a
+         crown falls far enough to die" (see [[ballista-3d-rework]]) an event
+         that can actually fire. */
+      const peak = b._peakSpeed || 0;
+      if (peak > CFG.IMPACT_THRESHOLD && cur < CFG.SLEEP_LINEAR && !b._peakResolved) {
+        const drop = peak - cur;
         /* This is where a collapse gets its sound. Every block stopped hard
            this step is one impact; audio.js voices the loudest few and sums
            the rest into a rumble, which is what a wall coming down actually
@@ -795,10 +833,46 @@ RT.game = (function () {
         b._lastHitSpeed = drop;
         sfx('impact', b.mat, drop, panFor(b.mesh.position));
         b.hp -= (drop - CFG.IMPACT_THRESHOLD) * CFG.IMPACT_DMG_SCALE;
+        applyCrush(b, drop);
+        b._peakResolved = true;
         if (b.hp <= 0) destroyBlockRec(b);
+      }
+      if (cur > peak) {
+        b._peakSpeed = cur;
+        b._peakResolved = false;   // a fresh fall — allow this one to register too
       }
     }
     checkWin();
+  }
+
+  const _crushBox = new THREE.Box3(), _otherBox = new THREE.Box3();
+  /** A hard-landing block (see stepPhysicsWithImpacts() above) doesn't just
+   *  hurt itself — it hurts whatever it's now resting directly on top of, so
+   *  a support knocked out from under a heavy span genuinely crushes what
+   *  the span comes down on, rather than just thudding to a stop on its own
+   *  account. Geometric, not a contact listener: real XZ footprint overlap
+   *  plus `b`'s bottom sitting at (not through, not beside) `other`'s top,
+   *  a tight tolerance so this never fires for two blocks merely standing
+   *  side by side. Distinct from applySplash() (an explosion's outward area
+   *  damage) and from the plain self-damage above — this is a third, purely
+   *  vertical damage path. */
+  function applyCrush(b, drop) {
+    const crushDmg = (drop - CFG.IMPACT_THRESHOLD) * CFG.CRUSH_DMG_SCALE;
+    _crushBox.setFromObject(b.mesh);
+    for (const other of blocks) {
+      if (!other.alive || other === b) continue;
+      _otherBox.setFromObject(other.mesh);
+      const xzOverlap = _crushBox.max.x > _otherBox.min.x && _crushBox.min.x < _otherBox.max.x &&
+                         _crushBox.max.z > _otherBox.min.z && _crushBox.min.z < _otherBox.max.z;
+      if (!xzOverlap) continue;
+      const gap = _crushBox.min.y - _otherBox.max.y;
+      if (gap < -0.05 || gap > 0.1) continue;  // resting ON other, not through or beside it
+      other._lastHitSpeed = drop;
+      sfx('impact', other.mat, drop, panFor(other.mesh.position));
+      other.hp -= crushDmg;
+      if (!other.mat.static) P.addVelocity(other.body, 0, -drop * 0.15, 0);
+      if (other.hp <= 0) destroyBlockRec(other);
+    }
   }
 
   /**
@@ -1155,6 +1229,7 @@ RT.game = (function () {
    */
   const __test = {
     blockCount() { return blocks.length; },
+    blockSpeed(index) { const b = blocks[index]; return b && b.alive ? P.speed(b.body) : null; },
     blockState() {
       return blocks.map((b) => ({
         alive: b.alive, hp: b.hp, mat: b.mat.id,

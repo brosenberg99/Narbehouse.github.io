@@ -84,10 +84,16 @@ button:disabled{opacity:.5;cursor:default}
     <div id="hint">
       Letters: <b>W</b> wood &middot; <b>S</b> stone &middot; <b>I</b> glass &middot;
       <b>T</b> powder keg &middot; <b>K</b> crown &middot; <b>X</b> steel (indestructible) &middot;
+      <b>B</b> timber board (thin, sits flush on its row's floor — for
+      ceilings/bridges) &middot;
       <b>w/s/i</b> half-size rubble (never merges). A run of the same mergeable letter
       side by side in a row welds into one wide body; the same run repeated on the next
-      layer back welds in depth too. Drag to orbit, scroll to zoom. This tool never runs
-      the real game's camera, input or scan lists — mouse/keyboard only, on purpose.
+      layer back welds in depth too. Never draw anything (especially <b>K</b>) directly
+      above a <b>B</b>'s row in the same column unless a drop-and-thud on load is
+      intended — every other row's block sits on its own row floor regardless of what's
+      beneath it, which a board's thin height breaks. Drag to orbit, scroll to zoom. This
+      tool never runs the real game's camera, input or scan lists — mouse/keyboard only,
+      on purpose.
     </div>
   </div>
   <div id="stage"></div>
@@ -194,7 +200,7 @@ button:disabled{opacity:.5;cursor:default}
     blocks.push({ mesh: mesh, body: body, mat: mat });
   }
   function cssFor(matId) {
-    return { W: 0xa9682f, S: 0x8d939c, I: 0x7fe6ff, T: 0xc9442f, X: 0x4a5160,
+    return { W: 0xa9682f, S: 0x8d939c, I: 0x7fe6ff, T: 0xc9442f, X: 0x4a5160, B: 0xa9682f,
       w: 0xa9682f, s: 0x8d939c, i: 0x7fe6ff }[matId] || 0x888888;
   }
 

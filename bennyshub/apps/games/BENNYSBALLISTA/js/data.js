@@ -86,6 +86,12 @@ RT.data = (function () {
        neighbour. Ported from the 2D version and re-tuned for 3D masses. */
     IMPACT_THRESHOLD  : 7.5,   // units/s of lost speed before damage starts
     IMPACT_DMG_SCALE  : 5.0,
+    /* Crush damage: a hard-landing block (same drop check as IMPACT_DMG_SCALE
+       above) also hurts whatever it's now resting directly on top of, using
+       the same drop speed but its own scale — "getting crushed" reads as
+       worse than "you personally hit something hard", and tuning one must not
+       force-tune the other. See js/game.js's applyCrush(). */
+    CRUSH_DMG_SCALE   : 8.0,
     KNOCK_SCALE       : 0.75,  // how much of a bolt's velocity goes to what it hits
 
     /* ── Level geometry ───────────────────────────────────────────────────── */
@@ -162,10 +168,20 @@ RT.data = (function () {
        Only ever set on non-mergeable materials — a run of those is always a
        single cell, so a shaped mesh can never be asked to stretch across a
        merged wall (see js/art.js's blockGeometry). Two things the player must
-       tell apart have to differ in SHAPE, not just colour. */
+       tell apart have to differ in SHAPE, not just colour. A material that
+       only needs a different PROPORTION (a thin board vs a full cube) does
+       NOT need `shape` — the plain `new THREE.BoxGeometry(w,h,d)` fallthrough
+       already stretches to whatever w/h/d js/levels.js hands it, so `B` below
+       stays mergeable with a plain box, never `shape:'board'`. */
     T:{ id:'T', name:'powder keg',        hp: 20,  css:'--barrel', explodes:true, shape:'barrel' },
     K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true, shape:'crown' },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
+    /* `plank` is read only by js/levels.js's parser (matches the existing
+       small/static/glass/explodes pattern) — it thins the block to
+       PLANK_FRAC of a cell and sits it flush on its own row's floor instead
+       of filling the cell, for ceilings/floors/bridges. See js/levels.js and
+       the board authoring rule in README.md. */
+    B:{ id:'B', name:'timber board',      hp: 24,  css:'--wood',   family:'wood',  mergeable:true, plank:true },
     w:{ id:'w', name:'small wood chunk',  hp: 14,  css:'--wood',   family:'wood',  small:true },
     s:{ id:'s', name:'small stone chunk', hp: 30,  css:'--stone',  family:'stone', small:true },
     i:{ id:'i', name:'small glass shard', hp: 5,   css:'--glass',  family:'glass', small:true, glass:true }
