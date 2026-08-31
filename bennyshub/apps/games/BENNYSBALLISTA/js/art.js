@@ -440,8 +440,19 @@ RT.art = (function () {
       base.position.y = HERO_BASE_LIFT_Y;
       root.add(tag(base, 'wood'));
 
+      /* No outline on the arm specifically — the aim camera always looks
+         nearly straight down its length (it points along -Z, same as the
+         camera's own view direction), and an ink-outlined faceted mesh
+         viewed almost end-on shows every facet edge radiating from a single
+         point, a "star" that reads as a tangled scribble rather than a
+         beam. A box never had this problem (an end-on box outline is just
+         four clean corners); this hero mesh's extra facets do. Confirmed by
+         a direct side-by-side render with/without the outline at the real
+         AIM camera pose — bumping the outline's edge-angle threshold first
+         (up to 55°) did not help, since the tangle comes from genuinely
+         sharp facet boundaries compressing together, not fine relief noise. */
       const armMesh = part(RT.models.geometry('ballista-arm'), steel, {
-        pos: [0, HERO_ARM_DRAW_Y, -0.4], outline: true
+        pos: [0, HERO_ARM_DRAW_Y, -0.4]
       });
       armMesh.scale.set(HERO_ARM_SCALE[0], HERO_ARM_SCALE[1], HERO_ARM_SCALE[2]);
       armMesh.rotation.y = HERO_AXIS_FIX_Y;
