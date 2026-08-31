@@ -220,6 +220,60 @@ RT.art = (function () {
     return root;
   }
 
+  /* ── Environment scenery ──────────────────────────────────────────────────
+   * Ported from BENNYSRACETRACKS' art.js (cloud/hillBackdrop, unchanged) —
+   * the ATTRACT/SETTLE camera orbits the arena, so the horizon needs real
+   * geometry that reads correctly from every angle, not a single painted
+   * backdrop (see the ballista-3d plan on why this is fully procedural).
+   */
+
+  /** Always near-white regardless of theme; broken out so world.js can
+   *  re-fetch it after a profile change flips paper() between the lit and
+   *  unlit material class (clouds don't repaint via A.repaint() since they
+   *  carry no palette key — there is nothing about their colour that varies
+   *  by theme, only the material class does). */
+  function cloudMaterial() {
+    return paper(0xfffefb, { roughness: 1, flat: false, noMap: true });
+  }
+
+  /** Chunky stacked-lobe cloud. Smooth spheres rather than facets — a soft
+   *  cut-out shape reads as weather; a faceted one reads as rubble. */
+  function cloud(r) {
+    const g = new THREE.Group();
+    const white = cloudMaterial();
+    const n = r.int(4, 6);
+    let x = 0;
+    for (let i = 0; i < n; i++) {
+      const rad = r.range(4.2, 7.0) * (1 - Math.abs(i - (n - 1) / 2) / (n * 1.5));
+      g.add(part(new THREE.SphereGeometry(rad, 12, 9), white, {
+        pos: [x, r.range(-0.4, 0.8), r.range(-1.2, 1.2)],
+        scale: [1, r.range(0.62, 0.8), 1],
+        cast: false
+      }));
+      x += rad * r.range(1.0, 1.35);
+    }
+    g.position.x = -x / 2;
+    const wrap = new THREE.Group();
+    wrap.add(g);
+    return wrap;
+  }
+
+  /** Big soft shape along the horizon so the world doesn't end at the fog.
+   *  Tagged 'hill' so a theme change repaints it the same way as any other
+   *  palette-driven part (see repaint()). */
+  function hillBackdrop(r, colors) {
+    const g = new THREE.Group();
+    const rad = r.range(45, 90);
+    const mesh = part(new THREE.SphereGeometry(rad, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), paper(r.pick(colors)), {
+      pos: [0, -rad * r.range(0.35, 0.55), 0],
+      scale: [r.range(1.2, 2.2), r.range(0.3, 0.5), 1],
+      cast: false
+    });
+    mesh.userData.pal = 'hill';
+    g.add(mesh);
+    return g;
+  }
+
   /* Extra material options per palette entry, so repaint() can rebuild the
      exact material a part was first given rather than a plain one. */
   const PAL_OPTS = { wood: undefined, steel: { roughness: 0.5, metalness: 0.15 } };
@@ -404,6 +458,7 @@ RT.art = (function () {
     paper, glow, outline, ink, part, setShadow, buildModel,
     buildBlock, blockGeometry, buildBallista, buildBolt,
     setFlat, isFlatProfile, clearMatCache, setInk, repaint,
+    cloudMaterial, cloud, hillBackdrop,
     INK
   };
 })();

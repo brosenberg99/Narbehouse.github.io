@@ -16,8 +16,15 @@ RT.world = (function () {
   'use strict';
 
   const A = RT.art;
+  const U = RT.util;
 
   const GROUND_SIZE = 400;
+  /* Both well inside the 200-unit ground half-extent and past every level's
+     max `dist` (~29) and the shadow frustum's far plane (recenterShadow()
+     never exceeds ~65) — so the horizon dressing never intersects a level or
+     clips the shadow camera. */
+  const HILL_RADIUS = 160;
+  const CLOUD_BOUND = 170;
 
   /**
    * Distance haze, except in the High Contrast profile, which drops it
@@ -30,9 +37,93 @@ RT.world = (function () {
     scene.fog = pal.flat ? null : new THREE.Fog(pal.sky2, 40, 260);
   }
 
+  /** A ring of soft hills closing off the horizon, so the ATTRACT/SETTLE
+   *  camera's 360° orbit never runs out into flat fog in any direction —
+   *  a single painted backdrop can't do that from every angle, which is why
+   *  this is real geometry (ported from Race Tracks) rather than an image. */
+  function buildHills(pal) {
+    const g = new THREE.Group();
+    const r = U.rng(U.hash('ballista-hills'));
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + r.range(-0.12, 0.12);
+      const h = A.hillBackdrop(r, [pal.hill || pal.ground]);
+      h.position.set(Math.sin(a) * HILL_RADIUS, 0, Math.cos(a) * HILL_RADIUS);
+      g.add(h);
+    }
+    return g;
+  }
+
+  /** A seeded layer of drifting clouds, scattered inside the hill ring.
+   *  Positions are fixed at build time; only x drifts, wrapping at
+   *  CLOUD_BOUND (see update()) — this arena is small and bounded, unlike
+   *  Race Tracks' endless route, so there is no need to re-centre on the
+   *  camera the way FishMaster's lake clouds do. */
+  function buildClouds() {
+    const g = new THREE.Group();
+    const r = U.rng(U.hash('ballista-clouds'));
+    for (let i = 0; i < 14; i++) {
+      const c = A.cloud(r);
+      c.position.set(r.range(-CLOUD_BOUND, CLOUD_BOUND), r.range(38, 72), r.range(-CLOUD_BOUND, CLOUD_BOUND));
+      c.scale.setScalar(r.range(1.1, 2.0));
+      c.rotation.y = r.range(0, Math.PI * 2);
+      c.userData.drift = r.range(0.5, 1.4) * (r.chance(0.5) ? 1 : -1);
+      g.add(c);
+    }
+    return g;
+  }
+
+  /** An irregular worn patch under the ballista and firing line — a decal
+   *  layered a hair above the flat ground plane (not a height change), so the
+   *  literal ground geometry and physics body stay exactly what they are. */
+  function buildDirtPatch(pal) {
+    const r = U.rng(U.hash('ballista-dirt'));
+    const sides = 14;
+    const shape = new THREE.Shape();
+    for (let i = 0; i <= sides; i++) {
+      const a = (i / sides) * Math.PI * 2;
+      const rad = 7 * r.range(0.78, 1.15);
+      const x = Math.sin(a) * rad, y = Math.cos(a) * rad;
+      if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+    }
+    const mesh = A.part(new THREE.ShapeGeometry(shape), A.paper(pal.dirt || pal.ground, { roughness: 1 }), { cast: false, receive: true });
+    mesh.userData.pal = 'dirt';
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.scale.set(1.5, 1, 1.05);
+    mesh.position.set(0, 0.002, -1.5);
+    return mesh;
+  }
+
+  /** A couple of hand-placed hay bales and a crate flanking the ballista —
+   *  modest camp dressing, decorative only: no physics body, not in
+   *  blocks[], invisible to auditLevels()/auditReach(), same convention as
+   *  game.js's guardDecor. */
+  function buildCamp(pal) {
+    const g = new THREE.Group();
+    const mat = () => A.paper(pal.wood || '#a9682f', { roughness: 1 });
+    const tag = (m) => { m.userData.pal = 'wood'; return m; };
+
+    const bale1 = tag(A.part(new THREE.CylinderGeometry(0.5, 0.5, 0.85, 10), mat(),
+      { rot: [0, 0, Math.PI / 2], outline: true, receive: true }));
+    bale1.position.set(2.7, 0.5, 1.6);
+    g.add(bale1);
+
+    const bale2 = tag(A.part(new THREE.CylinderGeometry(0.5, 0.5, 0.85, 10), mat(),
+      { rot: [0, 0, Math.PI / 2], outline: true, receive: true }));
+    bale2.position.set(2.3, 0.5, 2.6);
+    g.add(bale2);
+
+    const crate = tag(A.part(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat(),
+      { outline: true, receive: true }));
+    crate.position.set(-2.7, 0.3, 1.9);
+    g.add(crate);
+
+    return g;
+  }
+
   /**
    * @param {THREE.Scene} scene
-   * @param {object} pal  { sky1, sky2, ground, dirt, sunColor }
+   * @param {object} pal  { sky1, sky2, sky3, ground, hill, dirt, wood, sunColor }
    * @returns {object} handles for refresh()/later tuning
    */
   function build(scene, pal) {
@@ -40,7 +131,7 @@ RT.world = (function () {
     scene.background = new THREE.Color(pal.sky2);
 
     const skyMat = new THREE.MeshBasicMaterial({
-      map: A.skyTexture(pal.sky1, pal.sky2, pal.sky2),
+      map: A.skyTexture(pal.sky1, pal.sky2, pal.sky3 || pal.sky2),
       side: THREE.BackSide, fog: false, depthWrite: false
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 20, 14), skyMat);
@@ -55,6 +146,18 @@ RT.world = (function () {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
+
+    const dirt = buildDirtPatch(pal);
+    scene.add(dirt);
+
+    const hills = buildHills(pal);
+    scene.add(hills);
+
+    const clouds = buildClouds();
+    scene.add(clouds);
+
+    const camp = buildCamp(pal);
+    scene.add(camp);
 
     const hemi = new THREE.HemisphereLight(pal.sky1, pal.ground, 2.0);
     scene.add(hemi);
@@ -82,14 +185,18 @@ RT.world = (function () {
     scene.add(sun);
     scene.add(sun.target);
 
-    return { sky: sky, skyMat: skyMat, ground: ground, groundMat: groundMat, hemi: hemi, amb: amb, sun: sun };
+    return {
+      sky: sky, skyMat: skyMat, ground: ground, groundMat: groundMat,
+      dirt: dirt, hills: hills, clouds: clouds, camp: camp,
+      hemi: hemi, amb: amb, sun: sun
+    };
   }
 
   /** Repaint an existing world for a new theme, without rebuilding geometry.
    *  Takes a scene now as well, because switching profile can change whether
    *  there is fog at all, not just what colour it is. */
   function refresh(handles, pal, scene) {
-    handles.skyMat.map = A.skyTexture(pal.sky1, pal.sky2, pal.sky2);
+    handles.skyMat.map = A.skyTexture(pal.sky1, pal.sky2, pal.sky3 || pal.sky2);
     handles.skyMat.map.needsUpdate = true;
     handles.hemi.color.set(pal.sky1);
     handles.hemi.groundColor.set(pal.ground);
@@ -103,6 +210,33 @@ RT.world = (function () {
     if (scene) {
       setFog(scene, pal);
       scene.background = new THREE.Color(pal.sky2);
+    }
+
+    /* Same "mesh keeps whatever material it was built with" problem as the
+       ground, for everything the environment pass added: hills/dirt/camp
+       carry a palette key (see repaint()) so this is a lookup, not a rebuild.
+       Clouds carry no palette key — their colour never varies by theme, only
+       the material class does (lit vs High Contrast's unlit) — so they get
+       their material re-fetched directly instead. */
+    if (handles.hills) A.repaint(handles.hills, pal);
+    if (handles.dirt) A.repaint(handles.dirt, pal);
+    if (handles.camp) A.repaint(handles.camp, pal);
+    if (handles.clouds) {
+      const cloudMat = A.cloudMaterial();
+      handles.clouds.traverse((o) => { if (o.isMesh) o.material = cloudMat; });
+    }
+  }
+
+  /** Per-frame drift for the cloud layer — the only part of the environment
+   *  that animates. Wraps at CLOUD_BOUND rather than following the camera:
+   *  this arena is small and bounded (see HILL_RADIUS/CLOUD_BOUND above), so
+   *  there is no endless-route problem to solve here. */
+  function update(handles, dt) {
+    if (!handles.clouds) return;
+    for (const c of handles.clouds.children) {
+      c.position.x += (c.userData.drift || 0) * dt;
+      if (c.position.x > CLOUD_BOUND) c.position.x = -CLOUD_BOUND;
+      else if (c.position.x < -CLOUD_BOUND) c.position.x = CLOUD_BOUND;
     }
   }
 
@@ -119,5 +253,5 @@ RT.world = (function () {
     sun.shadow.camera.updateProjectionMatrix();
   }
 
-  return { build, refresh, recenterShadow };
+  return { build, refresh, update, recenterShadow };
 })();

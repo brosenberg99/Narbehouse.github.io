@@ -128,7 +128,7 @@ RT.game = (function () {
    * black (getPropertyValue returns '').
    */
   const PALETTE_VARS = [
-    'sky1', 'sky2', 'ground', 'focus', 'ink',
+    'sky1', 'sky2', 'sky3', 'sun', 'ground', 'hill', 'dirt', 'focus', 'ink',
     'wood', 'stone', 'glass', 'barrel', 'crown', 'steel', 'guard'
   ];
   let PAL = {};
@@ -177,7 +177,9 @@ RT.game = (function () {
    *  place so build-time and theme-change-time can never drift apart. */
   function worldPalette() {
     return {
-      sky1: css('sky1'), sky2: css('sky2'), ground: css('ground'),
+      sky1: css('sky1'), sky2: css('sky2'), sky3: css('sky3'),
+      ground: css('ground'), hill: css('hill'), dirt: css('dirt'),
+      wood: css('wood'), sunColor: css('sun'),
       flat: isFlat()
     };
   }
@@ -1093,6 +1095,8 @@ RT.game = (function () {
   }
 
   function update(dt) {
+    if (world) W.update(world, dt);
+
     /* Flushes whatever the impact voice cap folded into a rumble this frame.
        Called before the physics step so a rumble follows the collapse it came
        from rather than lagging a frame behind it. */
