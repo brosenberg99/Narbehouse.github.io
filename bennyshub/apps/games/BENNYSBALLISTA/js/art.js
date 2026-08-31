@@ -388,22 +388,25 @@ RT.art = (function () {
      has to be lifted by its own half-height to rest on the ground the way
      the sled/wheels it replaces always did. Read off the same live bbox
      measurement as the scale constants above. */
-  const HERO_BASE_LIFT_Y = 1.0;
+  const HERO_BASE_LIFT_Y = 0.707;
   /* CFG.MUZZLE_Y (the pivot's world height) is a gameplay constant — real
      shots spawn from it, so it must never move for a cosmetic reason. But
      the generated A-frame CONVERGES to a narrow peak well below its own
      bbox top (unlike the procedural version's two flat-topped posts), so
-     the pivot's nominal ~0.3-unit clearance above that bbox top — nearly
-     invisible against the original's flat posts — reads as the arm floating
-     detached above the hero base, confirmed side-by-side against the
-     procedural version at the same camera angle. Fixed by drawing the
-     arm/bow meshes slightly below the pivot's actual rotation origin
-     (cosmetic only: this offsets where they're drawn within pivot-local
-     space, not the pivot's own world position or rotation point, so aim/
-     trajectory math is untouched). Tuned by eye against the hero base's
-     actual peak height, not derived from a measurement — re-tune if the
-     base is ever regenerated. */
-  const HERO_ARM_DRAW_Y = -0.42;
+     the pivot's nominal clearance above that bbox top — nearly invisible
+     against the original's flat posts — reads as the arm floating detached
+     above the hero base, confirmed side-by-side against the procedural
+     version at the same camera angle. Fixed by drawing the arm/bow meshes
+     slightly below the pivot's actual rotation origin (cosmetic only: this
+     offsets where they're drawn within pivot-local space, not the pivot's
+     own world position or rotation point, so aim/trajectory math is
+     untouched). Tuned by eye against the hero base's actual peak height,
+     not derived from a measurement — re-tune if the base is ever
+     regenerated (this is a bigger offset than the base's own lift because
+     Bryan's low-profile revision of the base pass — see [[ballista-3d-rework]]
+     — is noticeably shorter than the first approved base, while the pivot's
+     world height obviously didn't move). */
+  const HERO_ARM_DRAW_Y = -1.1;
 
   /**
    * The ballista itself: a paper-craft siege engine sitting at the world
