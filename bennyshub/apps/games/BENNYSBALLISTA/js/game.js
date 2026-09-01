@@ -213,22 +213,51 @@ RT.game = (function () {
   const PREVIEW_DOTS = 10;
   let previewGroup = null, previewDots = [], previewRing = null, previewMat = null;
 
+  /** The ring's own geometry lies flat in its local XY plane (normal along
+   *  local +Z). Three fixed orientations cover the three faces a shot can
+   *  land on — flush against the surface either way, not just tilted to
+   *  "read okay from the aim camera": a wall's front face wants the same
+   *  Z-facing default the ring already has, a roof/ground hit wants it
+   *  tipped to face +Y (the one case this used to handle), and a side face
+   *  (rare — a pillar's flank) wants it turned to face +X. Built once, not
+   *  per frame. */
+  const _RING_FLAT_Q  = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const _RING_FRONT_Q = new THREE.Quaternion();
+  const _RING_SIDE_Q  = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+  const _previewLocal = new THREE.Vector3();
+  const _previewNormal = new THREE.Vector3();
+  const _previewInvQuat = new THREE.Quaternion();
+
   function buildAimPreview() {
-    previewMat = new THREE.MeshBasicMaterial({ color: css('focus'), depthTest: false });
+    /* depthTest:false alone isn't enough this far from the camera: this
+     * game's near/far planes (see the camera director) span a wide enough
+     * ratio that depth-buffer precision at ~25-30 units out is coarser than
+     * the ring's few-centimetre stand-off from a block's surface, so the
+     * block can still win the depth test and cover the ring — invisible
+     * against the ground (a shallow, near-perpendicular offset) but glaring
+     * against a wall (the offset runs straight along the view axis there,
+     * exactly where precision is worst). depthWrite:false plus a high
+     * renderOrder sidesteps the whole precision question: the ring/dots
+     * never touch the depth buffer and always paint dead last, so nothing
+     * drawn before them — at any distance, on any face — can cover them. */
+    previewMat = new THREE.MeshBasicMaterial({ color: css('focus'), depthTest: false, depthWrite: false });
     previewGroup = new THREE.Group();
     previewGroup.visible = false;
+    previewGroup.renderOrder = 999;
 
     const dotGeo = new THREE.SphereGeometry(0.08, 8, 6);
     for (let i = 0; i < PREVIEW_DOTS; i++) {
       const dot = new THREE.Mesh(dotGeo, previewMat);
       dot.castShadow = false;
+      dot.renderOrder = 999;
       previewDots.push(dot);
       previewGroup.add(dot);
     }
 
     const ringGeo = new THREE.RingGeometry(0.32, 0.5, 24);
     previewRing = new THREE.Mesh(ringGeo, previewMat);
-    previewRing.rotation.x = -Math.PI / 2;   // lies flat on the ground
+    previewRing.renderOrder = 999;
+    previewRing.quaternion.copy(_RING_FLAT_Q);   // default: lying flat, as for a ground hit
     previewGroup.add(previewRing);
 
     scene.add(previewGroup);
@@ -251,8 +280,42 @@ RT.game = (function () {
       const idx = Math.min(pts.length - 1, Math.round(t * (pts.length - 1)));
       previewDots[i].position.copy(pts[idx]);
     }
+    /* The ring used to sit flat on CFG.GROUND_Y no matter what — last.x/z (the
+     * real impact column) were already right, but forcing ground height meant
+     * a shot that actually stops on a wall/roof drew its reticle down at the
+     * base of it instead, reading as if the shot had sailed straight through
+     * to the ground behind the structure. last.y IS the real impact height
+     * (findHitBlock() stops the trace within `r` of the block's own surface),
+     * so use it directly — it already falls back to ground height on its own
+     * for an unobstructed shot, since that's genuinely where those land.
+     *
+     * Orientation needs the same fix for the same reason: a ring lying flat
+     * against a wall's vertical face reads as floating in front of it, not
+     * resting on it. Which face got hit isn't reported by findHitBlock() (it
+     * only returns the block), so it's re-derived here the same way that
+     * function tests it — the axis with the least remaining margin inside
+     * the block's (rotated) half-extents is the face the shot just crossed. */
     const last = pts[pts.length - 1];
-    previewRing.position.set(last.x, CFG.GROUND_Y + 0.03, last.z);
+    const hitBlock = trace.hit.type === 'block' ? trace.hit.block : null;
+    if (hitBlock) {
+      _previewInvQuat.copy(hitBlock.mesh.quaternion).invert();
+      _previewLocal.copy(last).sub(hitBlock.mesh.position).applyQuaternion(_previewInvQuat);
+      const mx = hitBlock.half.x - Math.abs(_previewLocal.x);
+      const mz = hitBlock.half.z - Math.abs(_previewLocal.z);
+      const my = hitBlock.half.y - Math.abs(_previewLocal.y);
+      let faceQuat, axis;
+      if (mx <= mz && mx <= my)      { faceQuat = _RING_SIDE_Q;  axis = 'x'; }
+      else if (mz <= my)             { faceQuat = _RING_FRONT_Q; axis = 'z'; }
+      else                           { faceQuat = _RING_FLAT_Q;  axis = 'y'; }
+      previewRing.quaternion.copy(hitBlock.mesh.quaternion).multiply(faceQuat);
+      const sign = Math.sign(_previewLocal[axis]) || 1;
+      _previewNormal.set(axis === 'x' ? sign : 0, axis === 'y' ? sign : 0, axis === 'z' ? sign : 0);
+      _previewNormal.applyQuaternion(hitBlock.mesh.quaternion);
+      previewRing.position.copy(last).addScaledVector(_previewNormal, 0.03);
+    } else {
+      previewRing.quaternion.copy(_RING_FLAT_Q);
+      previewRing.position.set(last.x, last.y + 0.03, last.z);
+    }
 
     if (ballista) {
       ballista.pivot.rotation.y = -trace.yaw;
