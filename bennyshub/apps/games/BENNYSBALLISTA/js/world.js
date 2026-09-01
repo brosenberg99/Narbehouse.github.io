@@ -96,8 +96,8 @@ RT.world = (function () {
 
   /** A couple of hand-placed hay bales and a crate flanking the ballista —
    *  modest camp dressing, decorative only: no physics body, not in
-   *  blocks[], invisible to auditLevels()/auditReach(), same convention as
-   *  game.js's guardDecor. */
+   *  blocks[], invisible to auditLevels(), same convention as game.js's
+   *  guardDecor. */
   function buildCamp(pal) {
     const g = new THREE.Group();
     const mat = () => A.paper(pal.wood || '#a9682f', { roughness: 1 });

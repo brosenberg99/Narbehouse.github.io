@@ -345,7 +345,15 @@ RT.art = (function () {
        * (the baked tyrant model, once approved — see js/models.js) solves
        * that on shape alone, same as every other block here; the faceted
        * gem is the fallback for as long as that model isn't baked yet. */
-      const tyrant = RT.models.geometry('tyrant');
+      /* Guarded, not a bare RT.models.geometry() call: the fallback below
+       * already handles "the model isn't baked yet", and a page that simply
+       * doesn't load js/models.js deserves the same graceful path rather than
+       * a TypeError. editor.html was exactly that page for months — it omitted
+       * models.js, so every level threw here on its first crown, the throw
+       * escaped before requestAnimationFrame ever started, and the whole tool
+       * rendered black. One missing script tag should degrade a silhouette,
+       * not kill the page. */
+      const tyrant = (RT.models && RT.models.geometry) ? RT.models.geometry('tyrant') : null;
       /* model_prep.py's `prop` mode centres X/Z on the cell but floors Y (feet
        * at local y=0, top at the model's own height) — a resting-on-a-shelf
        * convention, not the symmetric ±h/2 box every OTHER shape here assumes.

@@ -8,6 +8,33 @@
 :root{
   --bg:#15161c; --panel:#1d1f28; --line:#2e3140; --text:#f2f4f8; --dim:#a6adbb;
   --accent:#ff5c00; --accent2:#22d3ee; --good:#3ddc84; --bad:#ff5470;
+  /* World/material vars below are copied from index.html:12-59 verbatim — kept
+     in sync by eye, not by a shared stylesheet (a shared file would mean
+     restructuring the shipping game's page for this tool's benefit, against
+     AGENTS.md's per-game vendoring rule). If the game's palette changes, this
+     block goes stale visibly and immediately: Stage 1's colorFor() reads these
+     through the exact same getComputedStyle lookup game.js:136 uses, so a
+     castle here and in the real game are a straight side-by-side comparison —
+     any drift shows up as different colours in the same screenshot, not as a
+     silent grey block (that failure mode belongs to the cssFor() this replaces). */
+  --sky1:#1b2a4a; --sky2:#3d5a80; --sky3:#9fb8d9; --hill:#22304a; --ground:#3a5a40; --dirt:#2b3f30; --sun:#fff4dc;
+  --wood:#a9682f; --stone:#8d939c; --glass:#7fe6ff; --barrel:#c9442f; --crown:#ffc93c; --steel:#4a5160; --guard:#5f7a3c;
+  --focus:#ffd400; --ink:#2f231a;
+}
+body[data-theme="dark"]{
+  --sky1:#12161d; --sky2:#2a3140; --sky3:#4a5568; --hill:#1a1f29; --ground:#39433a; --dirt:#282f29; --sun:#c9d4e6;
+  --wood:#96683c; --stone:#8a909a; --glass:#8fd3e8; --barrel:#b8574a; --crown:#e0af68; --steel:#454b57; --guard:#566b38;
+  --focus:#e0af68; --ink:#12151a;
+}
+body[data-theme="light"]{
+  --sky1:#bfe0ff; --sky2:#e8f4ff; --sky3:#fbfdff; --hill:#9dc0a6; --ground:#6aa06f; --dirt:#4d7350; --sun:#fff6e0;
+  --wood:#b8763a; --stone:#a9b0ba; --glass:#6fd0ea; --barrel:#d1503a; --crown:#e3a900; --steel:#6b7385; --guard:#6f8a46;
+  --focus:#e08900; --ink:#2a2018;
+}
+body[data-theme="contrast"]{
+  --sky1:#000000; --sky2:#101010; --sky3:#101010; --hill:#202020; --ground:#303030; --dirt:#181818; --sun:#ffffff;
+  --wood:#ffa500; --stone:#ffffff; --glass:#00ffff; --barrel:#ff3b3b; --crown:#ffff00; --steel:#8a8a8a; --guard:#00ff00;
+  --focus:#ffff00; --ink:#ffffff;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
@@ -41,6 +68,35 @@ button:disabled{opacity:.5;cursor:default}
 #checkResult.pass{color:var(--good)}
 #checkResult.fail{color:var(--bad)}
 #hint{font-size:.75rem;color:var(--dim);line-height:1.5}
+#paletteWarn{font-size:.78rem;color:var(--bad);white-space:pre-wrap}
+button.on{outline:2px solid var(--accent2);outline-offset:1px}
+#palette{display:flex;flex-direction:column;gap:.3rem}
+.matBtn{
+  display:flex;align-items:center;gap:.5rem;background:#0e0f14;border:2px solid var(--line);
+  border-radius:.4rem;padding:.35rem .5rem;cursor:pointer;color:var(--text);text-align:left;font-size:.78rem;
+}
+.matBtn.on{border-color:var(--accent2)}
+.matSwatch{width:1.4rem;height:1.4rem;border-radius:.2rem;border:1px solid #0006;flex:0 0 auto}
+.matBtn .flags{color:var(--dim);font-size:.7rem}
+#validation{font-size:.75rem;white-space:pre-wrap;line-height:1.5}
+#validation .err{color:var(--bad)}
+#validation .warn{color:var(--focus,#ffd400)}
+#assemblyList .aRow{display:flex;justify-content:space-between;align-items:center;padding:.15rem 0;gap:.4rem}
+#assemblyList button{padding:.2rem .5rem;font-size:.72rem}
+#ammoList label{display:flex;align-items:center;gap:.4rem;text-transform:none;font-weight:400;font-size:.8rem;color:var(--text);margin:0}
+#ammoList input{width:auto}
+#ammoReach{font-size:.75rem;white-space:pre-wrap;line-height:1.5}
+#ammoReach .err{color:var(--bad)}
+#ammoReach .warn{color:var(--focus,#ffd400)}
+#fatal{
+  display:none;position:absolute;inset:0;z-index:20;background:var(--bg);
+  align-items:center;justify-content:center;padding:1.5rem;text-align:center;
+}
+#fatal.on{display:flex}
+#fatalMsg{max-width:40rem;font-size:.95rem;line-height:1.6}
+#fatalMsg b{display:block;font-size:1.6rem;margin-bottom:.6rem;color:var(--bad)}
+#fatalMsg code{display:block;margin-top:.8rem;font:12px/1.5 'Consolas',monospace;
+  color:var(--dim);white-space:pre-wrap;text-align:left}
 </style>
 </head>
 <body>
@@ -53,6 +109,52 @@ button:disabled{opacity:.5;cursor:default}
       <select id="picker"></select>
     </div>
 
+    <div>
+      <label>Colour profile — preview against what the player will actually see</label>
+      <select id="theme">
+        <option value="ben">Ben Default</option>
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="contrast">High Contrast</option>
+      </select>
+    </div>
+    <div id="paletteWarn"></div>
+
+    <div>
+      <label>Tool — click a block type below, then click in the view to place it
+        repeatedly. Right-click erases. Drag orbits; a click under 4px of motion
+        is what places.</label>
+      <div class="row" id="toolButtons">
+        <button class="alt" data-tool="erase">Erase</button>
+        <button class="alt" data-tool="select">Select</button>
+        <button class="alt" data-tool="paste" id="btnPasteTool">Paste</button>
+      </div>
+    </div>
+    <div>
+      <label>Block palette</label>
+      <div id="palette"></div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Active layer (0 = front, nearest the ballista)</label>
+        <div class="row">
+          <button class="alt" id="btnLayerPrev">&larr;</button>
+          <span id="layerLabel" class="stats" style="flex:2;text-align:center">0 / 0</span>
+          <button class="alt" id="btnLayerNext">&rarr;</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="alt" id="btnAddLayerFront">+ Layer (front)</button>
+      <button class="alt" id="btnAddLayerBack">+ Layer (back)</button>
+      <button class="alt" id="btnRemoveLayer">&minus; This layer</button>
+    </div>
+    <div class="row">
+      <button class="alt" id="btnSnap">Snap: ON</button>
+      <button class="alt" id="btnUndo">Undo</button>
+      <button class="alt" id="btnRedo">Redo</button>
+    </div>
+
     <div class="row">
       <div><label>Name</label><input type="text" id="fName"></div>
       <div><label>Dist</label><input type="number" id="fDist" step="0.5"></div>
@@ -63,17 +165,44 @@ button:disabled{opacity:.5;cursor:default}
     </div>
 
     <div>
-      <label>Layers — front (nearest the ballista) first. Blank line separates layers.</label>
+      <label>Available ammo — narrows what progression has already unlocked;
+        never grants ammo early. Leave every box checked for "no restriction"
+        (today's behaviour on every shipped level).</label>
+      <div id="ammoList" class="stats"></div>
+      <div id="ammoReach"></div>
+    </div>
+
+    <div>
+      <label>Layers — front (nearest the ballista) first. Blank line separates
+        layers. Two-way: mouse edits update this, and editing this and pressing
+        Apply updates the 3D view.</label>
       <textarea id="layersBox" spellcheck="false"></textarea>
+      <button class="alt" id="btnApplyText" style="margin-top:.3rem">Apply text</button>
     </div>
 
-    <div class="row">
-      <button id="btnRebuild">Rebuild preview</button>
-      <button class="alt" id="btnCheck">Run stand-up check</button>
-    </div>
-
+    <button class="alt" id="btnCheck">Run stability test</button>
     <div class="stats" id="stats">—</div>
     <div id="checkResult"></div>
+    <div id="validation"></div>
+
+    <div>
+      <label>Selection — click one corner, then the opposite corner</label>
+      <div id="selectionInfo" class="stats">No selection</div>
+    </div>
+
+    <div>
+      <label>Assemblies (saved in this browser, plus export/import text below)</label>
+      <div id="assemblyList" class="stats">None saved yet.</div>
+      <div class="row" style="margin-top:.4rem">
+        <input type="text" id="assemblyName" placeholder="Name this selection">
+        <button class="alt" id="btnSaveAssembly">Save selection</button>
+      </div>
+      <textarea id="assemblyText" spellcheck="false" style="height:6rem;margin-top:.4rem"></textarea>
+      <div class="row" style="margin-top:.3rem">
+        <button class="alt" id="btnExportLib">Export library &darr;</button>
+        <button class="alt" id="btnImportLib">Import library &uarr;</button>
+      </div>
+    </div>
 
     <div>
       <label>Export (paste into js/levels.js's LEVELS array)</label>
@@ -82,240 +211,42 @@ button:disabled{opacity:.5;cursor:default}
     </div>
 
     <div id="hint">
-      Letters: <b>W</b> wood &middot; <b>S</b> stone &middot; <b>I</b> glass &middot;
-      <b>T</b> powder keg &middot; <b>K</b> crown &middot; <b>X</b> steel (indestructible) &middot;
-      <b>B</b> timber board (thin, sits flush on its row's floor — for
-      ceilings/bridges) &middot;
-      <b>w/s/i</b> half-size rubble (never merges). A run of the same mergeable letter
-      side by side in a row welds into one wide body; the same run repeated on the next
-      layer back welds in depth too. Never draw anything (especially <b>K</b>) directly
-      above a <b>B</b>'s row in the same column unless a drop-and-thud on load is
-      intended — every other row's block sits on its own row floor regardless of what's
-      beneath it, which a board's thin height breaks. Drag to orbit, scroll to zoom. This
-      tool never runs the real game's camera, input or scan lists — mouse/keyboard only,
-      on purpose.
+      Letters and flags are generated from js/data.js's MAT table above — this
+      panel used to be the only documentation and could rot the moment a
+      material changed. Never place anything (especially a crown) directly
+      above a timber board's row in the same column, snap or no — every other
+      row's block sits on its own row floor regardless of what's beneath it,
+      which a board's thin height leaves a gap under. The validation panel
+      above flags this. Drag to orbit, scroll to zoom, Ctrl+C/Ctrl+V copy and
+      paste a selection, Ctrl+Z/Ctrl+Y undo/redo, Esc cancels a tool. This tool
+      never runs the real game's camera, input or scan lists — mouse/keyboard
+      only, on purpose.
     </div>
   </div>
-  <div id="stage"></div>
+  <div id="stage">
+    <!-- Same escape hatch index.html has: without it, a throw anywhere in boot
+         or in the frame loop leaves nothing but a black rectangle and a console
+         message nobody is looking at. -->
+    <div id="fatal"><div id="fatalMsg"></div></div>
+  </div>
 </div>
 
+<!-- Deliberately a SUBSET of index.html's list: no shared/ scripts, no
+     game.js/ui.js/main.js — this tool has no camera director, no two-key input
+     and nothing scan-list-reachable, on purpose. js/audio.js is omitted too
+     (nothing here reads RT.audio). But js/models.js IS required: art.js's
+     blockGeometry() reaches for the baked tyrant mesh on every crown, and
+     without it every level used to render as an octahedron at best. -->
 <script src="js/three.min.js"></script>
 <script src="js/ammo.js"></script>
 <script src="js/util.js"></script>
-<script src="js/audio.js"></script>
+<script src="js/models.js"></script>
 <script src="js/data.js"></script>
 <script src="js/levels.js"></script>
 <script src="js/art.js"></script>
 <script src="js/world.js"></script>
 <script src="js/physics.js"></script>
-<script>
-(function () {
-  'use strict';
-  const D = RT.data, LV = RT.levels, A = RT.art, W = RT.world, P = RT.physics;
-  const CFG = D.CFG;
-
-  const els = {
-    picker: document.getElementById('picker'),
-    name: document.getElementById('fName'), dist: document.getElementById('fDist'),
-    par: document.getElementById('fPar'), bolts: document.getElementById('fBolts'),
-    layers: document.getElementById('layersBox'),
-    stats: document.getElementById('stats'),
-    checkResult: document.getElementById('checkResult'),
-    exportBox: document.getElementById('exportBox')
-  };
-
-  /* ── Scene ────────────────────────────────────────────────────────────── */
-  const stage = document.getElementById('stage');
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 400);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = true;
-  stage.appendChild(renderer.domElement);
-
-  const world = W.build(scene, { sky1: '#1b2a4a', sky2: '#3d5a80', ground: '#3a5a40' });
-
-  /* Simple drag-to-orbit / wheel-to-zoom camera, centred on wherever the
-   * live level's castle actually sits — no OrbitControls vendored, and this
-   * tool doesn't need anything fancier. */
-  const orbit = { az: 0.5, el: 0.45, dist: 14, target: new THREE.Vector3(0, 1.5, -14) };
-  function applyOrbit() {
-    const r = orbit.dist;
-    camera.position.set(
-      orbit.target.x + r * Math.cos(orbit.el) * Math.sin(orbit.az),
-      orbit.target.y + r * Math.sin(orbit.el),
-      orbit.target.z + r * Math.cos(orbit.el) * Math.cos(orbit.az)
-    );
-    camera.lookAt(orbit.target);
-  }
-  applyOrbit();
-  let dragging = false, lastX = 0, lastY = 0;
-  renderer.domElement.addEventListener('mousedown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
-  window.addEventListener('mouseup', () => { dragging = false; });
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    orbit.az -= (e.clientX - lastX) * 0.007;
-    orbit.el = Math.max(0.08, Math.min(1.4, orbit.el + (e.clientY - lastY) * 0.007));
-    lastX = e.clientX; lastY = e.clientY;
-    applyOrbit();
-  });
-  renderer.domElement.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    orbit.dist = Math.max(3, Math.min(60, orbit.dist + e.deltaY * 0.02));
-    applyOrbit();
-  }, { passive: false });
-
-  function resize() {
-    const w = stage.clientWidth, h = stage.clientHeight;
-    camera.aspect = w / Math.max(1, h);
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  /* ── Blocks — a standalone spawn loop, same shape as game.js's, since
-   * this tool intentionally doesn't load game.js (no camera director, no
-   * input, nothing scan-list-reachable — see the plan's editor.html note). */
-  let blocks = [];
-  function clearBlocks() {
-    for (const b of blocks) {
-      scene.remove(b.mesh);
-      b.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
-      P.destroyBlock(b.body);
-    }
-    blocks = [];
-  }
-  function spawnBlock(matId, x, y, z, w, h, d) {
-    const mat = D.MAT[matId];
-    if (!mat) return;
-    // Same shape lookup the game uses, or a powder keg previews as a box here
-    // and as a barrel in play — the editor has to show what will be built.
-    const mesh = A.buildBlock(w, h, d, mat.crown ? 0xffc93c : cssFor(matId),
-                              { glow: !!mat.crown, shape: mat.shape });
-    mesh.position.set(x, y, z);
-    scene.add(mesh);
-    const mass = mat.static ? 0 : w * h * d;
-    const body = P.addBlock(x, y, z, w, h, d, mass);
-    blocks.push({ mesh: mesh, body: body, mat: mat });
-  }
-  function cssFor(matId) {
-    return { W: 0xa9682f, S: 0x8d939c, I: 0x7fe6ff, T: 0xc9442f, X: 0x4a5160, B: 0xa9682f,
-      w: 0xa9682f, s: 0x8d939c, i: 0x7fe6ff }[matId] || 0x888888;
-  }
-
-  /* ── Textarea <-> layers array ────────────────────────────────────────── */
-  function textToLayers(text) {
-    return text.replace(/\r/g, '').split(/\n[ \t]*\n/)
-      .map((block) => block.split('\n'))
-      .map((rows) => {
-        while (rows.length && rows[0].trim() === '') rows.shift();
-        while (rows.length && rows[rows.length - 1].trim() === '') rows.pop();
-        return rows;
-      })
-      .filter((rows) => rows.length > 0);
-  }
-  function layersToText(layers) {
-    return layers.map((rows) => rows.join('\n')).join('\n\n');
-  }
-
-  function currentLevelFromForm() {
-    return {
-      name: els.name.value || 'Untitled',
-      dist: parseFloat(els.dist.value) || 20,
-      par: parseInt(els.par.value, 10) || 1,
-      bolts: parseInt(els.bolts.value, 10) || 6,
-      layers: textToLayers(els.layers.value)
-    };
-  }
-
-  let liveLevel = null;
-  function rebuildPreview() {
-    const level = currentLevelFromForm();
-    liveLevel = level;
-    clearBlocks();
-    let parsed;
-    try {
-      parsed = LV.parseLevel(level);
-    } catch (e) {
-      els.stats.textContent = 'Could not parse layers: ' + e.message;
-      return;
-    }
-    for (const b of parsed.blocks) spawnBlock(b.matId, b.x, b.y, b.z, b.w, b.h, b.d);
-    orbit.target.set(0, parsed.rows * 0.4, -level.dist);
-    applyOrbit();
-    els.stats.innerHTML =
-      `<div>Cols <b>${parsed.cols}</b></div><div>Rows <b>${parsed.rows}</b></div>` +
-      `<div>Depth (layers) <b>${parsed.numLayers}</b></div>` +
-      `<div>Blocks <b>${parsed.blocks.length}</b></div><div>Crowns <b>${parsed.crownCount}</b></div>`;
-    els.checkResult.textContent = '';
-    els.checkResult.className = '';
-  }
-
-  function runStandUpCheck() {
-    if (!blocks.length) { els.checkResult.textContent = 'Nothing to check — rebuild the preview first.'; return; }
-    const crowns = blocks.filter((b) => b.mat.crown);
-    const before = crowns.map((b) => b.mesh.position.clone());
-    const steps = Math.ceil(4 / CFG.DT);
-    for (let i = 0; i < steps; i++) {
-      P.step(CFG.DT);
-      for (const b of blocks) P.sync(b.mesh, b.body);
-    }
-    let worst = 0;
-    for (let i = 0; i < crowns.length; i++) worst = Math.max(worst, crowns[i].mesh.position.distanceTo(before[i]));
-    const awake = blocks.some((b) => !b.mat.static && P.isAwake(b.body));
-    const pass = worst <= 0.05 && !awake;
-    els.checkResult.className = pass ? 'pass' : 'fail';
-    els.checkResult.textContent = pass
-      ? `Stands on its own. Worst crown drift: ${worst.toFixed(4)} units. All bodies asleep.`
-      : `Does not stand on its own.\nWorst crown drift: ${worst.toFixed(4)} units (fail if > 0.05).\nStill awake: ${awake}.`;
-  }
-
-  function exportText() {
-    const level = currentLevelFromForm();
-    const lines = [];
-    lines.push(`{ name: ${JSON.stringify(level.name)}, par: ${level.par}, bolts: ${level.bolts}, dist: ${level.dist}, layers: [`);
-    level.layers.forEach((rows, li) => {
-      lines.push('  [');
-      rows.forEach((r, ri) => lines.push(`    ${JSON.stringify(r)}${ri < rows.length - 1 ? ',' : ''}`));
-      lines.push(li < level.layers.length - 1 ? '  ],' : '  ]');
-    });
-    lines.push('] },');
-    els.exportBox.value = lines.join('\n');
-  }
-
-  function loadIntoForm(level) {
-    els.name.value = level.name;
-    els.dist.value = level.dist;
-    els.par.value = level.par;
-    els.bolts.value = level.bolts;
-    els.layers.value = layersToText(level.layers);
-    rebuildPreview();
-  }
-
-  LV.LEVELS.forEach((l, i) => {
-    const o = document.createElement('option');
-    o.value = i; o.textContent = `${i + 1}. ${l.name}`;
-    els.picker.appendChild(o);
-  });
-  els.picker.addEventListener('change', () => loadIntoForm(LV.LEVELS[+els.picker.value]));
-  document.getElementById('btnRebuild').addEventListener('click', rebuildPreview);
-  document.getElementById('btnCheck').addEventListener('click', runStandUpCheck);
-  document.getElementById('btnExport').addEventListener('click', exportText);
-
-  P.init().then(() => {
-    loadIntoForm(LV.LEVELS[0]);
-    requestAnimationFrame(loop);
-  });
-
-  let last = 0;
-  function loop(now) {
-    requestAnimationFrame(loop);
-    const dt = Math.min(0.05, (now - last) / 1000 || 0);
-    last = now;
-    renderer.render(scene, camera);
-  }
-})();
-</script>
+<script src="js/settle.js"></script>
+<script src="js/editor.js"></script>
 </body>
 </html>

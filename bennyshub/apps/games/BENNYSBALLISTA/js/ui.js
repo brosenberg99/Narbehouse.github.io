@@ -76,14 +76,20 @@ RT.ui = (function () {
   function level() { return G.currentLevel(); }
   function yawHalfDeg() { return D.yawLimit(level()) * 180 / Math.PI; }
   function clampYaw(deg) { const h = yawHalfDeg(); return U.clamp(deg, -h, h); }
-  function unlockedAmmo() { return G.unlockedAmmo(); }
+  /** What THIS level offers to play with — js/game.js's availableAmmo(),
+   *  narrowed from the player's progression by the live level's own optional
+   *  `ammo` list (see js/levels.js's header). Renamed from this file's old
+   *  unlockedAmmo() wrapper: progression alone (game.js's still-separate,
+   *  now module-private unlockedAmmo()) is no longer necessarily what a
+   *  given level actually presents. */
+  function availableAmmo() { return G.availableAmmo(); }
   /** Select-target mode replaces 'aim'+'range' with one 'target' stage —
    *  picking a block determines yaw *and* range in one act, so it's a
    *  substitution, not a third stage on top of the other two. The two
    *  modes never mix: 'aim'/'range' only ever appear together, 'target'
    *  only ever appears alone. */
   function stageOrder() {
-    const withAmmo = unlockedAmmo().length > 1;
+    const withAmmo = availableAmmo().length > 1;
     if (G.aimModeOn()) return withAmmo ? ['ammo', 'target'] : ['target'];
     return withAmmo ? ['ammo', 'aim', 'range'] : ['aim', 'range'];
   }
@@ -438,7 +444,7 @@ RT.ui = (function () {
 
   /* ── Ammo list ────────────────────────────────────────────────────────── */
   function laneItems() {
-    return unlockedAmmo().map((a, i) => ({ label: a.name, sub: a.sub, ix: i, remaining: G.ammoRemaining(a) }));
+    return availableAmmo().map((a, i) => ({ label: a.name, sub: a.sub, ix: i, remaining: G.ammoRemaining(a) }));
   }
   function laneLen() { return laneItems().length; }
 
@@ -711,7 +717,7 @@ RT.ui = (function () {
 
   /* ── Preview — same traceShot() the real shot fires with ─────────────── */
   function currentAmmo() {
-    const list = unlockedAmmo();
+    const list = availableAmmo();
     let ix = state.pick.ammo;
     if (state.stage === 'ammo' && state.scan !== -1) ix = state.scan;
     return list[Math.min(ix, list.length - 1)] || list[0];
@@ -957,6 +963,15 @@ RT.ui = (function () {
     state.rangePct = state.last.rangePct;
     state.charged = false;
     state.yawTick = 0; state.rangeTick = 0;
+    // A level's own ammo list (see js/levels.js's header) can offer FEWER
+    // ammo than the level just left — e.g. 4 remembered as index 3, the next
+    // level offers only 1. currentAmmo() already clamps at read time, but
+    // renderChips()'s .picked/.last CSS classes index availableAmmo() by
+    // these raw values directly, so leaving them unclamped would highlight a
+    // chip that no longer exists (or none at all).
+    const n = availableAmmo().length;
+    state.pick.ammo = Math.min(state.pick.ammo, n - 1);
+    state.last.ammo = Math.min(state.last.ammo, n - 1);
     beginStage(stageOrder()[0]);
     if (fresh) U.speak(stageHint());
   }
@@ -1006,7 +1021,13 @@ RT.ui = (function () {
   }
 
   function doFire() {
-    const ammo = unlockedAmmo()[state.pick.ammo];
+    // currentAmmo() clamps state.pick.ammo against the CURRENT list's length
+    // (ui.js:719-724) — a raw availableAmmo()[state.pick.ammo] does not, and
+    // a level that offers fewer ammo than the one the player just came from
+    // can leave state.pick.ammo pointing past the end of the new list. That
+    // used to be `undefined`, which G.fire()/ammoRemaining() would throw on
+    // deep inside the frame loop.
+    const ammo = currentAmmo();
     const yawRad = clampYaw(state.yawDeg) * Math.PI / 180;
     G.fire(ammo, yawRad, state.rangePct);
     state.last = { ammo: state.pick.ammo, yawDeg: state.yawDeg, rangePct: state.rangePct };
@@ -1041,7 +1062,8 @@ RT.ui = (function () {
   }
 
   function doFireTarget() {
-    const ammo = unlockedAmmo()[state.pick.ammo];
+    // See doFire()'s comment — same unclamped-index crash, same fix.
+    const ammo = currentAmmo();
     const it = targetLaneItems()[state.targetScan];
     const p = targetShotParams(it);
     G.fire(ammo, p.yawRad, p.rangePct);

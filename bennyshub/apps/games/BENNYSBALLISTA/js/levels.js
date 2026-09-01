@@ -68,6 +68,33 @@ RT.levels = (function () {
     return runs;
   }
 
+  /** World Z of layer `i` in a castle `numLayers` deep, centred on `dist`.
+   *  Layer 0 is nearest the ballista (least negative Z). Promoted out of
+   *  parseLevel()'s closure (where it started life as a one-off arrow
+   *  function) so a caller that needs to place a single cell — the level
+   *  editor mapping a mouse ray back to a cell, not a full re-parse — has the
+   *  exact inverse of parseLevel()'s own placement maths to call instead of
+   *  re-deriving it and risking the two drifting apart. */
+  function layerZ(dist, numLayers, i) {
+    return -dist + ((numLayers - 1) / 2 - i) * CELL;
+  }
+
+  /** World-space centre of one grid CELL — not of a merged block, which can
+   *  span several cells and isn't what a mouse click ever targets. Always a
+   *  full CELL cube regardless of what (if anything) occupies it, so a thin
+   *  `B` plank or a half-size `w/s/i` chunk is exactly as easy to pick as a
+   *  full block. `dims` is `{cols, rows, numLayers}`, i.e. parseLevel()'s own
+   *  return shape (or the `_cols`/`_depth` pair cached onto a level, plus its
+   *  layer count) — same convention data.js's castleBounds() reads. */
+  function cellCentre(dist, dims, layer, row, col) {
+    return {
+      x: (col + 0.5 - dims.cols / 2) * CELL,
+      y: (dims.rows - row - 1) * CELL + CELL / 2,
+      z: layerZ(dist, dims.numLayers, layer),
+      size: CELL
+    };
+  }
+
   /**
    * Parses one level's stacked layers into plain block specs in world units
    * — {matId, x, y, z, w, h, d} — ready to hand to js/physics.js and
@@ -89,8 +116,11 @@ RT.levels = (function () {
     let crownCount = 0;
 
     // Layer 0 is nearest the ballista (least negative Z); layers stack away
-    // from it in even CELL-wide steps, centred on level.dist.
-    const layerZ = (i) => -level.dist + ((numLayers - 1) / 2 - i) * CELL;
+    // from it in even CELL-wide steps, centred on level.dist. `lz` rather than
+    // shadowing the module-level layerZ() above — same maths, this closure
+    // just bakes in level.dist/numLayers so every call site below doesn't
+    // have to repeat them.
+    const lz = (i) => layerZ(level.dist, numLayers, i);
 
     for (let li = 0; li < numLayers; li++) {
       const runs = layerRuns[li];
@@ -118,7 +148,7 @@ RT.levels = (function () {
           w = h = d = CELL * 0.5;
           x = (run.col + 0.5 - cols / 2) * CELL;
           y = (rows - run.row - 1) * CELL + h / 2;   // resting on its cell's floor
-          z = layerZ(li);
+          z = lz(li);
         } else {
           w = run.len * CELL;
           h = mat.plank ? CELL * PLANK_FRAC : CELL;
@@ -126,9 +156,15 @@ RT.levels = (function () {
           x = (run.col + run.len / 2 - cols / 2) * CELL;
           const bottom = (rows - run.row - 1) * CELL;   // this row's own floor
           y = bottom + h / 2;
-          z = (layerZ(li) + layerZ(endLayer)) / 2;
+          z = (lz(li) + lz(endLayer)) / 2;
         }
-        blocks.push({ matId: run.matId, x: x, y: y, z: z, w: w, h: h, d: d });
+        // layer/endLayer/row/col/len/small are pure provenance — nothing here
+        // reads them back, but a caller that wants to report a failure in cell
+        // coordinates ("crown at layer 5, row 6, col 7") rather than raw world
+        // x/y/z needs them, and every value already exists in this scope.
+        blocks.push({ matId: run.matId, x: x, y: y, z: z, w: w, h: h, d: d,
+                      layer: li, endLayer: endLayer, row: run.row, col: run.col,
+                      len: run.len, small: !!run.small });
       }
     }
 
@@ -146,8 +182,11 @@ RT.levels = (function () {
    * maxRange(speed) for every unlocked ammo at that level index, with the
    * rangeWindow's near/far pad and (for the four depth levels) each layer's
    * own half-depth folded in — so this is still exactly as reachable as the
-   * original escalation, just slower to arrive. auditLevels()/auditReach()
-   * (js/game.js) reverify this on every boot regardless.
+   * original escalation, just slower to arrive. `js/game.js`'s auditLevels()
+   * reverifies every castle still stands on every boot regardless, and
+   * auditAmmoOffers() (backed by `js/data.js`'s ammoReachReport()) checks
+   * the ammo-range arithmetic this paragraph describes — deterministically,
+   * not by sampling.
    *
    * The first eight are single-layer castles, carried over from the 2D
    * game's LEVELS array (recovered from git history, commit bc731c9) since
@@ -334,8 +373,12 @@ RT.levels = (function () {
      * this file's own header comment notwithstanding — that reveals itself
      * over separate shots, not within one), so a material with no gate at
      * all in the sightline's column would turn this into a shoot-twice
-     * puzzle the single-shot auditReach() tier can never verify as won.
-     * Keeping every new layer's gate aligned avoids that trap entirely.
+     * puzzle: break the obstruction, then hit the now-exposed crown. That is
+     * a perfectly legitimate solution — a level is free to need a sequence
+     * of shots (see js/game.js's header on why the reachability audit that
+     * used to require single-shot solvability was removed) — but keeping
+     * every new layer's gate aligned was still the simpler, more comfortable
+     * *play* here, so it stayed.
      * The `B` timber board reappears as a mid-tower balcony — a second,
      * different use from The Bridge's span-over-a-pit: here it's pure
      * obstruction/flavour, bracing the two pillars with open shaft on both
@@ -425,17 +468,17 @@ RT.levels = (function () {
      * 2-wide cols-3-4 draft) and right (cols 10-11) — stone, with a glass
      * arrow-slit over the right gate and a plain merlon top; the glass never
      * sits in front of the centre column, so it's flavour, not a shoot-twice
-     * trap (see The Siege Tower's note above on why that matters for
-     * auditReach()'s single-shot tier). The left gate's first draft was only
-     * 2 cols wide with the crown behind it sitting at the gate's own EDGE —
-     * technically single-shot reachable (confirmed by hand), but the window
-     * was narrow enough that auditReach()'s coarse direct-hit grid missed it
-     * outright and had to fall through to the real-physics simulation tier,
-     * which turned out to depend on simulation order in a way that passed on
-     * a warm test session but failed on a genuine fresh boot — not something
-     * a player should ever be able to hit. Widened to 5 cols with the crown
-     * re-centred in it so the coarse grid alone finds it, every time,
-     * verified across multiple fresh boots.
+     * trap. The left gate's first draft was only 2 cols wide with the crown
+     * behind it sitting at the gate's own EDGE — a genuinely uncomfortable
+     * shot at sweep speed (AGENTS.md's hold-to-sweep rule wants targets
+     * forgiving enough to hit), which is reason enough on its own to widen
+     * it. It also happened to expose a real bug worth remembering: the
+     * now-removed reachability audit's coarse direct-hit grid missed that
+     * narrow a window outright and fell through to a real-physics
+     * simulation tier whose result depended on simulation order — passing
+     * on a warm test session but failing on a genuine fresh boot. Widened to
+     * 5 cols with the crown re-centred in it — better to aim at either way,
+     * and (at the time) verified clean across multiple fresh boots too.
      * Layer 1 (courtyard): an EASY crown directly behind the left gate, one
      * layer to clear, no deeper obstruction — a second, shallower difficulty
      * tier the way Powder Row/Bastion escalate within one level. A powder
@@ -509,5 +552,8 @@ RT.levels = (function () {
     level._depth = parsed.numLayers;
   }
 
-  return { CELL: CELL, LEVELS: LEVELS, parseLevel: parseLevel };
+  return {
+    CELL: CELL, PLANK_FRAC: PLANK_FRAC, LEVELS: LEVELS,
+    parseLevel: parseLevel, layerZ: layerZ, cellCentre: cellCentre
+  };
 })();

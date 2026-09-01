@@ -62,7 +62,9 @@ RT.data = (function () {
      * GRAVITY is well above real-world for a 1-unit block, which is what makes
      * a collapse read as chunky and toy-like rather than floaty. It is also
      * the single number every ballistics result depends on, so changing it
-     * means re-checking reachability (RT.game.__test.auditReach()).
+     * means re-checking every level's ballistics — run auditLevels() (every
+     * castle still stands) and auditAmmoOffers() (every offered ammo can
+     * still physically reach) from the console, or just reboot the game.
      */
     GRAVITY         : 14,     // units/s^2, downward
     DT              : 1 / 120,  // physics substep
@@ -195,8 +197,8 @@ RT.data = (function () {
        a near-miss splash (bomb/keg) or ordinary collateral jostle from a
        neighbour's death is a far more reliable second/third path to a kill,
        not just a slightly-more-possible one — the intent the whole time,
-       per this file's own header design rule. Re-verified: auditLevels()/
-       auditReach() still pass clean across every level. */
+       per this file's own header design rule. Re-verified: auditLevels()
+       still passes clean across every level. */
     K:{ id:'K', name:'crown',             hp: 15,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 5.0 },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     /* `plank` is read only by js/levels.js's parser (matches the existing
@@ -332,6 +334,54 @@ RT.data = (function () {
     return deg * Math.PI / 180;
   }
 
+  /**
+   * Can each of these ammo physically reach this castle at all? Pure
+   * arithmetic against maxRange()/minRange() and castleBounds()/
+   * rangeWindow() — no physics, no sampling, order-independent, instant.
+   * This is the deterministic replacement for the removed auditReach(): it
+   * does NOT ask whether a crown is solvable (a level is free to need a
+   * sequence of shots — see js/game.js's header), only whether the ammo a
+   * level actually offers can cross the distance to it. That is the one
+   * authoring bug the old audit genuinely caught (a castle placed beyond an
+   * ammo's own physical max range — see commit 64b1aca) and the one thing
+   * pure maths can prove outright.
+   *
+   * `ammoList` is a list of AMMO entries, not ids — every caller already has
+   * them (js/game.js's availableAmmo()/availableAmmoAt(), or the editor's own
+   * doc.ammo selection), and this file must not know about save state or
+   * per-level narrowing.
+   */
+  function ammoReachReport(level, ammoList) {
+    const bounds = castleBounds(level);
+    const window = rangeWindow(level);
+    const problems = [], warnings = [], notes = [];
+    const entries = ammoList.map((a) => {
+      const mr = maxRange(a.speed);
+      const reachesFront = mr >= bounds.near;
+      const reachesBack = mr >= bounds.far;
+      const coversMeterTop = mr >= window.max;
+      const flatMin = a.lob ? 0 : minRange(a.speed);
+      const overshootsCastle = !a.lob && flatMin > bounds.far;
+      const entry = {
+        id: a.id, name: a.name, lob: !!a.lob, splash: !!a.splash,
+        maxRange: mr, minRange: flatMin,
+        reachesFront: reachesFront, reachesBack: reachesBack,
+        coversMeterTop: coversMeterTop, overshootsCastle: overshootsCastle
+      };
+      if (!reachesFront) problems.push(a.name + ' cannot reach this castle at all (max range ' + mr.toFixed(1) + ', castle front at ' + bounds.near.toFixed(1) + ')');
+      if (overshootsCastle) problems.push(a.name + ' cannot land short of ' + flatMin.toFixed(1) + ', which overshoots the whole castle (far face at ' + bounds.far.toFixed(1) + ')');
+      if (!reachesBack) notes.push(a.name + ' cannot reach the castle\'s back face — fine for a single-layer level, a real limitation for a deep one');
+      if (!coversMeterTop) notes.push(a.name + ' cannot reach the top of the range meter — every shot past a point on the meter silently maxes out at its own true range');
+      return entry;
+    });
+    if (ammoList.length && entries.every((e) => !e.reachesFront)) {
+      problems.push('no offered ammo can reach this castle at all');
+    } else if (ammoList.some((a) => a.splash) && !entries.some((e) => e.splash && e.reachesFront)) {
+      warnings.push('splash-capable ammo is offered but none of it can reach — fine if the level does not rely on splash, worth a second look if it does');
+    }
+    return { name: level.name, bounds: bounds, window: window, entries: entries, problems: problems, warnings: warnings, notes: notes };
+  }
+
   /** Meter percentage -> downrange distance, and back. */
   function pctToRange(level, pct) {
     const w = rangeWindow(level);
@@ -414,7 +464,7 @@ RT.data = (function () {
   return {
     CFG, AMMO, MAT, KEG_BLAST,
     solveElevation, maxRange, minRange, flatRangeOf,
-    castleBounds, rangeWindow, yawLimit,
+    castleBounds, rangeWindow, yawLimit, ammoReachReport,
     pctToRange, rangeToPct, launchFor, damageFor, solveTarget
   };
 })();

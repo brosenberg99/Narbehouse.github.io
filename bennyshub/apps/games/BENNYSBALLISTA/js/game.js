@@ -4,10 +4,10 @@
  * Runs the real six-phase camera director (ATTRACT / AIM / FLIGHT / IMPACT /
  * SETTLE / RESULTS, the impact-seat scorer, screen shake, Steady Camera —
  * work-order step 5) over real levels loaded from RT.levels (the stacked-
- * ASCII-layer format, ~12 castles, and the auditLevels()/auditReach() boot
- * checks — step 6). js/ui.js drives the meters and input and calls into the
- * fire()/traceShot() API at the bottom of this file; everything about the
- * world, the live castle and the camera stays here.
+ * ASCII-layer format, 16 castles, and the auditLevels() boot check — step 6).
+ * js/ui.js drives the meters and input and calls into the fire()/traceShot()
+ * API at the bottom of this file; everything about the world, the live castle
+ * and the camera stays here.
  *
  * Also owns progress: stars, score, ammo unlocks, the results/out-of-bolts/
  * menu overlays (RESULTS_MENU / OUTOFBOLTS / MENU, three more CAM phases
@@ -19,8 +19,24 @@
  *
  * Destruction audio is wired through this file into js/audio.js — see the
  * "Audio" block below `disposeBlockMesh()` for the two helpers everything
- * routes through, and note that `auditing` is what keeps the boot audits
- * silent while they settle twelve castles and fire real test shots.
+ * routes through, and note that `auditing` is what keeps the one remaining
+ * boot audit (auditLevels()) silent while it settles all sixteen castles.
+ *
+ * A former second boot audit, auditReach() ("every crown is destroyable by
+ * some single sampled shot"), was removed — it only ever tested a single
+ * shot per candidate, so a level whose intended solution is a sequence
+ * (break the support, then hit the now-exposed crown) failed it despite
+ * being perfectly playable, and its simulated tier had already proven
+ * order-dependent in practice (see commit 2f1c6b9: passed in a warm test
+ * session, failed on a genuine fresh boot). A crown never needed a clear
+ * shot — it's an ordinary hp-bearing body, destroyable by direct hit,
+ * collateral impact, or a fall — so that's now true by construction rather
+ * than proved by sampling. Recoverable at 2f1c6b9:js/game.js:524-623 if a
+ * future session wants to look at it. The one genuine authoring bug it ever
+ * caught (a castle placed beyond an ammo's physical max range — see commit
+ * 64b1aca) is now checked separately and deterministically by
+ * js/data.js's ammoReachReport(), surfaced here via auditAmmoOffers()
+ * (warn-only, never blocks a boot).
  *
  * Still outstanding: no way to open MENU mid-cinematic (see js/ui.js's
  * header).
@@ -60,6 +76,12 @@ RT.game = (function () {
    *  persisted, so scarcity is a per-attempt puzzle constraint, not a
    *  session-wide one. See D.AMMO's limit field. */
   let ammoLeft = {};
+  /* Deliberately iterates D.AMMO, not availableAmmo() — loadLevel() (below)
+   * calls this BEFORE it assigns the new liveLevel, so an ammo-aware version
+   * here would reset limits against the PREVIOUS level's offered set, not the
+   * one about to load. Extra map entries for ammo the new level doesn't even
+   * offer are inert — ammoRemaining() is never asked about an ammo the player
+   * can't select. */
   function resetAmmoLeft() {
     ammoLeft = {};
     for (const a of D.AMMO) if (a.limit != null) ammoLeft[a.id] = a.limit;
@@ -100,12 +122,14 @@ RT.game = (function () {
     const raw = U.load(SAVE_KEY, null);
     save = (raw && raw.version === SAVE_VERSION) ? Object.assign(defaultSave(), raw) : defaultSave();
   }
-  /** Set while runBootAudits() is actually firing test shots (auditReach()'s
-   *  simulated tier, below) — a test shot can legitimately clear a level's
-   *  only crown and trip checkWin()/finishLevel(), which would otherwise
-   *  write bogus progress into the player's real save. runBootAudits()
-   *  also snapshots/restores `save` itself around the whole audit, so this
-   *  is defense in depth, not the only guard. */
+  /** Set while runBootAudits() is settling every level (auditLevels(), below)
+   *  — that settling steps stepPhysicsWithImpacts(), which can legitimately
+   *  kill a level's only crown via collateral/fall damage and trip
+   *  checkWin()/finishLevel(), which would otherwise write bogus progress
+   *  into the player's real save. runBootAudits() also snapshots/restores
+   *  `save` itself around the whole audit, so this is defense in depth, not
+   *  the only guard — see that function's own comment for why both halves
+   *  are independently required. */
   let suppressSaveWrites = false;
   function persistSave() { if (!suppressSaveWrites) U.save(SAVE_KEY, save); }
 
@@ -193,8 +217,8 @@ RT.game = (function () {
     scene.add(ballista.root);
 
     /* Decorative only — no physics body, not in `blocks[]`, invisible to
-       auditLevels()/auditReach(). Baked hero models (see js/models.js, Part
-       D); stand beside each wheel, facing -Z like the ballista itself. */
+       auditLevels(). Baked hero models (see js/models.js, Part D); stand
+       beside each wheel, facing -Z like the ballista itself. */
     guardDecor = A.buildModel('guard-spear', css('guard'), 'guard');
     if (guardDecor) { guardDecor.position.set(1.5, 0, 0.6); scene.add(guardDecor); }
     guardDecor2 = A.buildModel('guard-halberd', css('guard'), 'guard');
@@ -476,13 +500,19 @@ RT.game = (function () {
   }
 
   /* ── Boot-time audits ─────────────────────────────────────────────────────
-   * Replace the two checks the old README asked a human to do by eye —
-   * "it must stand up" and "it must be reachable" — with assertions run
-   * once at boot, throwing loudly if a level fails either one. Both need
-   * real physics steps (unlike a purely data-driven audit like FishMaster's
-   * auditMissions()), so they run from inside physics init's callback
-   * rather than synchronously from init() — see runBootAudits() below for
-   * how a failure still gets surfaced despite that.
+   * Replaces the check the old README asked a human to do by eye — "it must
+   * stand up" — with an assertion run once at boot, throwing loudly if a
+   * level fails it. Needs real physics steps (unlike a purely data-driven
+   * audit like FishMaster's auditMissions()), so it runs from inside physics
+   * init's callback rather than synchronously from init() — see
+   * runBootAudits() below for how a failure still gets surfaced despite that.
+   *
+   * A second audit used to live here too — auditReach(), "every crown is
+   * destroyable by some single sampled shot" — removed per this file's
+   * header comment above. auditLevelData() and auditAmmoOffers() below are
+   * its much cheaper, purely data-driven replacements for the one class of
+   * real bug it ever caught (a level's own data being wrong), rather than
+   * trying to prove solvability by sampling.
    */
 
   /** Every castle stands unaided: build it, step ~4 simulated seconds, and
@@ -491,7 +521,7 @@ RT.game = (function () {
    *  at each level goes through, not a parallel code path. */
   function auditLevels() {
     const wasAuditing = auditing;
-    auditing = true;              // settling twelve castles is not a thing to hear
+    auditing = true;              // settling sixteen castles is not a thing to hear
     try {
       auditLevelsInner();
     } finally {
@@ -521,128 +551,99 @@ RT.game = (function () {
     }
   }
 
-  /**
-   * Every crown is DESTROYABLE — not necessarily hittable. A crown is a
-   * legitimate target while fully obscured behind another layer; it only
-   * has to be killable by *some* plan: a direct hit, collateral impact
-   * damage from a collapsing neighbour, or fall damage once its support is
-   * gone (see js/data.js's MAT.K — a crown is an ordinary dynamic body with
-   * hp, so stepPhysicsWithImpacts()'s existing before/after speed check
-   * already covers all three at runtime; this audit just has to actually
-   * simulate a shot to see it, not assume "no direct hit" means "no plan").
-   *
-   * Tier 1 is the old cheap check — a deterministic traceShot() with no
-   * physics, tried first since most crowns still are directly hittable and
-   * it costs almost nothing. Only a crown tier 1 can't reach falls through
-   * to tier 2: fire a real candidate shot (js/game.js's actual fire()) into
-   * a freshly reloaded castle and step real physics forward, watching that
-   * one crown specifically, so an obscured crown gets to prove itself the
-   * same way a player firing at it for real would. Tier 2's grid is coarser
-   * than tier 1's — each sample costs a full simulated settle, not one
-   * cheap trace — and every candidate bails the instant the crown dies
-   * rather than running the full settle window to the end.
-   */
-  function auditReach() {
-    const wasAuditing = auditing;
-    auditing = true;              // tier 2 fires real shots; none of them are heard
-    try {
-      auditReachInner();
-    } finally {
-      auditing = wasAuditing;
+  /** Pure-data level sanity check — no physics, in the spirit of FishMaster's
+   *  auditMissions(). THROWS: an `ammo` field that isn't a real array of real
+   *  js/data.js AMMO ids is malformed, save-independent data with no tuning
+   *  to get wrong — exactly the silent-typo class this codebase keeps getting
+   *  bitten by (see js/data.js's MAT.css note, and the PALETTE_VARS comment
+   *  above). A level with no `ammo` field is untouched by this — that's the
+   *  common case and there's nothing to check. */
+  function auditLevelData() {
+    const ids = D.AMMO.map((a) => a.id);
+    for (const lvl of LV.LEVELS) {
+      if (lvl.ammo === undefined || lvl.ammo === null) continue;
+      if (!Array.isArray(lvl.ammo)) {
+        throw new Error(`auditLevelData: "${lvl.name}" has an ammo field that is not an array`);
+      }
+      if (!lvl.ammo.length) {
+        throw new Error(`auditLevelData: "${lvl.name}" has an empty ammo array — omit the field entirely for "no restriction"`);
+      }
+      const seen = new Set();
+      for (const id of lvl.ammo) {
+        if (ids.indexOf(id) === -1) {
+          throw new Error(`auditLevelData: "${lvl.name}" lists unknown ammo id "${id}" — every entry must match an id in data.js's AMMO (${ids.join(', ')})`);
+        }
+        if (seen.has(id)) throw new Error(`auditLevelData: "${lvl.name}" lists ammo id "${id}" more than once`);
+        seen.add(id);
+      }
     }
   }
 
-  function auditReachInner() {
-    const YAW_STEPS = 6, RANGE_STEPS = 8;
+  /** Boot-time ammo-offer sanity: pure arithmetic (js/data.js's
+   *  ammoReachReport()), WARN ONLY, never throws — deliberately, since the
+   *  whole point of removing auditReach() was that a check must not block
+   *  creative level design, and an offered set can be narrowed by SAVE STATE
+   *  (see availableAmmoAt() below), so a throwing version here would
+   *  reintroduce exactly the save-dependent boot flakiness commit 2f1c6b9
+   *  fixed the hard way. Prints nothing at all when every level is fine, so a
+   *  clean boot stays a clean console — ammoReachReport()'s `notes` (e.g.
+   *  "Powder Bomb can't reach this level's full meter range", true on every
+   *  shipped level today) are deliberately never printed here, only
+   *  returned, or every boot would emit noise nobody asked for. */
+  function auditAmmoOffers() {
+    const reports = [];
     for (let ix = 0; ix < LV.LEVELS.length; ix++) {
-      loadLevel(ix);
-      const lvl = LV.LEVELS[ix];
-      const name = lvl.name;
-      const yawHalfDeg = D.yawLimit(lvl) * 180 / Math.PI;
-      const crownCount = blocks.filter((b) => b.mat.crown).length;
-
-      // Tier 2 reloads the level (and rebuilds every block, crown included)
-      // per candidate it tries, which invalidates any earlier crown
-      // reference — so each crown index gets its OWN fresh, untouched
-      // loadLevel() right before it's checked, rather than sharing one load
-      // across the whole level the way tier 1 alone used to.
-      for (let ci = 0; ci < crownCount; ci++) {
-        loadLevel(ix);
-        const crown = blocks.filter((b) => b.mat.crown)[ci];
-        let hitOk = false;
-        for (const ammo of D.AMMO) {
-          for (let yi = 0; yi <= YAW_STEPS && !hitOk; yi++) {
-            const yawDeg = -yawHalfDeg + (2 * yawHalfDeg) * yi / YAW_STEPS;
-            const yawRad = yawDeg * Math.PI / 180;
-            for (let ri = 0; ri <= RANGE_STEPS; ri++) {
-              const rangePct = 100 * ri / RANGE_STEPS;
-              const trace = traceShot(ammo, yawRad, rangePct, lvl);
-              if (trace && trace.hit.type === 'block' && trace.hit.block === crown) { hitOk = true; break; }
-            }
-          }
-          if (hitOk) break;
-        }
-
-        if (!hitOk) hitOk = crownDestroyableBySimulation(ix, ci, yawHalfDeg);
-        if (!hitOk) {
-          throw new Error(`auditReach: "${name}" has a crown nothing in the sampled window can destroy — `
-            + 'not by a direct hit, and not by collapse/fall damage from any candidate shot either');
-        }
+      const report = D.ammoReachReport(LV.LEVELS[ix], availableAmmoAt(ix));
+      for (const p of report.problems) console.error('auditAmmoOffers: "' + report.name + '" — ' + p);
+      for (const w of report.warnings) console.warn('auditAmmoOffers: "' + report.name + '" — ' + w);
+      reports.push(report);
+    }
+    // Unlock visibility: a level that hides an ammo the PREVIOUS level just
+    // announced as newly unlocked is a real, if minor, UX bug (finishLevel()
+    // speaks "New ammunition unlocked: X" right before the player lands on a
+    // level that then doesn't offer X) — worth a warning, not a throw, since
+    // it's still playable.
+    for (const a of D.AMMO) {
+      if (a.unlockAt === 0) continue;
+      const lvl = LV.LEVELS[a.unlockAt];
+      if (lvl && lvl.ammo && lvl.ammo.indexOf(a.id) === -1) {
+        console.warn('auditAmmoOffers: "' + lvl.name + '" unlocks ' + a.name + ' but its own ammo list hides it');
       }
     }
+    return reports;
   }
 
-  const SIM_YAW_STEPS = 4, SIM_RANGE_STEPS = 6, SIM_SECONDS = 6;
-  /** Tier 2 of auditReach() above: actually fires candidate shots (via the
-   *  real fire() pipeline) at a fresh copy of level `ix` and lets physics
-   *  run forward, checking whether crown index `crownIx` (stable within one
-   *  loadLevel() call, since nothing has been destroyed yet at the moment
-   *  it's captured) dies — directly, or as collateral, or by falling.
-   *  Bails out of a candidate the instant the crown dies rather than
-   *  running the rest of its settle window. */
-  function crownDestroyableBySimulation(ix, crownIx, yawHalfDeg) {
-    const maxSteps = Math.ceil(SIM_SECONDS / CFG.DT);
-    for (const ammo of D.AMMO) {
-      for (let yi = 0; yi <= SIM_YAW_STEPS; yi++) {
-        const yawDeg = -yawHalfDeg + (2 * yawHalfDeg) * yi / SIM_YAW_STEPS;
-        const yawRad = yawDeg * Math.PI / 180;
-        for (let ri = 0; ri <= SIM_RANGE_STEPS; ri++) {
-          const rangePct = 100 * ri / SIM_RANGE_STEPS;
-          loadLevel(ix);
-          const target = blocks.filter((b) => b.mat.crown)[crownIx];
-          if (!target || !fire(ammo, yawRad, rangePct)) continue;
-          for (let i = 0; i < maxSteps; i++) {
-            stepPhysicsWithImpacts(CFG.DT);
-            updateShots(CFG.DT);
-            if (!target.alive) return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  /** Runs both audits (each leaves the last level it built live in the
-   *  scene) and, once both pass, resumes at the furthest level the save
-   *  file has reached. A failure throws synchronously to the caller — see
-   *  loadAttract() for how that gets surfaced instead of just hanging
-   *  silently. */
+  /** Runs the boot audit (auditLevels() leaves the last level it built live
+   *  in the scene) and, once it passes, resumes at the furthest level the
+   *  save file has reached. A failure throws synchronously to the caller —
+   *  see loadAttract() for how that gets surfaced instead of just hanging
+   *  silently.
+   *
+   *  The save snapshot/suppressSaveWrites guard below is NOT a leftover from
+   *  the removed auditReach() (which used to fire real test shots) — it is
+   *  independently required by auditLevelsInner() itself: that audit steps
+   *  stepPhysicsWithImpacts(), which can kill a crown while merely settling
+   *  (its own first assertion, above) via destroyBlockRec() -> checkWin() ->
+   *  finishLevel(), which mutates `save` (stars/level/totalScore) and calls
+   *  persistSave(). Suppressing the write alone is not enough either:
+   *  finishLevel() mutates the live `save` object BEFORE persisting, so a
+   *  suppressed write still leaves a corrupted in-memory save that the very
+   *  next legitimate persistSave() (a theme change, the player's next real
+   *  win) would faithfully write out. Both halves — the snapshot/restore AND
+   *  suppressSaveWrites — are load-bearing on their own. Do not remove either
+   *  just because auditReach() is gone. */
   function runBootAudits() {
-    // auditReach()'s simulated tier fires real test shots (see below) which
-    // can legitimately win a level and touch `save` — snapshot/restore it so
-    // none of that leaks into the player's actual progress, win or throw.
-    // (Silence is handled by the audits themselves — each sets `auditing`, so
-    // calling one on its own from the console is just as quiet as booting.)
+    auditLevelData();
     const saveSnapshot = JSON.parse(JSON.stringify(save));
     suppressSaveWrites = true;
     try {
       auditLevels();
-      auditReach();
     } finally {
       suppressSaveWrites = false;
       save = saveSnapshot;
     }
     loadLevel(save.level);
+    auditAmmoOffers();
   }
 
   /* ── Shot pipeline ──────────────────────────────────────────────────────
@@ -868,77 +869,21 @@ RT.game = (function () {
    * version's stepWorld(). "This block just got stopped hard" is exactly
    * what a sudden loss of speed means, whether that's landing or crashing
    * into a neighbour.
+   *
+   * The peak-speed tracking, hp loss and crush detection itself now live in
+   * js/settle.js (RT.settle) — extracted so the level editor's stability test
+   * can settle a candidate castle with this exact damage model instead of a
+   * bare P.step() that can't see a crown getting crushed in place. This is a
+   * thin wrapper supplying the two things that are genuinely game-specific:
+   * sound (sfx/panFor) and destruction (destroyBlockRec, which also handles
+   * score, a keg's splash chain, and waking whatever was resting on top).
    */
   function stepPhysicsWithImpacts(dt) {
-    for (const b of blocks) {
-      if (b.alive && !b.mat.static) b._peakSpeed = Math.max(b._peakSpeed || 0, P.speed(b.body));
-    }
-    P.step(dt);
-    for (const b of blocks) {
-      if (!b.alive) continue;
-      P.sync(b.mesh, b.body);
-      if (b.mat.static) continue;
-      const cur = P.speed(b.body);
-      /* Peak-since-last-rest, evaluated once the block is actually settled
-         (below SLEEP_LINEAR), not frame-to-frame: Bullet's own contact
-         resolution spreads a hard stop's deceleration across several frames
-         (a multi-unit fall measurably lands over ~10+ frames, not one), so
-         comparing consecutive frames — or even resetting the peak the first
-         frame a drop crosses the threshold — only ever catches a fragment of
-         the real fall, never the whole energy lost. Waiting for it to settle
-         and comparing against the PEAK it actually reached is what makes "a
-         crown falls far enough to die" (see [[ballista-3d-rework]]) an event
-         that can actually fire. */
-      const peak = b._peakSpeed || 0;
-      if (peak > CFG.IMPACT_THRESHOLD && cur < CFG.SLEEP_LINEAR && !b._peakResolved) {
-        const drop = peak - cur;
-        /* This is where a collapse gets its sound. Every block stopped hard
-           this step is one impact; audio.js voices the loudest few and sums
-           the rest into a rumble, which is what a wall coming down actually
-           sounds like. */
-        b._lastHitSpeed = drop;
-        sfx('impact', b.mat, drop, panFor(b.mesh.position));
-        b.hp -= (drop - CFG.IMPACT_THRESHOLD) * CFG.IMPACT_DMG_SCALE * (b.mat.fallDmgMult || 1);
-        applyCrush(b, drop);
-        b._peakResolved = true;
-        if (b.hp <= 0) destroyBlockRec(b);
-      }
-      if (cur > peak) {
-        b._peakSpeed = cur;
-        b._peakResolved = false;   // a fresh fall — allow this one to register too
-      }
-    }
+    RT.settle.step(blocks, dt, {
+      onImpact: (b, drop) => { sfx('impact', b.mat, drop, panFor(b.mesh.position)); },
+      onDestroy: destroyBlockRec
+    });
     checkWin();
-  }
-
-  const _crushBox = new THREE.Box3(), _otherBox = new THREE.Box3();
-  /** A hard-landing block (see stepPhysicsWithImpacts() above) doesn't just
-   *  hurt itself — it hurts whatever it's now resting directly on top of, so
-   *  a support knocked out from under a heavy span genuinely crushes what
-   *  the span comes down on, rather than just thudding to a stop on its own
-   *  account. Geometric, not a contact listener: real XZ footprint overlap
-   *  plus `b`'s bottom sitting at (not through, not beside) `other`'s top,
-   *  a tight tolerance so this never fires for two blocks merely standing
-   *  side by side. Distinct from applySplash() (an explosion's outward area
-   *  damage) and from the plain self-damage above — this is a third, purely
-   *  vertical damage path. */
-  function applyCrush(b, drop) {
-    const crushDmg = (drop - CFG.IMPACT_THRESHOLD) * CFG.CRUSH_DMG_SCALE;
-    _crushBox.setFromObject(b.mesh);
-    for (const other of blocks) {
-      if (!other.alive || other === b) continue;
-      _otherBox.setFromObject(other.mesh);
-      const xzOverlap = _crushBox.max.x > _otherBox.min.x && _crushBox.min.x < _otherBox.max.x &&
-                         _crushBox.max.z > _otherBox.min.z && _crushBox.min.z < _otherBox.max.z;
-      if (!xzOverlap) continue;
-      const gap = _crushBox.min.y - _otherBox.max.y;
-      if (gap < -0.05 || gap > 0.1) continue;  // resting ON other, not through or beside it
-      other._lastHitSpeed = drop;
-      sfx('impact', other.mat, drop, panFor(other.mesh.position));
-      other.hp -= crushDmg * (other.mat.fallDmgMult || 1);
-      if (!other.mat.static) P.addVelocity(other.body, 0, -drop * 0.15, 0);
-      if (other.hp <= 0) destroyBlockRec(other);
-    }
   }
 
   /**
@@ -1221,9 +1166,62 @@ RT.game = (function () {
     updateShake(dt);
   }
 
-  /** Every ammo whose `unlockAt` is at or below the furthest level reached —
-   *  same gate as the 2D version's unlockedAmmo(). */
-  function unlockedAmmo() { return D.AMMO.filter((a) => a.unlockAt === 0 || save.level >= a.unlockAt); }
+  /** Every ammo whose `unlockAt` is at or below level index `levelIx` —
+   *  parameterised on the index rather than reading `save` directly so the
+   *  boot-time ammo-offer check (auditAmmoOffers(), above) can ask about
+   *  every level without depending on the player's progress. A save-
+   *  dependent boot check is exactly the shape of thing that bit this game
+   *  once already, for a different reason (commit 2f1c6b9's physics
+   *  simulation-order flakiness) — this keeps the new arithmetic check from
+   *  ever being able to repeat that mistake. */
+  function unlockedAmmoAt(levelIx) { return D.AMMO.filter((a) => a.unlockAt === 0 || levelIx >= a.unlockAt); }
+  /** PROGRESSION ONLY — what the player has earned, same gate as the 2D
+   *  version's unlockedAmmo(). Deliberately NOT what a level offers to play
+   *  with right now; see availableAmmo() below for that. Kept off the public
+   *  RT.game surface at the bottom of this file (only one external consumer
+   *  ever existed, js/ui.js's own now-renamed wrapper) so no call site can
+   *  reach the un-narrowed list by accident — that mistake would have no
+   *  visible symptom until the day a level actually narrows its own list. */
+  function unlockedAmmo() { return unlockedAmmoAt(save.level); }
+
+  const _warnedAmmo = new Set();
+  function warnOnceAmmo(level, reason) {
+    const key = (level && level.name) + '|' + reason;
+    if (_warnedAmmo.has(key)) return;
+    _warnedAmmo.add(key);
+    console.warn('availableAmmo: "' + (level && level.name) + '" ' + reason + ' — falling back to the full unlocked set.');
+  }
+  /** The intersection, plus the "never present zero ammo" rule the shot
+   *  pipeline and the ammo scan lane both assume at least one entry exists.
+   *  `warnOnceAmmo` matters here specifically because this sits on the hot
+   *  path — every frame a meter is moving calls currentAmmo() ->
+   *  availableAmmo() (js/ui.js:709-735) — so a bare console.warn would emit
+   *  hundreds per second and bury the message it's trying to deliver. */
+  function narrowToLevel(list, level) {
+    const ids = level && level.ammo;
+    if (ids === undefined || ids === null) return list;   // no field = today's behaviour, byte for byte
+    if (!Array.isArray(ids)) { warnOnceAmmo(level, 'has an ammo field that is not an array'); return list; }
+    // Filtering D.AMMO (via `list`) rather than mapping over `ids` keeps the
+    // result in D.AMMO's canonical order regardless of how the level's own
+    // array is ordered — the ammo lane is a scan list, and a chip's POSITION
+    // is something a switch-scanning player learns; it must not move between
+    // levels just because a level's authored list happens to be in a
+    // different order.
+    const set = new Set(ids);
+    const narrowed = list.filter((a) => set.has(a.id));
+    if (narrowed.length) return narrowed;
+    warnOnceAmmo(level, 'lists ammo none of which the player has unlocked yet');
+    return list;   // never present zero ammo — narrowing can empty a set, never the game
+  }
+  /** What THIS level actually offers to play with: (the level's own list) ∩
+   *  (what progression has unlocked). Narrows, never grants — an early level
+   *  can never hand out the Powder Bomb just by listing it. `level` defaults
+   *  to whatever is live, the same convention traceShot() already uses. */
+  function availableAmmo(level) { return narrowToLevel(unlockedAmmo(), level || liveLevel); }
+  /** Save-independent form, for auditAmmoOffers() — see that function's own
+   *  comment for why it must never depend on `save`. */
+  function availableAmmoAt(ix) { return narrowToLevel(unlockedAmmoAt(ix), LV.LEVELS[ix]); }
+
   function currentLevel() { return liveLevel; }
 
   /** Every crown still standing, in world x/z — js/ui.js's minimap marks
@@ -1327,11 +1325,12 @@ RT.game = (function () {
       return true;
     },
     fire(ammoIx, yawDeg, rangePct) {
-      const ammo = unlockedAmmo()[ammoIx];
+      const ammo = availableAmmo()[ammoIx];
       if (!ammo) return null;
       const trace = fire(ammo, yawDeg * Math.PI / 180, rangePct);
       return trace && { hit: trace.hit.type, matHit: trace.hit.block ? trace.hit.block.mat.id : null };
     },
+    availableAmmoIds() { return availableAmmo().map((a) => a.id); },
     shotCount() { return shots.length; },
     shotDebug() {
       return shots.map((s) => ({
@@ -1348,10 +1347,8 @@ RT.game = (function () {
     levelIx() { return levelIx; },
     levelName() { return liveLevel ? liveLevel.name : null; },
     loadLevel(ix) { loadLevel(ix); },
-    auditLevels, auditReach,
-    crownDestroyableBySimulation(ix, crownIx) {
-      return crownDestroyableBySimulation(ix, crownIx, D.yawLimit(LV.LEVELS[ix]) * 180 / Math.PI);
-    },
+    auditLevels, auditLevelData, auditAmmoOffers,
+    unlockedAmmo, availableAmmo, availableAmmoAt,
     camState() {
       return {
         phase: CAM.phase, shake: CAM.shake,
@@ -1400,7 +1397,7 @@ RT.game = (function () {
   return {
     init, loadAttract, update,
     onThemeChanged, isFlat,
-    unlockedAmmo, ammoRemaining, currentLevel, crownPositions, targetableBlocks, fire, traceShot, updateAimPreview,
+    availableAmmo, ammoRemaining, currentLevel, crownPositions, targetableBlocks, fire, traceShot, updateAimPreview,
     confirmResults, retryLevel, enableEndlessAndContinue,
     openMenu, closeMenu, setMinimapSize, setSteadyCamera, setEndlessBolts, steadyCameraOn,
     getTheme, setTheme, aimModeOn, setAimMode,

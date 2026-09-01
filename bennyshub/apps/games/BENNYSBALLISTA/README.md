@@ -135,10 +135,11 @@ are chosen; the physics body stays a box either way.
 like everything else, so it dies the same three ways anything else does: a
 direct hit, a hard landing, or a hard knock from a collapsing neighbour.
 Levels are free to bury a crown behind a wall that has to come down first —
-`js/game.js`'s boot-time `auditReach()` actually proves this rather than
-assuming it: it tries a cheap direct-hit trace first, and for any crown that
-fails, falls through to firing a real test shot and running physics forward
-to see whether the crown dies to the collapse. See "Adding a level" below.
+that's true by construction now, not proved by an audit sampling shots. A
+level is also free to need a *sequence* of shots (break the obstruction, then
+hit the now-exposed crown) — there is no boot-time check that requires a
+single-shot solution, or any particular solution at all. See "Adding a level"
+below.
 
 ## Physics
 
@@ -256,6 +257,13 @@ land on the same spot by different paths:
   **only one per level**, reset on a retry. The one ammo worth saving for
   the shot that actually needs it.
 
+A level may also narrow this list further with its own `ammo` field (see
+"Adding a level" below) — a castle can restrict itself to, say, only Stone
+Bolt and Boulder, for a puzzle built specifically around what those two can
+and can't do. That narrowing can never override the unlock schedule above; it
+only ever removes options a level doesn't want, never grants ones the player
+hasn't earned yet.
+
 ## The minimap and Settings
 
 A top-down minimap (top-right) shows the sweep cone, every surviving crown as
@@ -345,9 +353,11 @@ a timer.
 Levels are entries in the `LEVELS` array in `js/levels.js` — each one or more
 stacked ASCII layers (front layer first), built from the letters in "What is
 in a castle" above. The bottom row of every layer sits on the ground.
-[`editor.html`](editor.html) is a standalone previewer for drawing one by
-mouse: it live-checks that a draft stands up, and can export the result
-straight into `levels.js`'s format.
+[`editor.html`](editor.html) is a real mouse-driven level editor now, not just
+a previewer: a sticky block palette, snap-to-attach placement, copy/paste,
+a saved-assembly library, a live validation panel, an idempotent stability
+test, and an ammo-availability readout, all previewed against the game's own
+four colour profiles. It exports straight into `levels.js`'s format.
 
 ```js
 { name: 'The Reed Tower', par: 1, bolts: 6, dist: 24, layers: [[
@@ -363,37 +373,69 @@ straight into `levels.js`'s format.
   is derived from this plus the castle's own footprint (`castleBounds()`/
   `rangeWindow()` in `js/data.js`), so there's no dead travel at either end
   regardless of how far out a castle sits — but `dist` still has to stay
-  inside every relevant ammo's `maxRange(speed)`, or the boot audit below
-  will catch it and throw. As a rough guide, the 12 shipped levels sit
-  between 24 and 29; a level several layers deep that needs a lob to clear
-  its front wall has noticeably less real reach than that number suggests,
-  since the lob still has to clear the *same* absolute distance ceiling.
+  inside every relevant ammo's `maxRange(speed)`, or `auditAmmoOffers()`
+  below will warn about it (loudly, in the console, though it won't block a
+  boot). As a rough guide, the 16 shipped levels sit between 24 and 29; a
+  level several layers deep that needs a lob to clear its front wall has
+  noticeably less real reach than that number suggests, since the lob still
+  has to clear the *same* absolute distance ceiling.
 - `par` — the bolt count worth three stars.
 - `bolts` — the limit when Endless Bolts is switched off.
 - `layers` — front to back. A crown or a support can live on any layer; see
   "Depth" above for what that buys.
+- `ammo` — **optional.** An array of `js/data.js`'s `AMMO` ids (e.g.
+  `['stone', 'fire']`) restricting which ammo this level offers. It
+  **narrows the unlocked set, never grants** — an early level can never hand
+  out the Powder Bomb just by listing it, and if the intersection with what
+  the player has actually unlocked comes out empty, the game falls back to
+  the full unlocked set and warns once in the console rather than presenting
+  zero ammo. Displayed in `AMMO`'s own canonical order regardless of the
+  array's order (the ammo lane is a scan list; a chip's position is
+  something a switch-scanning player learns, and it must not move between
+  levels). An unknown id is a boot-time error (see below) — a typo here gets
+  caught immediately, not discovered by a confused playtester. Omit the
+  field entirely for "no restriction", which is every shipped level today.
 
-Two things to check after drawing one — both are boot-time assertions in
-`js/game.js` now, not something to eyeball:
+Two things to check after drawing one:
 
-1. **It must stand up** (`auditLevels()`) — build it, step a few seconds of
-   physics, and confirm no crown drifted and nothing is still awake. If it
-   collapses the moment the level loads, it genuinely wasn't standing on its
-   own: check that every piece sits on the ground or on something wide
-   enough underneath it, and mind the small-rubble caveat under Physics
-   above (a beam with only rubble for legs can sag and fall).
-2. **Every crown must be destroyable** (`auditReach()`) — not necessarily
-   hittable. It tries a cheap direct-hit trace first (still the common
-   case), and for any crown that fails, actually fires a real test shot at a
-   fresh copy of the level and steps physics forward to see whether the
-   crown dies to the collapse instead — a legitimate pass, not a workaround.
-   If a level fails this, watch the console: the error names the level and
-   which crown nothing in the sampled window could reach *or* bring down.
+1. **It must stand up** (`auditLevels()`, a boot-time assertion in
+   `js/game.js`, throws on failure) — build it, step a few seconds of
+   physics, and confirm no crown drifted, none was destroyed by collateral
+   damage, and nothing is still awake. If it collapses the moment the level
+   loads, it genuinely wasn't standing on its own: check that every piece
+   sits on the ground or on something wide enough underneath it, and mind
+   the small-rubble caveat under Physics above (a beam with only rubble for
+   legs can sag and fall). `editor.html`'s stability test runs the identical
+   check, idempotently, without needing to touch the shipped `LEVELS` array
+   first.
+2. **Ammo range is sanity-checked, not required** (`auditAmmoOffers()`, pure
+   arithmetic against `maxRange()`/`minRange()`, warn-only, never throws) —
+   if none of a level's offered ammo can physically reach it at all, or an
+   offered flat ammo's own minimum range overshoots the whole castle, that
+   prints a `console.error` naming the level; a narrower issue (an ammo that
+   can't reach the castle's back face, or can't reach the top of the meter)
+   prints a `console.warn` or nothing at all. This deliberately does **not**
+   ask whether a crown is reachable or solvable — a crown never needs a
+   clear shot (see "What is in a castle" above) and a level is free to need
+   a sequence of shots, so there is no audit trying to prove single-shot
+   solvability by sampling. `editor.html` surfaces the same report live,
+   under the ammo selector, while you're still drawing.
 
-Both audits run on every boot, against every level, before the title
-resolves — a failure surfaces as a loud error on screen rather than a silent
-hang. `RT.game.__test` exposes both, plus `crownDestroyableBySimulation(ix,
-crownIx)` to check one crown in isolation while iterating on a level.
+One thing that **does** throw, immediately, and is meant to (`auditLevelData()`,
+pure data validation, no physics): an `ammo` field that isn't an array, is
+empty, or lists an id that doesn't match anything in `js/data.js`'s `AMMO`.
+That class of mistake — a static, save-independent typo with no tuning to get
+wrong — is exactly what this codebase's own history says should fail loudly
+at boot rather than silently doing the wrong thing at runtime.
+
+All three checks run on every boot, against every level, before the title
+resolves — a throwing failure surfaces as a loud error on screen rather than
+a silent hang; a warn-only one just prints and lets the boot continue.
+`RT.game.__test` exposes `auditLevels`, `auditLevelData`, `auditAmmoOffers`,
+`availableAmmo`/`availableAmmoAt` (what a given level actually offers), and
+`unlockedAmmo` (progression alone, module-private otherwise — see the
+`availableAmmo()` comment in `js/game.js` for why the two are kept
+deliberately separate).
 
 ## Notes for whoever edits this next
 
@@ -411,13 +453,17 @@ crownIx)` to check one crown in isolation while iterating on a level.
   in `js/ui.js` fills them from `tick()`. Worth remembering as a shape of bug:
   a large, prominent indicator that always shows a plausible value is harder
   to notice than a missing one, and worse than either.
-- **Anything that destroys or settles blocks in bulk must be silent.** The
-  boot audits stand twelve castles up and fire real test shots; without a
-  guard that is a burst of noise before the player has touched anything.
-  `auditLevels()` and `auditReach()` each set `game.js`'s `auditing` flag
-  around themselves, so calling one from the console is as quiet as booting
-  is. If you add another bulk-simulation path, it needs the same treatment —
-  the guard belongs on the thing making the noise, not on one caller.
+- **Anything that destroys or settles blocks in bulk must be silent.**
+  `auditLevels()` stands sixteen castles up on every boot; without a guard
+  that is a burst of noise before the player has touched anything. It sets
+  `game.js`'s `auditing` flag around itself, so calling it from the console
+  is as quiet as booting is. If you add another bulk-simulation path, it
+  needs the same treatment — the guard belongs on the thing making the
+  noise, not on one caller. (A second boot audit, `auditReach()`, used to
+  fire real test shots to prove crown reachability by sampling; it was
+  removed — see `js/game.js`'s header comment — in favour of
+  `auditAmmoOffers()`'s pure arithmetic, which needs no such guard because
+  it never touches physics or `save` at all.)
 - **Power sets range, never force** — see "Why this game exists" above. If
   you add a new ammunition or mechanic, keep this rule; it's the strongest
   form of the hub's "letting go early must be harmless" principle and it's
@@ -447,8 +493,13 @@ crownIx)` to check one crown in isolation while iterating on a level.
 - Progress, stars, and settings (minimap size, Steady Camera, Endless Bolts)
   live in one object under `RT.util`'s `rt-ballista` save key — see
   `defaultSave()` in `game.js`. `runBootAudits()` snapshots and restores this
-  around the boot audits, since `auditReach()`'s simulated tier fires real
-  test shots that can legitimately trip a real win.
+  around `auditLevels()` — **this guard is still required with `auditReach()`
+  gone, not a leftover from it.** `auditLevels()`'s own settling can
+  legitimately kill a level's only crown via collateral/fall damage, tripping
+  `checkWin()` → `finishLevel()` → a real save mutation. Do not remove this
+  guard on the reasoning that "the thing that used to fire test shots is
+  gone" — that reasoning is exactly backwards; see `runBootAudits()`'s own
+  comment in `game.js` for the full call chain.
 
 ## Third-party code
 
