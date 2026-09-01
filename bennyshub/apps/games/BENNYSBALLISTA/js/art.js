@@ -346,7 +346,19 @@ RT.art = (function () {
        * that on shape alone, same as every other block here; the faceted
        * gem is the fallback for as long as that model isn't baked yet. */
       const tyrant = RT.models.geometry('tyrant');
-      if (tyrant) return tyrant;
+      /* model_prep.py's `prop` mode centres X/Z on the cell but floors Y (feet
+       * at local y=0, top at the model's own height) — a resting-on-a-shelf
+       * convention, not the symmetric ±h/2 box every OTHER shape here assumes.
+       * Every block (this one included) gets its MESH positioned at the
+       * block's CENTRE by the caller, so a floor-based geometry placed there
+       * lands with its feet at the centre instead of the cell's floor —
+       * visibly floating half the block's height above whatever it's really
+       * standing on. Shift it down by h/2 so its local y=0 lands exactly on
+       * the block's bottom face instead, same as a real box would. Confirmed
+       * empirically, not assumed: the baked bbox is y:[0, 0.88] before this,
+       * meaning a crown block centred at y=4.5 (bottom face at 4.0) rendered
+       * with its feet at 4.5 — a 0.5-unit gap, matching what was reported. */
+      if (tyrant) return tyrant.translate(0, -h / 2, 0);
       /* Sized to the cell's inscribed radius so it fills the cell without
        * overhanging it (the interpenetration audit has to stay honest). */
       return new THREE.OctahedronGeometry(Math.min(w, h, d) * 0.5);
