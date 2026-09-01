@@ -354,11 +354,10 @@ RT.art = (function () {
     return new THREE.BoxGeometry(w, h, d);
   }
 
-  /** All three must be baked before any of them is used — a hero base next
-   *  to a primitive-box arm is a visible style mismatch in a way the
-   *  tyrant's simpler single-piece fallback isn't (see the ballista-3d
-   *  plan's hero-ballista section). */
-  const HERO_BALLISTA_PARTS = ['ballista-base', 'ballista-mech'];
+  /** Only the wheeled base is a generated model now — the crossbow on top of
+   *  it is built from primitives by buildCrossbow() below. See the note there
+   *  for why. */
+  const HERO_BALLISTA_PARTS = ['ballista-base'];
 
   /* 2026-08-31: the three-piece tall A-frame (base + straight arm + two
      mirrored bow-limbs) was scrapped for a low-profile two-piece crossbow —
@@ -370,10 +369,36 @@ RT.art = (function () {
      rather than a thin rod — never hit the old ~5:1 aspect-ratio ceiling
      that forced HERO_ARM_SCALE/HERO_LIMB_SCALE's axial stretch hack. Box-fit
      at its own native proportions (no stretch): `normalize_part`'s scale is
-     1.0 on every axis for both new pieces. Long axis is still local X, not
-     the Z this assembly's aim geometry uses — same photo-framing effect as
-     before — hence HERO_AXIS_FIX_Y is kept and reused. */
-  const HERO_AXIS_FIX_Y = Math.PI / 2;
+     1.0 on every axis for both new pieces. */
+  /* Why the crossbow is hand-built while the base is generated.
+     ------------------------------------------------------------------
+     A crossbow is a T in PLAN view: a rail running downrange, a prod
+     crossing it at the FRONT, strings drawn back to a catch at the rear.
+     (Bryan's top-down reference was twice misread here as a front
+     elevation, which produced a bow with a handle in the same plane — an
+     arc, with no depth along the firing axis at all. A three-quarter view
+     hides that error, and the in-game camera IS three-quarter, so
+     screenshots were the least diagnostic thing to judge it by. The check
+     that settles it is the mesh's own top-down silhouette against the
+     reference's: flat line vs T.)
+
+     Image-to-mesh generation never landed that shape. Across six concept
+     attempts it produced, in turn: an arc; a prod at the wrong end; one
+     limb at the front-left and another at the rear-right (two L's rather
+     than a prod); and a rail skewed enough that mirroring the good half
+     doubled it into an A-frame. Each repair uncovered the next defect,
+     because the reconstruction was never structurally a crossbow.
+
+     A crossbow is also trivial geometry — a rail, two mirrored limbs, a
+     string, a bolt. Built from primitives it is exactly symmetric by
+     construction rather than by hope, it reads at any size (which is the
+     whole point for Ben — see the accessibility notes), and it can be
+     genuinely two-tone: a baked model is repainted ONE flat palette
+     colour at runtime, so wood-vs-steel separation is impossible for it
+     but free here. That is Bryan's call, made after seeing the two L's.
+
+     The base stays generated: a wheeled cart has surface detail worth
+     having and it reconstructed cleanly. */
   /* normalize_part centres the baked base on all three axes, including Y —
      there's no floor convention for `part` kind (see model_prep.py) — so it
      has to be lifted by its own half-height to rest on the ground the way
@@ -395,8 +420,129 @@ RT.art = (function () {
      regenerated (this is a bigger offset than the base's own lift because
      world height obviously didn't move — the new mechanism sits close to
      its own low base, nowhere near as far below the pivot as the old tall
-     A-frame's arm did). */
-  const HERO_MECH_DRAW_Y = -1.29;
+     A-frame's arm did). Re-tuned for the hand-built crossbow, which is
+     modelled about its own rail centreline (y=0), so this is just "drop it
+     until the rail rests on the cart deck". */
+  const HERO_MECH_DRAW_Y = -1.46;
+  /* Slides the whole crossbow along its own length so the prod sits over the
+     cart's front axle rather than hanging off the nose, matching how the
+     real toy in Bryan's reference photos is mounted. */
+  const HERO_MECH_DRAW_Z = 0.2;
+
+  /* Where the prod crosses the rail, and how far each limb reaches. The span
+     (2 x LIMB_REACH, about 1.7) is a little wider than the cart itself, so
+     the prod is the widest thing on the engine and therefore what the eye
+     catches first — the feature that says "crossbow" rather than "cart". */
+  const PROD_Z = -1.25;
+  const LIMB_REACH = 0.85;
+  /* Each limb is three straight segments whose sweep-back angle increases
+     down its length: a curve cheap enough to ink cleanly, where a smooth
+     tube would just read as a wire. Angles are from +X (straight out
+     sideways) toward +Z (back toward the player), so the prod cups the
+     shooter the way a real bow's limbs do. */
+  const LIMB_SEGMENTS = [
+    { angle: 0.16, length: 0.32, thick: 0.13 },
+    { angle: 0.50, length: 0.30, thick: 0.11 },
+    { angle: 0.92, length: 0.28, thick: 0.09 }
+  ];
+  /* Where both strings meet behind the prod — the nock the bolt sits against. */
+  const CATCH_Z = 0.18;
+
+  /**
+   * The crossbow that sits on the cart: rail, two mirrored limbs, strings,
+   * and a nocked bolt. Modelled about its own rail centreline (origin at
+   * y=0, mid-rail) so the caller only has to drop it onto the deck.
+   *
+   * Built from primitives rather than a generated mesh — see the long note
+   * above HERO_BASE_LIFT_Y. The two properties that buys, and that a baked
+   * model could not give: exact left/right symmetry by construction, and a
+   * real wood/steel split (a baked model is repainted one flat colour).
+   *
+   * Ink outlines are on here, unlike the generated mechanism, which had to
+   * go without: an outlined faceted mesh viewed nearly end-on turns into a
+   * scribble of facet edges, but a box seen end-on is just four clean
+   * corners, which is exactly the case the aim camera looks at.
+   */
+  function buildCrossbow(wood, steel, tag) {
+    const group = new THREE.Group();
+    group.name = 'crossbow';
+    const add = (mesh, pal) => { group.add(tag(mesh, pal)); return mesh; };
+
+    /* The rail. Runs from well ahead of the prod back past the catch, so the
+       prod crosses a continuous beam rather than capping its end. */
+    add(part(new THREE.BoxGeometry(0.17, 0.15, 2.6), wood, {
+      pos: [0, 0, -0.15], outline: true
+    }), 'wood');
+
+    /* A stock block at the rear, giving the tail some weight so the engine
+       doesn't taper away to nothing from behind — which is the angle the
+       player spends the whole game looking from. */
+    add(part(new THREE.BoxGeometry(0.26, 0.20, 0.5), wood, {
+      pos: [0, -0.01, 0.9], outline: true
+    }), 'wood');
+
+    [1, -1].forEach((side) => {
+      /* Walk the limb outward from the rail, accumulating each segment's
+         direction so the pieces meet end to end instead of overlapping. */
+      let x = 0;
+      let z = PROD_Z;
+      LIMB_SEGMENTS.forEach((seg) => {
+        const dx = Math.cos(seg.angle);
+        const dz = Math.sin(seg.angle);
+        add(part(new THREE.BoxGeometry(seg.length, seg.thick, seg.thick), steel, {
+          pos: [side * (x + dx * seg.length / 2), 0, z + dz * seg.length / 2],
+          /* A box is symmetric about its own centre, so the mirrored limb can
+             reuse the same angle negated rather than needing a flipped one. */
+          rot: [0, -seg.angle * side, 0],
+          outline: true
+        }), 'steel');
+        x += dx * seg.length;
+        z += dz * seg.length;
+      });
+
+      /* Scale the reach to the span we actually want, whatever the segment
+         lengths happened to sum to. */
+      const tipX = side * LIMB_REACH;
+      const tipZ = z;
+      const last = LIMB_SEGMENTS[LIMB_SEGMENTS.length - 1];
+
+      /* A steel spike at each tip — four blade points total counting the
+         bend, the detail that reads as "siege weapon" in Bryan's reference. */
+      add(part(new THREE.ConeGeometry(0.055, 0.2, 6), steel, {
+        pos: [tipX, 0, tipZ],
+        rot: [0, -last.angle * side, -Math.PI / 2 * side],
+        outline: true
+      }), 'steel');
+
+      /* The drawn string, tip back to the catch. A thin box rather than a
+         line so it survives the ink pass and reads at distance. */
+      const sx = tipX - 0;
+      const sz = tipZ - CATCH_Z;
+      const len = Math.sqrt(sx * sx + sz * sz);
+      add(part(new THREE.BoxGeometry(len, 0.035, 0.035), steel, {
+        pos: [tipX / 2, 0, (tipZ + CATCH_Z) / 2],
+        rot: [0, -Math.atan2(sz, sx), 0],
+        outline: false
+      }), 'steel');
+    });
+
+    /* The nocked bolt, lying in the rail's groove and pointing downrange.
+       Wood shaft, steel head — the same two-tone the rest of the engine
+       uses, and the reason this is worth building rather than baking. */
+    add(part(new THREE.CylinderGeometry(0.045, 0.045, 1.15, 6), wood, {
+      pos: [0, 0.11, CATCH_Z - 0.575], rot: [Math.PI / 2, 0, 0], outline: true
+    }), 'wood');
+    add(part(new THREE.ConeGeometry(0.07, 0.22, 6), steel, {
+      pos: [0, 0.11, CATCH_Z - 1.26], rot: [-Math.PI / 2, 0, 0], outline: true
+    }), 'steel');
+
+    /* The catch the string is hooked over. */
+    add(part(new THREE.BoxGeometry(0.16, 0.13, 0.16), steel, {
+      pos: [0, 0.06, CATCH_Z], outline: true
+    }), 'steel');
+
+    return group;
+  }
 
   /**
    * The ballista itself: a paper-craft siege engine sitting at the world
@@ -433,26 +579,20 @@ RT.art = (function () {
     if (HERO_BALLISTA_PARTS.every((n) => RT.models.geometry(n))) {
       const base = part(RT.models.geometry('ballista-base'), wood, { outline: true });
       base.position.y = HERO_BASE_LIFT_Y;
+      /* The generated mesh's wheel axles land along world Z, so the wheels'
+         flat hubcap faces pointed at the AIM camera instead of rolling
+         front-to-back — caught from Bryan's own in-game screenshot, not
+         this file's own review renders. A 90° yaw here is enough: it's the
+         wheel axis that was wrong, not the whole chassis's footprint (which
+         reads fine from either angle since the base is close to square in
+         plan view). Confirmed against the real AIM camera pose, not assumed
+         from the axle direction alone. */
+      base.rotation.y = Math.PI / 2;
       root.add(tag(base, 'wood'));
 
-      /* No outline on the mechanism specifically — the aim camera always
-         looks nearly straight down it (it points along -Z, same as the
-         camera's own view direction), and an ink-outlined faceted mesh
-         viewed almost end-on shows every facet edge radiating from a single
-         point, a "star" that reads as a tangled scribble rather than a
-         beam. A box never had this problem (an end-on box outline is just
-         four clean corners); this hero mesh's extra facets do. Confirmed by
-         a direct side-by-side render with/without the outline at the real
-         AIM camera pose on the old single-arm piece — bumping the outline's
-         edge-angle threshold first (up to 55°) did not help, since the
-         tangle comes from genuinely sharp facet boundaries compressing
-         together, not fine relief noise. Same shape problem applies to this
-         mesh end-on, so kept off here too. */
-      const mechMesh = part(RT.models.geometry('ballista-mech'), steel, {
-        pos: [0, HERO_MECH_DRAW_Y, -0.4]
-      });
-      mechMesh.rotation.y = HERO_AXIS_FIX_Y;
-      pivot.add(tag(mechMesh, 'steel'));
+      const crossbow = buildCrossbow(wood, steel, tag);
+      crossbow.position.set(0, HERO_MECH_DRAW_Y, HERO_MECH_DRAW_Z);
+      pivot.add(crossbow);
     } else {
       /* Base sled: a low, wide plank the whole engine sits on. */
       const base = part(new THREE.BoxGeometry(1.6, 0.32, 2.6), wood, {
