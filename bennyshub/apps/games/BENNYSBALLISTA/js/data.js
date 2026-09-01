@@ -50,7 +50,7 @@ RT.data = (function () {
     YAW_PAD_CELLS   : 2.0,    // sweep this far past each side of the castle
     YAW_MIN_HALF_DEG: 7,      // ...but never a sweep narrower than this
 
-    RANGE_PCT_PER_S : 8,      // 0 -> 100% in 12.5s
+    RANGE_PCT_PER_S : 12,     // 0 -> 100% in 8.3s
     RANGE_TICK_PCT  : 10,     // beep every this much
     RANGE_PAD_NEAR  : 7.0,    // meter starts this far short of the castle front
     RANGE_PAD_FAR   : 7.0,    // ...and ends this far past its back
