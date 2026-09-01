@@ -362,9 +362,26 @@ RT.data = (function () {
    * Full launch state for a shot. `yaw` is radians, + to the player's right.
    * Returns null if the requested range is unreachable, which the caller must
    * handle — though rangeWindow() is built so it never should be.
+   *
+   * That invariant only held for the NEAR end (rangeWindow.min already backs
+   * off for flatMinReach()) — the far end had no equivalent check, so any
+   * ammo whose own maxRange() falls short of rangeWindow.max (the Powder
+   * Bomb, on literally every level: its 19-speed maxRange is ~28 units, and
+   * every level's window stretches at least a little past that) went from
+   * "fires and lands somewhere" to a true, silent dud somewhere in roughly
+   * the top quarter to half of its own charge meter — the exact mirror image
+   * of the "no undercharged dud" rule this file's header describes, just
+   * never symmetrically enforced. Clamping the DISTANCE fed to
+   * solveElevation (not rangeWindow itself, which every ammo shares — moving
+   * the window would tighten the near-castle-reaching padding for every
+   * OTHER ammo too, a much bigger behaviour change than this bug needs) means
+   * an overcharged shot still fires, landing at this ammo's own true limit
+   * instead of nowhere. 0.05 keeps solveElevation's discriminant strictly
+   * positive right at that ceiling.
    */
   function launchFor(ammo, level, yaw, rangePct) {
-    const dist = pctToRange(level, rangePct);
+    const requested = pctToRange(level, rangePct);
+    const dist = Math.min(requested, maxRange(ammo.speed) - 0.05);
     const phi = solveElevation(ammo.speed, dist, ammo.lob);
     if (phi === null) return null;
     const vh = ammo.speed * Math.cos(phi);
