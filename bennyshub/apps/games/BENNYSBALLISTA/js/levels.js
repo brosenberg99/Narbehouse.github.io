@@ -421,11 +421,21 @@ RT.levels = (function () {
      * through — the same "keep every gate on the same row/column" discipline
      * The Siege Tower's deepening above just used, not a new risk.
      *
-     * Layer 0 (wall): two gates (cols 3-4 and 10-11), stone, with glass
-     * arrow-slits over each gate (row 6) and a plain merlon top — the glass
-     * never sits in front of the centre column, so it's flavour, not a
-     * shoot-twice trap (see The Siege Tower's note above on why that matters
-     * for auditReach()'s single-shot tier).
+     * Layer 0 (wall): two gates — left (cols 2-6, widened from an original
+     * 2-wide cols-3-4 draft) and right (cols 10-11) — stone, with a glass
+     * arrow-slit over the right gate and a plain merlon top; the glass never
+     * sits in front of the centre column, so it's flavour, not a shoot-twice
+     * trap (see The Siege Tower's note above on why that matters for
+     * auditReach()'s single-shot tier). The left gate's first draft was only
+     * 2 cols wide with the crown behind it sitting at the gate's own EDGE —
+     * technically single-shot reachable (confirmed by hand), but the window
+     * was narrow enough that auditReach()'s coarse direct-hit grid missed it
+     * outright and had to fall through to the real-physics simulation tier,
+     * which turned out to depend on simulation order in a way that passed on
+     * a warm test session but failed on a genuine fresh boot — not something
+     * a player should ever be able to hit. Widened to 5 cols with the crown
+     * re-centred in it so the coarse grid alone finds it, every time,
+     * verified across multiple fresh boots.
      * Layer 1 (courtyard): an EASY crown directly behind the left gate, one
      * layer to clear, no deeper obstruction — a second, shallower difficulty
      * tier the way Powder Row/Bastion escalate within one level. A powder
@@ -449,9 +459,9 @@ RT.levels = (function () {
         '...............',
         '...............',
         '...............',
-        'S.SII.S.S.IIS.S',           // merlons + arrow-slits over each gate
-        'SSS..SSSSS..SSS',           // gates, cols 3-4 and 10-11
-        'SSS..SSSSS..SSS',
+        'S.......S.IIS.S',           // merlons + an arrow-slit over the right gate
+        'SS.....SSS..SSS',           // gates — cols 2-6 (widened) and 10-11
+        'SS.....SSS..SSS',
         'SSSSSSSSSSSSSSS'            // solid base
       ], [                          // courtyard — the easy crown, keg, rubble
         '...............',
@@ -461,9 +471,9 @@ RT.levels = (function () {
         '...............',
         '...............',
         '...............',
-        '...K...........',           // easy crown, right behind the left gate
-        '...S...........',          // its pedestal
-        '...S...w..T....'            // pedestal base + loose rubble + a keg
+        '....K..........',          // easy crown, centred in the widened left gate
+        '....S..........',          // its pedestal
+        '....S..w..T....'            // pedestal base + loose rubble + a keg
       ], [                          // tower — height, two symmetric spans
         '..W.........W..',
         '..BBBBBBBBBBB..',           // upper board, full span (both ends supported)
