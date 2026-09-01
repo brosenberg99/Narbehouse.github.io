@@ -180,10 +180,24 @@ RT.data = (function () {
        stepPhysicsWithImpacts/applyCrush), not IMPACT_THRESHOLD itself, so
        what counts as "a real fall" — and every other material's collapse
        survivability, already covered by auditLevels()'s standing-castle
-       check — stays exactly as tuned. 3x makes a single castle-layer's worth
-       of fall height (~3 units) reliably lethal on its own; confirmed
-       against auditLevels()/auditReach() still passing, not just eyeballed. */
-    K:{ id:'K', name:'crown',             hp: 25,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 3.0 },
+       check — stays exactly as tuned.
+       Re-tuned 2026-08-31: the crown never has to be directly hittable, only
+       destroyable (direct hit, collateral splash, or a fall) — but the OLD
+       hp:25/3x pairing made "fall" a razor's edge rather than a real option:
+       a full castle-layer's worth of drop (~3 units, ~9.16 units/s of lost
+       speed at this file's GRAVITY) did (9.16-7.5)*5*3 = 24.9 damage against
+       25 hp — under by a hair, not "reliably lethal" at all, just lucky
+       every time it got checked. hp:15/5x instead needs only a ~2.3-unit
+       drop to cross 15, with real margin at a full layer (41.6 vs 15), AND
+       gives every direct-hit ammo comfortable headroom too (previously
+       Splitter's 21.08 direct-hit damage was actually UNDER 25 hp — it
+       could not one-shot a crown at all; now well over 15). This also means
+       a near-miss splash (bomb/keg) or ordinary collateral jostle from a
+       neighbour's death is a far more reliable second/third path to a kill,
+       not just a slightly-more-possible one — the intent the whole time,
+       per this file's own header design rule. Re-verified: auditLevels()/
+       auditReach() still pass clean across every level. */
+    K:{ id:'K', name:'crown',             hp: 15,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 5.0 },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     /* `plank` is read only by js/levels.js's parser (matches the existing
        small/static/glass/explodes pattern) — it thins the block to

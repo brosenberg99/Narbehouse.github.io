@@ -320,7 +320,174 @@ RT.levels = (function () {
       'WW.......',
       'WW.......',
       'WW.......'    // wall base, unrelated to whatever col2 is doing above
-    ]] }
+    ]] },
+    /* The conservative end of the level chart — three axes, but every layer
+     * still does exactly one job, and every gate is a plain copy of the same
+     * cols-5-7/rows-6-7 opening, so the one proven direct sightline never
+     * has to be re-verified from scratch. 13 cols wide, a 9-row twin-pillar
+     * tower, and now 5 real layers of depth (deepened per Bryan's ask —
+     * two new layers inserted, an indestructible steel inner gate and a
+     * flanking glass screen, both keeping the SAME open gate footprint as
+     * the outer wall rather than a new one, on purpose: a shot only stops
+     * at the first block its trace hits (js/game.js's traceShot() has no
+     * pass-through logic for any material, "shatters and carries on" from
+     * this file's own header comment notwithstanding — that reveals itself
+     * over separate shots, not within one), so a material with no gate at
+     * all in the sightline's column would turn this into a shoot-twice
+     * puzzle the single-shot auditReach() tier can never verify as won.
+     * Keeping every new layer's gate aligned avoids that trap entirely.
+     * The `B` timber board reappears as a mid-tower balcony — a second,
+     * different use from The Bridge's span-over-a-pit: here it's pure
+     * obstruction/flavour, bracing the two pillars with open shaft on both
+     * sides of it (rows 0-2 above, rows 4-8 below), never carrying anything
+     * else's weight, so it can't foul the crown-standing-flush requirement
+     * the way something resting ON a board would (a board only fills
+     * PLANK_FRAC of its own row's cell — flush FOR whatever sits below it,
+     * since a row's floor always meets the row below's ceiling exactly, but
+     * a ~0.85-cell air gap for anything placed in the row ABOVE it, which a
+     * crown there would fall through and fail auditLevels' <0.05
+     * settle-movement check). The crown itself sits on an ordinary flush
+     * stone plinth in the BACK layer, screened by every wall's gate (cols
+     * 5-7) and the tower's open shaft (cols 4-8) — all centred on the same
+     * row (6) as the crown, for a clean flat sightline straight through,
+     * exactly the "depth as obstruction, not a maze" rule the other
+     * multi-layer levels already use. */
+    { name: 'The Siege Tower', par: 3, bolts: 8, dist: 28, layers: [
+      [                             // front — the wide outer wall (breadth)
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        'SSSSS...SSSSS',           // gate, cols 5-7
+        'SSSSS...SSSSS',
+        'SSSSSSSSSSSSS'            // solid base — the gate is a window, not a door
+      ], [                          // NEW — an inner steel gate, indestructible
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        'XXXXX...XXXXX',           // same gate footprint as the outer wall
+        'XXXXX...XXXXX',
+        'XXXXXXXXXXXXX'
+      ], [                          // middle — the twin-pillar tower (height)
+        '...W.....W...',
+        '...W.....W...',
+        '...W.....W...',
+        '...BBBBBBB...',           // balcony brace, open shaft both above and below
+        '...W.....W...',
+        '...W.....W...',
+        '...W.....W...',           // row 6 — level with every gate
+        '...W.....W...',
+        '...W.....W...'
+      ], [                          // NEW — a flanking glass screen
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        'IIIII...IIIII',           // glass either side, same gate left open
+        'IIIII...IIIII',
+        'SSSSSSSSSSSSS'            // stone footing
+      ], [                          // back — the keep, the true target (depth)
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '.............',
+        '......K......',
+        '......S......',
+        '......S......'
+      ]
+    ] },
+    /* The elaborate end of the chart — every material in MAT gets a job, two
+     * crowns at two difficulty tiers, two spans, and the widest/tallest
+     * footprint yet (15 cols, a 10-row tower, 4 layers). Everything below is
+     * still built ONLY from patterns already proven elsewhere in this file,
+     * on purpose: an early draft gave the mid-tower steel brace a gap at the
+     * centre column so a shot could thread it, which meant the brace was
+     * only supported at ONE end for most of its span — a real cantilever,
+     * unlike The Cantilever's own (which is a solid single merged run, never
+     * an asymmetric overhang) — and risks Bullet resolving it as an
+     * unstable torque rather than a clean rest. Moved the two spans to rows
+     * the main sightline never uses (1 and 5) instead, so both are full,
+     * symmetric, both-ends-supported runs exactly like The Bridge/Siege
+     * Tower's boards, and row 6 stays a plain open pillar row the whole way
+     * through — the same "keep every gate on the same row/column" discipline
+     * The Siege Tower's deepening above just used, not a new risk.
+     *
+     * Layer 0 (wall): two gates (cols 3-4 and 10-11), stone, with glass
+     * arrow-slits over each gate (row 6) and a plain merlon top — the glass
+     * never sits in front of the centre column, so it's flavour, not a
+     * shoot-twice trap (see The Siege Tower's note above on why that matters
+     * for auditReach()'s single-shot tier).
+     * Layer 1 (courtyard): an EASY crown directly behind the left gate, one
+     * layer to clear, no deeper obstruction — a second, shallower difficulty
+     * tier the way Powder Row/Bastion escalate within one level. A powder
+     * keg sits loose behind the right gate purely as a hazard/flavour (nothing
+     * depends on destroying it), plus one small wood-rubble chunk on bare
+     * ground — both isolated on open floor, the only placement `w`/`s`/`i`
+     * chunks are safe in (see The Timberworks' lone `s` for the precedent;
+     * a small chunk under a full-size block would be a narrow, likely
+     * unstable support, so this file never does that).
+     * Layer 2 (tower): twin pillars, TALLER than The Siege Tower's (10 rows
+     * vs 9), with a timber board near the top and a steel brace lower down
+     * — different material, different row, so neither merges with the
+     * other or with anything in an adjacent layer.
+     * Layer 3 (keep): the HARD crown, three layers deep, on a wider stone
+     * altar than The Siege Tower's single-block plinth. */
+    { name: 'The Grand Citadel', par: 5, bolts: 12, dist: 24, layers: [
+      [                             // wall — breadth, two gates, glass slits
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        'S.SII.S.S.IIS.S',           // merlons + arrow-slits over each gate
+        'SSS..SSSSS..SSS',           // gates, cols 3-4 and 10-11
+        'SSS..SSSSS..SSS',
+        'SSSSSSSSSSSSSSS'            // solid base
+      ], [                          // courtyard — the easy crown, keg, rubble
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...K...........',           // easy crown, right behind the left gate
+        '...S...........',          // its pedestal
+        '...S...w..T....'            // pedestal base + loose rubble + a keg
+      ], [                          // tower — height, two symmetric spans
+        '..W.........W..',
+        '..BBBBBBBBBBB..',           // upper board, full span (both ends supported)
+        '..W.........W..',
+        '..W.........W..',
+        '..W.........W..',
+        '..XXXXXXXXXXX..',           // steel brace, full span — same discipline
+        '..W.........W..',           // row 6 — level with every gate, left clear
+        '..W.........W..',
+        '..W.........W..',
+        '..W.........W..'
+      ], [                          // keep — depth, the hard crown, a wider altar
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '...............',
+        '.......K.......',           // hard crown, dead centre — three layers deep
+        '.....SSSSS.....',           // altar
+        '.....SSSSS.....',
+        'SSSSSSSSSSSSSSS'            // keep floor
+      ]
+    ] }
   ];
 
   // Compute and cache each level's footprint once, at load — data.js's
