@@ -159,14 +159,18 @@ RT.editor = (function () {
   /* ── Grid document — the single source of truth ──────────────────────────
    * Rectangular and padded, ALWAYS: every layer has exactly doc.rows rows,
    * every row exactly doc.cols chars. layer 0 = FRONT (nearest the ballista);
-   * row 0 = TOP (levels.js: bottom = (rows - row - 1) * CELL).
+   * row 0 = TOP (levels.js: bottom = rowBottoms(layerRows, rows)[row] — the
+   * REAL cumulative floor height, not a flat `(rows - row - 1) * CELL`; a
+   * board/rubble row is thinner than a full CELL, so whatever's above one
+   * sits flush on its actual surface rather than a fixed per-row assumption).
    *
    * Why padding is mandatory, not tidiness: parseLevel() computes rows/cols
-   * as MAXIMA across all layers, and bottom = (rows - row - 1) * CELL. So
-   * adding one row to ONE layer raises `rows`, which lifts every block in
-   * EVERY layer by one cell. A ragged document makes "grow the castle" an
-   * accidental whole-castle displacement; a padded one makes it a a single
-   * well-defined row/column insert. */
+   * as MAXIMA across all layers, and every row still costs SOME reserved
+   * height (a full CELL unless something thinner occupies it) even if empty.
+   * So adding one row to ONE layer raises `rows`, which shifts every block in
+   * EVERY layer by that reserved amount. A ragged document makes "grow the
+   * castle" an accidental whole-castle displacement; a padded one makes it a
+   * single well-defined row/column insert. */
   const doc = { name: 'Untitled', dist: 26, par: 3, bolts: 9, ammo: null, cols: 0, rows: 0, grid: [] };
 
   function cellAt(l, r, c) {
@@ -465,20 +469,6 @@ RT.editor = (function () {
             // refreshPalette() already folds an undefined var to '#888' with its
             // own top-level warning; nothing extra to say per-cell.
           }
-          // The B-plank air-gap trap: a board sits flush on ITS row's floor,
-          // leaving ~0.85 cell of open air above itself in the same cell —
-          // levels.js:344-350's authoring rule, now checked instead of only
-          // written down.
-          if (mat.plank && r > 0) {
-            const above = doc.grid[l][r - 1][c];
-            const aboveMat = D.MAT[above];
-            if (aboveMat) {
-              const msg = 'Layer ' + (l + 1) + ', row ' + r + ', col ' + (c + 1) +
-                ' sits directly above a timber board (row ' + (r + 1) + ') in the same column — it will drop through the board\'s gap on load.';
-              if (aboveMat.crown) errors.push(msg + ' This is the crown.');
-              else warnings.push(msg);
-            }
-          }
           // Floating check: a non-static, non-small block with nothing directly
           // beneath it in its OWN layer (layers never support each other —
           // levels.js:16-22) and not resting on the ground row.
@@ -581,20 +571,46 @@ RT.editor = (function () {
   });
 
   /* ── Snap ─────────────────────────────────────────────────────────────────
-   * ON: gravity-drop WITHIN the layer (each layer stands on its own —
-   * levels.js:16-22 — so support never crosses layers) until it meets support
-   * or the floor. OFF: write exactly the hovered cell, floating if nothing's
-   * beneath it. "Flush against neighbours" needs no extra work either way —
-   * the grid guarantees it; there is no sub-cell offset to be flush about. */
+   * Only ever applies to the EMPTY-SPACE fallback pick (hit.empty — the ray
+   * hit no existing block, so there's no specific face to honour) — see
+   * updateGhost()'s and the pointerup handler's own comments. Clicking an
+   * actual FACE of an existing block is an explicit, unambiguous gesture:
+   * attach flush against exactly that face, snap or no snap. Applying
+   * snap-drop there too used to mean only faces that happened to already BE
+   * a resting spot (the top, or a side with something else beside it) acted
+   * like "attach here" — clicking the underside or a front/back face sent
+   * the placement falling on past the block that was actually clicked.
+   *
+   * For the empty-space case, ON means gravity-drop WITHIN the layer (each
+   * layer stands on its own — levels.js:16-22 — so support never crosses
+   * layers) until it comes to rest — on the floor, on something directly
+   * below, or flush against an occupied neighbour to either side in the SAME
+   * row. That last case is what makes a span/bridge piece authorable at all:
+   * hovering in the gap between two already-built pillars has nothing below
+   * it, so a below-only check would drop it all the way to the ground every
+   * time, making it look like nothing can ever be placed except stacked
+   * straight up (confirmed exactly this way when first tried — a block
+   * could only ever be placed directly on top of another). Lateral support
+   * only counts within the same row/layer, matching the same
+   * never-crosses-layers rule. OFF: write exactly the hovered cell, floating
+   * if nothing's beneath or beside it — for an intentionally disconnected
+   * piece. */
   let snap = true;
   document.getElementById('btnSnap').addEventListener('click', (e) => {
     snap = !snap;
     e.target.textContent = 'Snap: ' + (snap ? 'ON' : 'OFF');
   });
+  function isSupportedAt(l, r, c) {
+    if (r + 1 >= doc.rows) return true;                        // the floor
+    if (cellAt(l, r + 1, c) !== '.') return true;               // resting on something
+    if (c > 0 && cellAt(l, r, c - 1) !== '.') return true;      // flush against a neighbour...
+    if (c < doc.cols - 1 && cellAt(l, r, c + 1) !== '.') return true; // ...either side
+    return false;
+  }
   function snapDrop(l, r, c) {
     if (!snap) return r;
     let rr = r;
-    while (rr + 1 < doc.rows && cellAt(l, rr + 1, c) === '.') rr++;
+    while (rr + 1 < doc.rows && !isSupportedAt(l, rr, c)) rr++;
     return rr;
   }
 
@@ -635,10 +651,14 @@ RT.editor = (function () {
     const numLayers = Math.max(1, doc.grid.length);
     const dims = { cols: doc.cols, rows: doc.rows, numLayers: numLayers };
     for (let l = 0; l < doc.grid.length; l++) {
+      // One layer's real per-row floor heights (board/rubble rows are
+      // thinner) — computed once per layer, not per cell, since it only
+      // depends on that layer's own content.
+      const bottoms = LV.rowBottoms(doc.grid[l], doc.rows);
       for (let r = 0; r < doc.rows; r++) {
         for (let c = 0; c < doc.cols; c++) {
           if (cellAt(l, r, c) === '.') continue;
-          const cc = LV.cellCentre(doc.dist, dims, l, r, c);
+          const cc = LV.cellCentre(doc.dist, dims, l, r, c, bottoms);
           _box.min.set(cc.x - CELL / 2, cc.y - CELL / 2, cc.z - CELL / 2);
           _box.max.set(cc.x + CELL / 2, cc.y + CELL / 2, cc.z + CELL / 2);
           const hit = _raycaster.ray.intersectBox(_box, _hitPt);
@@ -691,7 +711,17 @@ RT.editor = (function () {
     let target = hit;
     if (!hit.empty) target = adjacentCell(hit);
     let r = target.row;
-    if (snap) r = snapDrop(target.layer, r, target.col);
+    /* Snap-drop only applies to the EMPTY-SPACE fallback (no specific face
+       was clicked) — it's a convenience for "roughly here, let gravity find
+       the resting spot." Clicking an actual FACE of an existing block
+       (hit.empty === false) is an explicit, unambiguous placement gesture —
+       attach flush against exactly that face, full stop. Applying snap-drop
+       there too used to mean only the top/side faces (which happen to
+       already BE a supported resting row) behaved as attaching; clicking the
+       underside or a front/back (depth) face of a block sent the placement
+       falling on past it to the floor of whatever layer/column it landed in,
+       ignoring the very face that was clicked. */
+    if (snap && hit.empty) r = snapDrop(target.layer, r, target.col);
     if (ghostMatId !== tool.matId || !ghost) {
       if (ghost) scene.remove(ghost);
       const proto = protoFor(tool.matId, CELL, CELL, CELL);
@@ -701,7 +731,8 @@ RT.editor = (function () {
       scene.add(ghost);
     }
     const dims = { cols: Math.max(doc.cols, target.col + 1), rows: Math.max(doc.rows, r + 1), numLayers: Math.max(doc.grid.length, target.layer + 1) };
-    const cc = LV.cellCentre(doc.dist, dims, target.layer, r, target.col);
+    const ghostBottoms = LV.rowBottoms(doc.grid[target.layer], dims.rows);
+    const cc = LV.cellCentre(doc.dist, dims, target.layer, r, target.col, ghostBottoms);
     ghost.position.set(cc.x, cc.y, cc.z);
     ghost.visible = true;
     cellCage.position.copy(ghost.position);
@@ -759,8 +790,8 @@ RT.editor = (function () {
           if (cellAt(l, r, c) !== '.') blocks++;
     els.selectionInfo.textContent = w + ' x ' + h + ' x ' + d + ' cells (' + blocks + ' filled)';
     const dims = { cols: Math.max(doc.cols, sel.col1 + 1), rows: Math.max(doc.rows, sel.row1 + 1), numLayers: Math.max(doc.grid.length, sel.layer1 + 1) };
-    const cMin = LV.cellCentre(doc.dist, dims, sel.layer1, sel.row1, sel.col0);
-    const cMax = LV.cellCentre(doc.dist, dims, sel.layer0, sel.row0, sel.col1);
+    const cMin = LV.cellCentre(doc.dist, dims, sel.layer1, sel.row1, sel.col0, LV.rowBottoms(doc.grid[sel.layer1], dims.rows));
+    const cMax = LV.cellCentre(doc.dist, dims, sel.layer0, sel.row0, sel.col1, LV.rowBottoms(doc.grid[sel.layer0], dims.rows));
     selBoxHelper.box.min.set(Math.min(cMin.x, cMax.x) - CELL / 2, cMin.y - CELL / 2, Math.min(cMin.z, cMax.z) - CELL / 2);
     selBoxHelper.box.max.set(Math.max(cMin.x, cMax.x) + CELL / 2, cMax.y + CELL / 2, Math.max(cMin.z, cMax.z) + CELL / 2);
     selBoxHelper.visible = true;
@@ -916,10 +947,12 @@ RT.editor = (function () {
       blitStamp(clipboard, target.layer, target.row, target.col, false);
       return;
     }
-    // 'place'
+    // 'place' — see updateGhost()'s comment: snap-drop only applies when no
+    // specific face was clicked (the empty-space fallback); an explicit face
+    // click attaches exactly there.
     let target = hit.empty ? hit : adjacentCell(hit);
     let r = target.row;
-    if (snap) r = snapDrop(target.layer, r, target.col);
+    if (snap && hit.empty) r = snapDrop(target.layer, r, target.col);
     placeAt(target.layer, r, target.col, tool.matId);
   });
   dom.addEventListener('wheel', (e) => {

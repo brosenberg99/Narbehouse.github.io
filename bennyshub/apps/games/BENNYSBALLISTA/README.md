@@ -247,9 +247,10 @@ Two piece sizes come out of the level parser (`js/levels.js`):
 - **Small rubble** (`w`/`s`/`i`) is half the size of a normal block, much
   lighter, and never welds to anything. A light hit sends it flying rather
   than just damaging it in place, which is what makes it fun as loose
-  debris on top of a solid structure. It's *not* a reliable load-bearing
-  support: because it only fills the bottom half of its cell, anything drawn
-  directly above one has a visible gap and falls.
+  debris on top of a solid structure. It's still much lighter than a full
+  block, so a light hit still knocks it (and whatever's resting on it) around
+  more readily — but anything drawn directly above one now rests flush on its
+  real (half-height) surface rather than floating with a gap, same as a board.
 
 ### Depth
 
@@ -282,15 +283,17 @@ it exactly like any other material.
 This opens up patterns the other materials can't: a bridge spanning a gap on
 two end supports with an open shaft in between (see "The Bridge"), or a roof
 over a crown that a lob thuds into while a flat shot sails underneath at the
-crown's own height (see "The Vaulted Hall" family). **Hard rule: never draw
-anything — especially `K` — directly above a board's row in the same column**
-unless a visible drop-and-thud on load is the intent. Every other row's block
-computes its height purely from its own row index, blind to what's actually
-beneath it; that was always safe before because every material filled its
-whole cell. A crown drawn directly above a board has an ~0.85-unit gap to
-fall through before settling, and `auditLevels()`'s 0.05-unit-drift check will
-correctly fail it — that's the safety net working, but only if you know the
-rule going in rather than finding out from the boot error.
+crown's own height (see "The Vaulted Hall" family).
+
+**Drawing something directly above a board (or a small-rubble chunk) now
+rests flush on its real surface**, no gap — `js/levels.js`'s `rowBottoms()`
+computes each row's floor from the ACTUAL height of whatever's really below
+it (a full `CELL` normally, but only `PLANK_FRAC*CELL` for a row that's
+entirely board, or half a cell for one that's entirely small rubble), instead
+of the old blind `(rows - row - 1) * CELL` that assumed every row was a full
+cell tall. There is no longer a "never draw above a board" rule to remember —
+it used to leave an ~0.85-unit gap for anything drawn there (a crown would
+fail `auditLevels()`'s drift check outright), now it doesn't.
 
 ## Ammunition
 

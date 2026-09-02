@@ -79,17 +79,72 @@ RT.levels = (function () {
     return -dist + ((numLayers - 1) / 2 - i) * CELL;
   }
 
+  /** Real vertical space one ROW of one layer claims — CELL for an ordinary
+   *  row, but only the tallest actual occupant's own height when every
+   *  occupied cell in that row is thinner than a full cell (a `plank`/`B`
+   *  row at PLANK_FRAC*CELL, a small-rubble row at 0.5*CELL). A row mixing a
+   *  thin material with a full-height one still reserves the full cell — only
+   *  a row that's ENTIRELY thin content (or plain empty, which keeps its full
+   *  CELL of reserved authoring space regardless) gets thinner. This is what
+   *  used to be hardcoded as "every row is exactly CELL" everywhere below;
+   *  making it real is what lets something rest flush on a board or a chunk
+   *  of rubble instead of floating ~0.85 cell above it.
+   *
+   *  `layerRows` is one layer's array of row pictures — either a real level's
+   *  row STRINGS (`level.layers[i]`) or the editor's row CHAR-ARRAYS
+   *  (`doc.grid[l]`); `row[c]` reads identically either way, so this one
+   *  function serves both callers. */
+  function rowThickness(layerRows, rows) {
+    const t = new Array(rows).fill(CELL);
+    const n = Math.min(layerRows ? layerRows.length : 0, rows);
+    for (let r = 0; r < n; r++) {
+      const row = layerRows[r];
+      let maxH = 0, any = false;
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
+        if (ch === '.' || ch === ' ') continue;
+        const mat = MAT[ch];
+        if (!mat) continue;
+        any = true;
+        const h = mat.plank ? CELL * PLANK_FRAC : (mat.small ? CELL * 0.5 : CELL);
+        if (h > maxH) maxH = h;
+      }
+      if (any) t[r] = maxH;
+    }
+    return t;
+  }
+
+  /** Cumulative floor height for every row of one layer — bottoms[row] is
+   *  the sum of rowThickness() for every row BELOW it (row index increases
+   *  downward; the true floor row's bottom is 0). Replaces the old
+   *  `(rows - row - 1) * CELL` assumption everywhere a row's real height
+   *  might not be a full CELL. */
+  function rowBottoms(layerRows, rows) {
+    const t = rowThickness(layerRows, rows);
+    const bottoms = new Array(rows).fill(0);
+    let acc = 0;
+    for (let r = rows - 1; r >= 0; r--) { bottoms[r] = acc; acc += t[r]; }
+    return bottoms;
+  }
+
   /** World-space centre of one grid CELL — not of a merged block, which can
    *  span several cells and isn't what a mouse click ever targets. Always a
    *  full CELL cube regardless of what (if anything) occupies it, so a thin
    *  `B` plank or a half-size `w/s/i` chunk is exactly as easy to pick as a
    *  full block. `dims` is `{cols, rows, numLayers}`, i.e. parseLevel()'s own
    *  return shape (or the `_cols`/`_depth` pair cached onto a level, plus its
-   *  layer count) — same convention data.js's castleBounds() reads. */
-  function cellCentre(dist, dims, layer, row, col) {
+   *  layer count) — same convention data.js's castleBounds() reads.
+   *
+   *  `bottoms` (optional) is a rowBottoms()-shaped array for THIS specific
+   *  layer — pass it whenever real grid content for that layer exists, so
+   *  picking/ghost placement agrees with where parseLevel() will actually put
+   *  things. Omitted (no grid content to base it on yet), this falls back to
+   *  the old uniform-CELL assumption. */
+  function cellCentre(dist, dims, layer, row, col, bottoms) {
+    const bottom = (bottoms && bottoms[row] !== undefined) ? bottoms[row] : (dims.rows - row - 1) * CELL;
     return {
       x: (col + 0.5 - dims.cols / 2) * CELL,
-      y: (dims.rows - row - 1) * CELL + CELL / 2,
+      y: bottom + CELL / 2,
       z: layerZ(dist, dims.numLayers, layer),
       size: CELL
     };
@@ -114,6 +169,13 @@ RT.levels = (function () {
     const used = layerRuns.map((runs) => runs.map(() => false));
     const blocks = [];
     let crownCount = 0;
+
+    // Real per-row floor height, one array per layer (each layer stands on
+    // its own — see the file header — so a board in layer 0 never affects
+    // layer 1's heights). This is what makes something resting in the row
+    // above a board/rubble row sit flush on its actual surface instead of
+    // assuming every row below is a full CELL tall.
+    const layerBottoms = layers.map((layerRows) => rowBottoms(layerRows, rows));
 
     // Layer 0 is nearest the ballista (least negative Z); layers stack away
     // from it in even CELL-wide steps, centred on level.dist. `lz` rather than
@@ -147,14 +209,14 @@ RT.levels = (function () {
         if (run.small) {
           w = h = d = CELL * 0.5;
           x = (run.col + 0.5 - cols / 2) * CELL;
-          y = (rows - run.row - 1) * CELL + h / 2;   // resting on its cell's floor
+          y = layerBottoms[li][run.row] + h / 2;   // resting on its cell's REAL floor
           z = lz(li);
         } else {
           w = run.len * CELL;
           h = mat.plank ? CELL * PLANK_FRAC : CELL;
           d = (endLayer - li + 1) * CELL;
           x = (run.col + run.len / 2 - cols / 2) * CELL;
-          const bottom = (rows - run.row - 1) * CELL;   // this row's own floor
+          const bottom = layerBottoms[li][run.row];   // this row's REAL floor, not an assumed one
           y = bottom + h / 2;
           z = (lz(li) + lz(endLayer)) / 2;
         }
@@ -554,6 +616,7 @@ RT.levels = (function () {
 
   return {
     CELL: CELL, PLANK_FRAC: PLANK_FRAC, LEVELS: LEVELS,
-    parseLevel: parseLevel, layerZ: layerZ, cellCentre: cellCentre
+    parseLevel: parseLevel, layerZ: layerZ, cellCentre: cellCentre,
+    rowThickness: rowThickness, rowBottoms: rowBottoms
   };
 })();
