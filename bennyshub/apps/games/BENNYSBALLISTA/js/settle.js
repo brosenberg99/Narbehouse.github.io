@@ -51,7 +51,7 @@ RT.settle = (function () {
       other._lastHitSpeed = drop;
       if (hooks.onImpact) hooks.onImpact(other, drop);
       other.hp -= crushDmg * (other.mat.fallDmgMult || 1);
-      if (!other.mat.static) P.addVelocity(other.body, 0, -drop * 0.15, 0);
+      if (!other.mat.static) P.addVelocity(other.body, 0, -drop * 0.28, 0);
       if (other.hp <= 0 && hooks.onDestroy) hooks.onDestroy(other);
     }
   }

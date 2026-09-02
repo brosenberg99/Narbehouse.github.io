@@ -70,6 +70,7 @@ RT.game = (function () {
   let boltsUsed = 0;    // this level, since loadLevel() — resets to 0 there
   let levelScore = 0;   // this level's points, folded into save.totalScore on a win
   let lastResult = null; // { stars, earned, bonus, newAmmo } for the results overlay
+  let shotKeyKills = 0; // guards+tyrant killed by the CURRENT bolt (direct/splash/seam/linger) — reset in fire()
 
   /** Per-level ammo scarcity — id -> uses left, only for AMMO entries that
    *  carry a `limit`. Reset every loadLevel() (including a retry), never
@@ -404,17 +405,43 @@ RT.game = (function () {
     try { AU[fn](a, b, c); } catch (e) { /* audio is never load-bearing */ }
   }
 
-  /** Points for a kill are 500 for a crown, 100 for anything else — ported
-   *  from the 2D version's damageBlock(), folded in here since every kill
-   *  (a direct hit via applyHit(), or collateral via
-   *  stepPhysicsWithImpacts()) already funnels through this one function.
-   *  Destruction audio funnels through here for the same reason: a crown
-   *  toppled by collateral collapse has to sound exactly as final as one
-   *  shot off its perch. */
+  /** Points for a kill are 500 for a crown, 350 for a guard, 100 for anything
+   *  else — ported from the 2D version's damageBlock() (crown/other split),
+   *  folded in here since every kill (a direct hit via applyHit(), or
+   *  collateral via stepPhysicsWithImpacts()) already funnels through this
+   *  one function. Destruction audio funnels through here for the same
+   *  reason: a crown toppled by collateral collapse has to sound exactly as
+   *  final as one shot off its perch.
+   *
+   *  Guards and the crown ("key targets") also add an efficiency bonus here,
+   *  immediately on kill — bigger the earlier boltsUsed is, so killing one
+   *  on an early bolt actually pays out more than limping to the same kill
+   *  late. This is separate from (and stacks with) the flat per-kill value
+   *  above and the existing unused-bolts bonus in finishLevel() — that one
+   *  only ever looks at the FINAL total, not when a key target actually died.
+   *  shotKeyKills also increments here, driving the combo bonus a few lines
+   *  down — a kill counts toward it regardless of whether it came from the
+   *  direct hit, a seam/linger neighbour, or a collateral chain the same
+   *  shot set off, since destroyBlockRec() is the one place all of those
+   *  paths already meet. Reset to 0 in fire() at the start of each shot. */
   function destroyBlockRec(b) {
     if (!b.alive) return;
     b.alive = false;
-    levelScore += b.mat.crown ? 500 : 100;
+    if (b.mat.crown || b.mat.guard) {
+      levelScore += b.mat.crown ? 500 : 350;
+      levelScore += Math.max(0, CFG.KEY_BUDGET - boltsUsed) * CFG.KEY_BONUS_PER_BOLT;
+      shotKeyKills++;
+      /* Combo bonus, paid incrementally as each extra key kill in this same
+         shot happens (rather than computed once at the end): the tyrant
+         itself can be the kill that ends the level, and finishLevel() reads
+         levelScore synchronously the instant checkWin() sees it die — so
+         this has to already be folded in by then, not added later once the
+         whole shot/collapse finishes. Total payout across a shot is the same
+         either way; paying it here just means it can never miss a win. */
+      if (shotKeyKills > 1) levelScore += CFG.COMBO_BONUS_PER_KILL;
+    } else {
+      levelScore += 100;
+    }
     sfx('destroy', b.mat, b._lastHitSpeed || 24, panFor(b.mesh.position));
     /* A powder keg's own death is an explosion, wired through the same
        applySplash() the Powder Bomb ammo uses. Runs before the mesh/body
@@ -676,6 +703,29 @@ RT.game = (function () {
     return null;
   }
 
+  const _normLocal = new THREE.Vector3(), _normInvQuat = new THREE.Quaternion(), _normOut = new THREE.Vector3();
+  /** World-space outward normal of whichever face of `b` is nearest `point` —
+   *  the same least-margin-axis test findHitBlock() (above) and the aim
+   *  reticle (updateAimPreview()) already use to find/orient a hit, re-derived
+   *  here for the one thing neither of those needed before: a direction to
+   *  deflect a lingering bolt off of (see startLinger()/stepLinger() below).
+   *  Returns a shared scratch vector — clone it to keep it past the call. */
+  function hitNormal(b, point) {
+    _normInvQuat.copy(b.mesh.quaternion).invert();
+    _normLocal.copy(point).sub(b.mesh.position).applyQuaternion(_normInvQuat);
+    const mx = b.half.x - Math.abs(_normLocal.x);
+    const mz = b.half.z - Math.abs(_normLocal.z);
+    const my = b.half.y - Math.abs(_normLocal.y);
+    let axis;
+    if (mx <= mz && mx <= my) axis = 'x';
+    else if (mz <= my) axis = 'z';
+    else axis = 'y';
+    const sign = Math.sign(_normLocal[axis]) || 1;
+    _normOut.set(axis === 'x' ? sign : 0, axis === 'y' ? sign : 0, axis === 'z' ? sign : 0);
+    _normOut.applyQuaternion(b.mesh.quaternion);
+    return _normOut;
+  }
+
   const OUT_OF_BOUNDS_Z_FAR = -80, OUT_OF_BOUNDS_Z_NEAR = 20, OUT_OF_BOUNDS_X = 60;
 
   /**
@@ -723,6 +773,7 @@ RT.game = (function () {
     const trace = traceShot(ammo, yawRad, rangePct);
     if (!trace) return null;
     boltsUsed++;
+    shotKeyKills = 0;
     if (ammo.limit != null) ammoLeft[ammo.id] = ammoRemaining(ammo) - 1;
     const mesh = A.buildBolt(ammo.r);
     mesh.position.copy(trace.points[0]);
@@ -747,6 +798,7 @@ RT.game = (function () {
       P.addVelocity(b.body, impactVel.x * CFG.KNOCK_SCALE, impactVel.y * CFG.KNOCK_SCALE, impactVel.z * CFG.KNOCK_SCALE);
     }
     if (b.hp <= 0) destroyBlockRec(b);
+    if (impactPos) applySeamHit(ammo, impactPos, b);
     if (ammo.splash && impactPos) applySplash(ammo, impactPos, b);
     checkWin();
   }
@@ -776,6 +828,50 @@ RT.game = (function () {
         _splashDir.subVectors(other.mesh.position, impactPos).normalize();
         const kick = ammo.speed * CFG.KNOCK_SCALE * falloff;
         P.addVelocity(other.body, _splashDir.x * kick, _splashDir.y * kick + kick * 0.4, _splashDir.z * kick);
+      }
+      if (other.hp <= 0) destroyBlockRec(other);
+    }
+  }
+
+  const _seamDir = new THREE.Vector3();
+  const _seamLocal = new THREE.Vector3(), _seamInvQuat = new THREE.Quaternion();
+  /** Every direct/linger hit also nicks whatever else the bolt is physically
+   *  touching right at the impact point — independent of (and much tighter
+   *  than) any ammo's own splashRadius, so a shot landing where two parts
+   *  meet, or a guard standing flush against a wall, can take out both with
+   *  one bolt instead of only whichever one findHitBlock() happened to pick.
+   *  Shares applySplash()'s falloff/knockback shape on purpose (same recipe),
+   *  just a much tighter radius and much less falloff: this represents the
+   *  same solid bolt actually overlapping the neighbour, not a shockwave
+   *  reaching it, so it stays close to full damage across its whole radius.
+   *
+   *  Distance is to the block's own (rotated) SURFACE, not its centre — same
+   *  local-space test findHitBlock() uses, extended to a real distance rather
+   *  than a boolean contains-point. applySplash()'s centre-to-centre distance
+   *  is fine at its large blast radius, but a wide merged wall's centre can
+   *  sit cells away from the edge actually touching the primary block, which
+   *  would make this radius (deliberately much tighter) never register a
+   *  seam at all — confirmed empirically: a guard standing directly against
+   *  a 4-cell merged wall run took no seam damage until this was fixed. */
+  function applySeamHit(ammo, impactPos, primaryBlock) {
+    const radius = CFG.SEAM_RADIUS;
+    for (const other of blocks) {
+      if (!other.alive || other === primaryBlock) continue;
+      _seamInvQuat.copy(other.mesh.quaternion).invert();
+      _seamLocal.copy(impactPos).sub(other.mesh.position).applyQuaternion(_seamInvQuat);
+      const dx = Math.max(0, Math.abs(_seamLocal.x) - other.half.x);
+      const dy = Math.max(0, Math.abs(_seamLocal.y) - other.half.y);
+      const dz = Math.max(0, Math.abs(_seamLocal.z) - other.half.z);
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist > radius) continue;
+      const falloff = 1 - (dist / radius) * 0.3;
+      other._lastHitSpeed = ammo.speed * falloff;
+      sfx('impact', other.mat, ammo.speed * falloff, panFor(other.mesh.position));
+      other.hp -= D.damageFor(ammo, other.mat) * CFG.SEAM_DMG_SCALE * falloff;
+      if (!other.mat.static) {
+        _seamDir.subVectors(other.mesh.position, impactPos).normalize();
+        const kick = ammo.speed * CFG.KNOCK_SCALE * falloff;
+        P.addVelocity(other.body, _seamDir.x * kick, _seamDir.y * kick + kick * 0.4, _seamDir.z * kick);
       }
       if (other.hp <= 0) destroyBlockRec(other);
     }
@@ -828,11 +924,76 @@ RT.game = (function () {
     }
   }
 
+  /** Kicks off the ~2s post-impact linger (see stepLinger() just below): the
+   *  bolt deflects off the surface it just hit and keeps existing as a real,
+   *  if simplified, moving object rather than vanishing on first contact —
+   *  same deterministic step-under-gravity style traceShot() already uses,
+   *  not a real Ammo.js body (this codebase's bolts have never been one). */
+  function startLinger(s, primaryBlock, impactPos, impactVel) {
+    s.linger = true;
+    s.lingerT = 0;
+    s.hitBlocks = new Set([primaryBlock]);
+    s.lingerPos = impactPos.clone();
+    const n = hitNormal(primaryBlock, impactPos);
+    s.lingerVel = impactVel.clone().addScaledVector(n, -2 * impactVel.dot(n)).multiplyScalar(CFG.LINGER_RESTITUTION);
+  }
+
+  /** A scaled-down applyHit() for a bolt that already spent its main impact —
+   *  same damage/knock/kill/checkWin shape, just decayed per additional
+   *  linger hit (`decay`) so one bolt can't bulldoze an entire structure, and
+   *  without ammo.splash's own big blast (only the PRIMARY impact triggers
+   *  that) — applySeamHit() still applies, at its own small radius. */
+  function lingerHit(b, ammo, vel, pos, decay) {
+    if (!b.alive) return;
+    const speed = vel.length();
+    b._lastHitSpeed = speed;
+    sfx('impact', b.mat, speed, panFor(pos));
+    b.hp -= D.damageFor(ammo, b.mat) * decay;
+    if (!b.mat.static) {
+      P.addVelocity(b.body, vel.x * CFG.KNOCK_SCALE * decay, vel.y * CFG.KNOCK_SCALE * decay, vel.z * CFG.KNOCK_SCALE * decay);
+    }
+    if (b.hp <= 0) destroyBlockRec(b);
+    applySeamHit(ammo, pos, b);
+    checkWin();
+  }
+
+  /** Steps a lingering bolt one frame: gravity + its current (deflected)
+   *  velocity, checking for a NEW block (anything this same bolt hasn't
+   *  already hit) along the way. Ends on a timeout, on settling near-still,
+   *  on touching the ground, or on leaving the same out-of-bounds box
+   *  traceShot() already checks — whichever comes first. */
+  function stepLinger(s, dt) {
+    s.lingerT += dt;
+    s.lingerVel.y -= CFG.GRAVITY * dt;
+    s.lingerPos.addScaledVector(s.lingerVel, dt);
+    s.mesh.position.copy(s.lingerPos);
+
+    const b = findHitBlock(s.lingerPos, s.trace.ammo.r);
+    if (b && !s.hitBlocks.has(b)) {
+      s.hitBlocks.add(b);
+      const decay = Math.pow(CFG.LINGER_DMG_DECAY, s.hitBlocks.size - 1);
+      lingerHit(b, s.trace.ammo, s.lingerVel, s.lingerPos, decay);
+      const n = hitNormal(b, s.lingerPos);
+      s.lingerVel.addScaledVector(n, -2 * s.lingerVel.dot(n)).multiplyScalar(CFG.LINGER_RESTITUTION);
+    }
+
+    const done = s.lingerT > CFG.LINGER_MS / 1000 ||
+                 s.lingerVel.lengthSq() < 0.4 ||
+                 s.lingerPos.y <= CFG.GROUND_Y + 0.02 ||
+                 Math.abs(s.lingerPos.x) > OUT_OF_BOUNDS_X ||
+                 s.lingerPos.z < OUT_OF_BOUNDS_Z_FAR || s.lingerPos.z > OUT_OF_BOUNDS_Z_NEAR;
+    if (done) {
+      s.resolved = true;
+      scene.remove(s.mesh);
+    }
+  }
+
   function updateShots(dt) {
     if (!shots.length) return;
     const dtStep = CFG.DT;
     for (const s of shots) {
       if (s.resolved) continue;
+      if (s.linger) { stepLinger(s, dt); continue; }
       s.t += dt;
       const idx = Math.min(s.trace.points.length - 1, Math.floor(s.t / dtStep));
       s.mesh.position.copy(s.trace.points[idx]);
@@ -843,14 +1004,15 @@ RT.game = (function () {
         sfx('updateFlight', U.clamp(step / 45, 0, 1), panFor(s.mesh.position));
       }
       if (idx >= s.trace.points.length - 1) {
-        s.resolved = true;
         sfx('stopFlight');
-        scene.remove(s.mesh);
         if (s.trace.hit.type === 'block') {
           const impactPos = s.trace.points[s.trace.points.length - 1];
           applyHit(s.trace.hit.block, s.trace.ammo, s.trace.impactVel, impactPos);
           beginImpact(impactPos, s.trace.impactVel);
+          startLinger(s, s.trace.hit.block, impactPos, s.trace.impactVel);
         } else {
+          s.resolved = true;
+          scene.remove(s.mesh);
           /* A clean miss still landed somewhere — a dull thud into the dirt,
              so "nothing happened" is never silent. */
           sfx('noise', 0.22, { freq: 380, freqTo: 60, vol: 0.13,
@@ -1131,7 +1293,11 @@ RT.game = (function () {
     } else if (CAM.phase === 'SETTLE') {
       CAM.settleT += dt;
       positionAtSeat(CAM.settleT * SETTLE_ORBIT_RAD_PER_S);
-      const stillMoving = blocks.some((b) => b.alive && !b.mat.static && P.isAwake(b.body));
+      // Also waits out a still-lingering bolt (see stepLinger()) — the
+      // cinematic shouldn't cut away to results while it's still visibly
+      // knocking things around.
+      const stillMoving = blocks.some((b) => b.alive && !b.mat.static && P.isAwake(b.body)) ||
+                           shots.some((s) => s.linger && !s.resolved);
       if ((!stillMoving && CAM.settleT > CFG.SETTLE_MIN) || CAM.settleT > CFG.SETTLE_MAX) {
         CAM.phase = 'RESULTS'; CAM.resultsT = 0;
       }

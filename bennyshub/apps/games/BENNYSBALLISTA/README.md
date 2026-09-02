@@ -113,7 +113,9 @@ the current shot over in the new mode, the same reset a retry goes through.
 | `S` | Stone block | Needs a hard hit. Boulders are best against it. |
 | `I` | Glass pane | Shatters at a touch, but holds almost nothing up. |
 | `T` | Powder keg | Fragile (low hp), no bonus. Drawn as a barrel, not a box. Explodes on death (`js/data.js`'s `KEG_BLAST`, fed through the same `applySplash()` the Powder Bomb ammo uses) — real area damage and outward knock, and a keg can chain into a neighbouring keg the same way. |
-| `K` | Crown | The target. Destroy them all to win. Drawn as a faceted gem, not a box. |
+| `K` | Crown | The target. Destroy them all to win. Drawn as a faceted gem (or the baked tyrant model, once approved), not a box. |
+| `Q` | Guard (spear) | A real, placed target, not the decorative pair standing beside the ballista. Worth real points — see "Scoring" below. Drawn as the baked `guard-spear` model. |
+| `H` | Guard (halberd) | Same as `Q`, a different pose (`guard-halberd`) so a level can mix the two. |
 | `X` | Steel girder | Never breaks and never moves. Go around it. |
 | `B` | Timber board | Thin (15% of a cell) and mergeable, sitting flush on its own row's floor instead of filling the cell — for bridges, ceilings and floors. See "Boards" below. |
 | `w` / `s` / `i` | Small rubble | Half-size, lighter, never welds to a neighbour — loose debris. |
@@ -140,6 +142,29 @@ level is also free to need a *sequence* of shots (break the obstruction, then
 hit the now-exposed crown) — there is no boot-time check that requires a
 single-shot solution, or any particular solution at all. See "Adding a level"
 below.
+
+## Scoring
+
+- **A crown is worth a flat 500** regardless of how it dies (direct hit,
+  collateral collapse, or a fall) — it always did; killing the last one still
+  ends the level.
+- **A guard (`Q`/`H`) is worth a flat 350** the same way, but doesn't end the
+  level. An ordinary block (wood, stone, glass, a keg, rubble) is 100.
+- **Killing a guard or the crown on an early bolt pays an efficiency bonus**
+  on top of its flat value — `max(0, CFG.KEY_BUDGET - boltsUsed) *
+  CFG.KEY_BONUS_PER_BOLT` (`js/data.js`), scored the instant it dies. A guard
+  killed on bolt 1 pays more than the same guard killed on bolt 5.
+- **A single shot that kills more than one guard/crown pays a combo bonus**
+  (`CFG.COMBO_BONUS_PER_KILL` per extra key kill beyond the first) — a splash
+  or seam hit that drops two guards together, or a guard alongside the crown,
+  pays out for both individually AND the combo. This is tracked per-shot
+  (`shotKeyKills`, reset in `fire()`) and paid out incrementally inside
+  `destroyBlockRec()` as each kill happens, not deferred to when the shot's
+  cinematic finishes — a shot that ends the level (killing the crown itself)
+  has to already reflect it, since `finishLevel()` reads the level's score
+  the instant `checkWin()` sees the last crown die.
+- All of the above stacks with (and is separate from) the existing "bolts
+  remaining at the win" bonus, which only ever looks at the final total.
 
 ## Physics
 
@@ -179,6 +204,37 @@ Gravity (`CFG.GRAVITY`) is set well above real-world for a 1-unit block on
 purpose — that's what makes a collapse read as chunky and toy-like rather
 than floaty. It's also the single number every ballistics/reachability
 result depends on, so changing it means re-running the boot audits.
+
+Debris flies harder and further than it used to (`CFG.KNOCK_SCALE` up,
+`CFG.LINEAR_DAMPING`/`CFG.ANGULAR_DAMPING` down) — a direct/splash hit throws
+more of its own velocity into whatever it touches, and once thrown, a piece
+keeps tumbling instead of settling fast. Playtesting a guard standing right
+next to a merged wall run showed just how far this reaches: one flanking
+shot's knockback-then-fall can be enough on its own to bring the whole run
+down, not just the piece directly hit — a real, first-pass tuning number
+worth another look once it's actually played, not just watched.
+
+**A shot doesn't just hit one thing at its impact point, either.**
+`findHitBlock()` still stops a trace's *flight* at the first block it
+overlaps, but every hit — direct or otherwise — also calls
+`applySeamHit()` (`js/game.js`): a small, fixed radius (`CFG.SEAM_RADIUS`)
+around the impact point, independent of any ammo's own splash, checked
+against each block's actual (rotated) surface rather than its centre — a
+wide merged wall's centre can sit cells away from the edge actually touching
+whatever got hit, which would make a naive centre-to-centre check miss the
+seam entirely. So a bolt landing where two parts meet, or a guard standing
+flush against a wall, can take out both with one shot.
+
+**A bolt keeps existing for up to `CFG.LINGER_MS` after its first hit**,
+instead of vanishing on contact — it deflects off the surface it struck
+(`CFG.LINGER_RESTITUTION`) and keeps flying under gravity, the same
+deterministic step-and-trace style the rest of a shot already uses, not a
+second real Ammo.js body. Each frame it checks for a NEW block it hasn't
+already hit; a new hit deals damage scaled down per additional hit this same
+bolt has already scored (`CFG.LINGER_DMG_DECAY`, compounding), so one bolt
+can carom through a cluster of debris without bulldozing an entire
+structure. The SETTLE camera phase waits out a still-lingering bolt the same
+way it waits for bodies to sleep, so the cinematic never cuts away mid-carom.
 
 Two piece sizes come out of the level parser (`js/levels.js`):
 

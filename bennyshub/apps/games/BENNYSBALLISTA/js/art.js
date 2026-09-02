@@ -371,6 +371,20 @@ RT.art = (function () {
        * overhanging it (the interpenetration audit has to stay honest). */
       return new THREE.OctahedronGeometry(Math.min(w, h, d) * 0.5);
     }
+    if (shape === 'guard-spear' || shape === 'guard-halberd') {
+      /* Real, placed guards — same baked models the decorative guardDecor/
+       * guardDecor2 already use (js/game.js), same guarded lookup and same
+       * floor-Y shift as the crown above (both were prepped with a
+       * feet-at-local-y=0 convention, confirmed empirically when each model
+       * was first proven — see [[ballista-3d-rework]]). The shape name IS
+       * the baked model name, so no separate lookup table is needed here. */
+      const guard = (RT.models && RT.models.geometry) ? RT.models.geometry(shape) : null;
+      if (guard) return guard.translate(0, -h / 2, 0);
+      // Fallback silhouette if the model isn't baked (or this page never
+      // loaded js/models.js) — a person-ish capsule, not a crash.
+      const r = Math.min(w, d) * 0.32;
+      return new THREE.CapsuleGeometry(r, Math.max(0.1, h - r * 2), 4, 8);
+    }
     return new THREE.BoxGeometry(w, h, d);
   }
 

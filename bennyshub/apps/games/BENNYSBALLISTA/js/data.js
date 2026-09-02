@@ -74,8 +74,14 @@ RT.data = (function () {
     BLOCK_RESTITUTION : 0.04,
     GROUND_FRICTION   : 0.9,
     GROUND_RESTITUTION: 0.05,
-    LINEAR_DAMPING    : 0.02,
-    ANGULAR_DAMPING   : 0.06,
+    /* Lowered (from 0.02/0.06) so debris keeps moving/tumbling longer instead
+       of settling fast — this is what actually makes a collapse read as
+       throwing debris FURTHER, not just launching it harder. Re-verify
+       auditLevels() (every castle still stands unaided) after touching
+       these — a resting castle relies on the same damping to actually come
+       to rest. */
+    LINEAR_DAMPING    : 0.01,
+    ANGULAR_DAMPING   : 0.03,
     /* Bullet puts a body to sleep below these for half a second. Sleep is what
        tells the camera a collapse has finished, so these matter to pacing as
        well as to cost. */
@@ -94,7 +100,40 @@ RT.data = (function () {
        worse than "you personally hit something hard", and tuning one must not
        force-tune the other. See js/game.js's applyCrush(). */
     CRUSH_DMG_SCALE   : 8.0,
-    KNOCK_SCALE       : 0.75,  // how much of a bolt's velocity goes to what it hits
+    KNOCK_SCALE       : 1.3,   // how much of a bolt's velocity goes to what it hits (was 0.75 — debris flies harder)
+
+    /* ── Seam hit: a shot lands where two parts meet ──────────────────────
+     * Independent of any ammo's own splashRadius — this is "the bolt is
+     * physically touching the block right next to the one findHitBlock()
+     * picked", not a blast. Applies to EVERY ammo, not just splash ones. See
+     * js/game.js's applySeamHit(). */
+    SEAM_RADIUS       : 0.55,
+    /* First pass was 0.85 — playtesting found that against a WIDE merged
+       wall run (much higher hp than any single cell, absorbing the hit right
+       at its own edge, worst-case falloff) 0.85 alone did ~72% of its hp,
+       which combined with this same session's bigger KNOCK_SCALE/lower
+       damping reliably finished it off via the ensuing fall's own collapse
+       damage — one flanking shot on a guard standing next to a wall could
+       bring down the whole adjacent wall run practically for free. Confirmed
+       in-browser (Cliffside Fort, guard Q): dropped to 0.45 so a seam hit
+       meaningfully damages a neighbour without near-guaranteeing its death
+       outright just for touching it. */
+    SEAM_DMG_SCALE    : 0.45,
+
+    /* ── Bolt linger: keeps acting on the world for a bit after its first
+     * hit instead of vanishing. Still the deterministic step-and-trace style
+     * traceShot() already uses, not a real Ammo.js body. See js/game.js's
+     * updateShots(). */
+    LINGER_MS         : 2000,
+    LINGER_RESTITUTION: 0.45,  // fraction of speed kept after deflecting off a hit surface
+    LINGER_DMG_DECAY  : 0.6,   // each successive linger hit does DECAY^n as much damage/knock
+
+    /* ── Guard/Tyrant efficiency + combo scoring, see js/game.js's
+     * destroyBlockRec()/fire()/updateShots(). First-pass numbers, tune by
+     * feel like everything else here. */
+    KEY_BUDGET          : 6,    // bolts; a key kill this early or earlier gets the full bonus
+    KEY_BONUS_PER_BOLT  : 40,   // * bolts UNDER budget, per guard/tyrant kill
+    COMBO_BONUS_PER_KILL: 200,  // * (key kills beyond the first) in the same shot
 
     /* ── Level geometry ───────────────────────────────────────────────────── */
     MUZZLE_Y        : 2.35,   // height the bolt leaves the ballista at
@@ -200,6 +239,15 @@ RT.data = (function () {
        per this file's own header design rule. Re-verified: auditLevels()
        still passes clean across every level. */
     K:{ id:'K', name:'crown',             hp: 15,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 5.0 },
+    /* Guards: real, placed, destructible targets (not the decorative
+       guardDecor/guardDecor2 standing beside the ballista, js/game.js) —
+       reuse the same two baked models those already use. Same "a person, not
+       a slab" fallDmgMult reasoning as the crown, just a touch less fragile
+       to a stray fall since a guard isn't the win condition. Two letters
+       (not one + a random-variant pick) so a level author can deliberately
+       choose a pose per placement, same as any other material choice. */
+    Q:{ id:'Q', name:'guard (spear)',     hp: 18,  css:'--guard',  guard:true, shape:'guard-spear',   fallDmgMult: 4.0 },
+    H:{ id:'H', name:'guard (halberd)',   hp: 18,  css:'--guard',  guard:true, shape:'guard-halberd', fallDmgMult: 4.0 },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     /* `plank` is read only by js/levels.js's parser (matches the existing
        small/static/glass/explodes pattern) — it thins the block to

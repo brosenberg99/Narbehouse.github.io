@@ -232,7 +232,7 @@ RT.levels = (function () {
     { name: 'Cliffside Fort', par: 2, bolts: 9, dist: 28, layers: [[
       '..K..K..K..',
       '..W..W..W..',
-      '.WWWWTWWWW.',
+      'QWWWWTWWWWH',            // two guards flanking the ground floor, easy first look at one
       'XXXXXXXXXXX'
     ]] },
     { name: 'Powder Row', par: 3, bolts: 8, dist: 29, layers: [[
@@ -254,7 +254,7 @@ RT.levels = (function () {
     { name: 'Twin Halls', par: 3, bolts: 9, dist: 25, layers: [
       [                             // front — a blind stone wall, no crown
         '.....',
-        '.....',
+        '..H..',                    // a guard standing on the rampart, in full view
         'SSSSS',
         'SSSSS'
       ], [                          // back — the real target, behind it
@@ -535,7 +535,7 @@ RT.levels = (function () {
         '...............',
         '...............',
         '...............',
-        '.......K.......',           // hard crown, dead centre — three layers deep
+        '.....H.K.Q.....',           // hard crown, flanked by two guards on the altar
         '.....SSSSS.....',           // altar
         '.....SSSSS.....',
         'SSSSSSSSSSSSSSS'            // keep floor
