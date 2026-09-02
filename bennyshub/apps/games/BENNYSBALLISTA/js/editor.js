@@ -141,6 +141,19 @@ RT.editor = (function () {
     );
     camera.lookAt(orbit.target);
   }
+  /** Aims the camera at the castle the document actually describes. The
+   *  target's Z was a hardcoded -14 while a level's own `dist` puts its
+   *  castle anywhere from ~16 to ~28 downrange — so the view was centred on
+   *  empty ground up to ten units IN FRONT of the thing being edited. That
+   *  is a framing bug on its own, but it also broke placement: ground under
+   *  the cursor mid-screen was ground in front of the castle, so a click
+   *  there legitimately resolved to a layer well in front of layer 0 and
+   *  nothing landed where the eye expected. Call after anything that changes
+   *  `dist` or loads a document. */
+  function frameDoc() {
+    orbit.target.set(0, Math.min(4, Math.max(1.5, doc.rows * CELL * 0.35)), -doc.dist);
+    applyOrbit();
+  }
   applyOrbit();
 
   function resize() {
@@ -159,10 +172,11 @@ RT.editor = (function () {
   /* ── Grid document — the single source of truth ──────────────────────────
    * Rectangular and padded, ALWAYS: every layer has exactly doc.rows rows,
    * every row exactly doc.cols chars. layer 0 = FRONT (nearest the ballista);
-   * row 0 = TOP (levels.js: bottom = rowBottoms(layerRows, rows)[row] — the
-   * REAL cumulative floor height, not a flat `(rows - row - 1) * CELL`; a
-   * board/rubble row is thinner than a full CELL, so whatever's above one
-   * sits flush on its actual surface rather than a fixed per-row assumption).
+   * row 0 = TOP (levels.js: bottom = rowBottoms(layerRows, rows, cols)[row][col]
+   * — the REAL cumulative floor height for THAT COLUMN, not a flat
+   * `(rows - row - 1) * CELL`; a board/rubble cell is thinner than a full
+   * CELL, so whatever's above one sits flush on its actual surface, and an
+   * unrelated column sharing the same row index is never affected).
    *
    * Why padding is mandatory, not tidiness: parseLevel() computes rows/cols
    * as MAXIMA across all layers, and every row still costs SOME reserved
@@ -171,7 +185,18 @@ RT.editor = (function () {
    * EVERY layer by that reserved amount. A ragged document makes "grow the
    * castle" an accidental whole-castle displacement; a padded one makes it a
    * single well-defined row/column insert. */
-  const doc = { name: 'Untitled', dist: 26, par: 3, bolts: 9, ammo: null, cols: 0, rows: 0, grid: [] };
+  // centerCol/centerLayer: the STABLE X/Z centre used everywhere instead of
+  // the naive "half the current total" — see levels.js's layerZ()/cellCentre()
+  // notes for why. Reset to the natural cols/2, (numLayers-1)/2 on every
+  // fresh load/apply (loadLevelIntoDoc, applyText); nudged by growTo() and
+  // the layer-add/remove buttons exactly when they reindex EXISTING content,
+  // so an edit never silently slides everything already placed.
+  // padLeft/padRight/padTop/padBack: exactly how much of the current
+  // left/right/top/back edge is padBuildVolume()'s own unused build margin
+  // (see its doc) rather than the level's real content — trimLevelLayers()
+  // caps its trimming to these so it can never eat a designer's OWN
+  // intentional blank border, only margin the editor itself added.
+  const doc = { name: 'Untitled', dist: 26, par: 3, bolts: 9, ammo: null, cols: 0, rows: 0, grid: [], centerCol: 0, centerLayer: 0, padLeft: 0, padRight: 0, padTop: 0, padBack: 0 };
 
   function cellAt(l, r, c) {
     if (l < 0 || l >= doc.grid.length) return '.';
@@ -184,7 +209,16 @@ RT.editor = (function () {
    *  every existing layer so the grid stays rectangular. Returns the offset
    *  applied at the LOW end of each axis, because a caller that just asked to
    *  write cell (r,c) needs to re-express that request in the grown grid's
-   *  coordinates — growing left/up shifts every existing index. */
+   *  coordinates — growing left/up shifts every existing index.
+   *
+   *  Growing LEFT reindexes every existing column by +addLeft, so
+   *  `doc.centerCol` gets the same +addLeft — see levels.js's cellCentre()
+   *  note: X is centred on the total column count, so without this every
+   *  already-placed column would slide sideways the instant the grid grows,
+   *  even though nothing about its own content changed. Growing RIGHT never
+   *  reindexes existing columns, so it needs no adjustment. Rows/Y have no
+   *  such correction because Y isn't centred — it's floor-anchored (see
+   *  cellThickness()'s doc) — which is why only the COLUMN axis needs this. */
   function growTo(minCol, maxCol, minRow, maxRow) {
     const addLeft = Math.max(0, -minCol);
     const addRight = Math.max(0, maxCol - (doc.cols - 1));
@@ -207,6 +241,7 @@ RT.editor = (function () {
       return newLayer;
     });
     doc.cols = newCols; doc.rows = newRows;
+    doc.centerCol += addLeft;
     return { addLeft: addLeft, addTop: addTop };
   }
 
@@ -216,10 +251,68 @@ RT.editor = (function () {
     return rows;
   }
 
+  /** Generous, empty build margin added around a level's actual content the
+   *  moment it's loaded into the editor — left/right columns, extra sky
+   *  overhead, and extra layers BEHIND the deepest one. The point is that an
+   *  ordinary paste anywhere in that margin never has to trigger growTo() (or
+   *  the front-layer/bottom-row cases that genuinely can't be made free) at
+   *  all, so it just lands, with zero risk of nudging anything.
+   *
+   *  Uses growTo() for columns/rows (same centre-preserving math as any other
+   *  growth — see its own doc) and plain back-append for layers (already
+   *  free, see the "+ Layer (back)" button's note). Never pads rows at the
+   *  BOTTOM or layers at the FRONT — those are the two directions that
+   *  genuinely can't stay free (rows are floor-anchored; see cellThickness's
+   *  doc), and this margin is meant to be free to use without a second
+   *  thought, not to relocate the one real limitation.
+   *
+   *  Exported levels are trimmed back to their real content (see
+   *  trimLevelLayers()) — this margin exists for editing, never for the
+   *  shipped level, so it never adds dead travel time or wasted depth.
+   *  trimLevelLayers() trims AT MOST doc.padLeft/padRight/padTop/padBack —
+   *  set here to exactly what was just added — and only while still blank.
+   *  A real level can legitimately have its OWN intentional blank border
+   *  (a symmetric frame, spacing around a tower) that looks identical to
+   *  unused margin; the amount actually added is the only way to tell them
+   *  apart, so trimming by "is this edge blank" alone would just as happily
+   *  eat a designer's real framing. */
+  const BUILD_PAD_COLS = 6, BUILD_PAD_ROWS_TOP = 6, BUILD_PAD_LAYERS_BACK = 4;
+  function padBuildVolume() {
+    if (!doc.grid.length) { doc.padLeft = doc.padRight = doc.padTop = doc.padBack = 0; return; }
+    growTo(-BUILD_PAD_COLS, doc.cols - 1 + BUILD_PAD_COLS, -BUILD_PAD_ROWS_TOP, doc.rows - 1);
+    for (let i = 0; i < BUILD_PAD_LAYERS_BACK; i++) doc.grid.push(blankLayer());
+    doc.padLeft = BUILD_PAD_COLS; doc.padRight = BUILD_PAD_COLS;
+    doc.padTop = BUILD_PAD_ROWS_TOP; doc.padBack = BUILD_PAD_LAYERS_BACK;
+  }
+
+  /** Makes layer index `l` exist, and returns how much every EXISTING layer
+   *  index shifted to make room — the caller adds that to its own `l`, the
+   *  same contract growTo() has for rows/columns.
+   *
+   *  Appending at the back is free. Prepending at the FRONT reindexes every
+   *  existing layer by +addFront, so doc.centerLayer (and activeLayer) get
+   *  the same bump — see levels.js's layerZ() note: Z is centred on the
+   *  layer count, so without that compensation every already-placed layer
+   *  would jump in depth. A negative `l` used to be silently dropped here
+   *  (the old `while (doc.grid.length <= l)` can't prepend), so attaching to
+   *  the FRONT face of the frontmost layer wrote to doc.grid[-1] and did
+   *  nothing at all. */
+  function growLayersTo(l) {
+    if (l < 0) {
+      const addFront = -l;
+      for (let i = 0; i < addFront; i++) doc.grid.unshift(blankLayer());
+      doc.centerLayer += addFront;
+      activeLayer += addFront;
+      return addFront;
+    }
+    while (doc.grid.length <= l) doc.grid.push(blankLayer());
+    return 0;
+  }
+
   function setCell(l, r, c, ch) {
     const off = growTo(c, c, r, r);
     r += off.addTop; c += off.addLeft;
-    while (doc.grid.length <= l) doc.grid.push(blankLayer());
+    l += growLayersTo(l);
     doc.grid[l][r][c] = ch;
   }
 
@@ -265,6 +358,13 @@ RT.editor = (function () {
     doc.ammo = level.ammo ? level.ammo.slice() : null;
     const g = gridFromLayers(level.layers);
     doc.grid = g.grid; doc.cols = g.cols; doc.rows = g.rows;
+    // A fresh load has no in-progress edit history to preserve — start the
+    // centre at its natural, true-dimensions value (matching how the real
+    // game would centre this same data) rather than carrying over whatever
+    // the PREVIOUSLY loaded level's growth had nudged it to.
+    doc.centerCol = doc.cols / 2;
+    doc.centerLayer = (doc.grid.length - 1) / 2;
+    padBuildVolume();
     activeLayer = 0;
   }
 
@@ -278,6 +378,12 @@ RT.editor = (function () {
     if (doc.ammo && doc.ammo.length) level.ammo = doc.ammo.slice();
     level._cols = doc.cols;
     level._depth = doc.grid.length;
+    // Editor-only, like _cols/_depth above — never written by exportText(),
+    // so a saved level always gets parseLevel()'s natural, true-dimensions
+    // centre. See levels.js's layerZ()/cellCentre() notes for why the LIVE
+    // editor needs a stable centre instead.
+    level.centerCol = doc.centerCol;
+    level.centerLayer = doc.centerLayer;
     return level;
   }
 
@@ -294,6 +400,8 @@ RT.editor = (function () {
   function restoreSnapshot(snap) {
     doc.name = snap.name; doc.dist = snap.dist; doc.par = snap.par; doc.bolts = snap.bolts;
     doc.ammo = snap.ammo; doc.cols = snap.cols; doc.rows = snap.rows; doc.grid = snap.grid;
+    doc.centerCol = snap.centerCol; doc.centerLayer = snap.centerLayer;
+    doc.padLeft = snap.padLeft; doc.padRight = snap.padRight; doc.padTop = snap.padTop; doc.padBack = snap.padBack;
     if (activeLayer >= doc.grid.length) activeLayer = Math.max(0, doc.grid.length - 1);
     syncFormFromDoc();
     rebuild();
@@ -331,11 +439,20 @@ RT.editor = (function () {
     protoCache[key] = mesh;
     return mesh;
   }
+  // Ghost-preview state, declared up here so dropProtoCache() can invalidate
+  // it: a ghost mesh is a CLONE sharing a prototype's geometry, so dropping
+  // the cache disposes the geometry out from under any live ghost. Clearing
+  // the key makes the next hover rebuild it from the fresh prototypes.
+  let ghostKey = null, ghostCells = [];
+  // Last cursor position over the view, so a rotation keypress can refresh the
+  // ghost where the cursor already is rather than waiting for a mouse move.
+  let lastPointer = null;
   function dropProtoCache() {
     for (const k in protoCache) {
       protoCache[k].traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     }
     protoCache = {};
+    ghostKey = null;
   }
 
   /* ── Live view — rebuilt wholesale from `doc` on every mutation ─────────── */
@@ -344,6 +461,36 @@ RT.editor = (function () {
     for (const rec of live.recs) scene.remove(rec.mesh);
     live.recs = [];
   }
+
+  /* The ghost preview's own scene objects. clearLive() only removes tracked
+   * live.recs, so these survive every rebuild() and never need re-adding.
+   *  - ghostGroup: one translucent mesh per cell about to be written (a
+   *    single block for Place, every filled cell of the stamp for Paste).
+   *  - ghostShadow: that footprint projected flat onto the ground. Depth is
+   *    the one thing a perspective view can't convey on its own, so this is
+   *    what actually tells you WHERE ON THE GROUND a piece will land. */
+  const ghostGroup = new THREE.Group();
+  scene.add(ghostGroup);
+  const ghostShadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ color: 0x0b0b10, transparent: true, opacity: 0.32, depthWrite: false })
+  );
+  ghostShadow.rotation.x = -Math.PI / 2;
+  ghostShadow.renderOrder = 9;
+  ghostShadow.visible = false;
+  scene.add(ghostShadow);
+
+  /* The ROOT marker: which single cell of a pasted piece is its attachment
+   * point — the cell that lands on whatever you pointed at. Drawn in a
+   * distinct bright colour against the cage's plain white so "where will
+   * this piece attach BY?" is answered on screen instead of from memory. */
+  const rootMarker = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(CELL, CELL, CELL)),
+    new THREE.LineBasicMaterial({ color: 0x2ee6ff, transparent: true, opacity: 0.95 })
+  );
+  rootMarker.visible = false;
+  rootMarker.renderOrder = 11;
+  scene.add(rootMarker);
 
   const cellCage = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(CELL, CELL, CELL)),
@@ -528,8 +675,24 @@ RT.editor = (function () {
     els.toolButtons.querySelectorAll('button').forEach((b) => {
       b.classList.toggle('on', b.dataset.tool === tool.kind);
     });
-    if (document.getElementById('btnPasteTool')) {
-      document.getElementById('btnPasteTool').disabled = !clipboard;
+    const pasteBtn = document.getElementById('btnPasteTool');
+    if (pasteBtn) {
+      pasteBtn.disabled = !clipboard;
+      // Carry the clipboard's CURRENT dimensions AND how far it has been
+      // turned on each axis — the dimensions alone can't tell 0° from 180°
+      // on a symmetric piece, which makes a full turn look like a two-state
+      // toggle.
+      const turnText = clipboard && (clipTurns.y || clipTurns.z)
+        ? ' · ' + [clipTurns.y ? 'R' + (clipTurns.y * 90) + '°' : '', clipTurns.z ? 'T' + (clipTurns.z * 90) + '°' : '']
+          .filter(Boolean).join(' ')
+        : '';
+      pasteBtn.textContent = clipboard
+        ? 'Paste ' + clipboard.w + '×' + clipboard.h + '×' + clipboard.d + turnText
+        : 'Paste';
+      pasteBtn.title = clipboard
+        ? 'R / Shift+R turn it flat (horizontally), T / Shift+T tip it over — ' +
+          '90° a press, all the way round either way'
+        : 'Copy a selection first (Ctrl+C)';
     }
   }
   function setTool(kind, matId) {
@@ -553,12 +716,18 @@ RT.editor = (function () {
   document.getElementById('btnAddLayerFront').addEventListener('click', () => {
     pushUndo();
     doc.grid.unshift(blankLayer());
+    // Prepending reindexes every existing layer by +1 (old layer 0 becomes
+    // 1, etc.) — bump centerLayer to match, same reasoning as growTo()'s
+    // addLeft: without it, every already-placed layer would jump in Z.
+    doc.centerLayer += 1;
     activeLayer = 0;
     rebuild();
   });
   document.getElementById('btnAddLayerBack').addEventListener('click', () => {
     pushUndo();
     doc.grid.push(blankLayer());
+    // Appending never reindexes existing layers, so centerLayer is untouched
+    // — same reasoning as growTo()'s addRight.
     activeLayer = doc.grid.length - 1;
     rebuild();
   });
@@ -566,6 +735,11 @@ RT.editor = (function () {
     if (doc.grid.length <= 1) return;
     pushUndo();
     doc.grid.splice(activeLayer, 1);
+    // Removing the FRONT layer reindexes every remaining layer by -1 — the
+    // exact inverse of "+ Layer (front)" above, so undo it the same way.
+    // Removing from elsewhere (including the back) doesn't reindex layer 0,
+    // so centerLayer stays put.
+    if (activeLayer === 0) doc.centerLayer -= 1;
     activeLayer = Math.min(activeLayer, doc.grid.length - 1);
     rebuild();
   });
@@ -635,8 +809,8 @@ RT.editor = (function () {
     _ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     _ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   }
-  function faceFromLocal(lx, ly, lz, half) {
-    const mx = half - Math.abs(lx), my = half - Math.abs(ly), mz = half - Math.abs(lz);
+  function faceFromLocal(lx, ly, lz, halfX, halfY, halfZ) {
+    const mx = halfX - Math.abs(lx), my = halfY - Math.abs(ly), mz = halfZ - Math.abs(lz);
     let axis;
     if (mx <= mz && mx <= my) axis = 'x';
     else if (mz <= my) axis = 'z';
@@ -649,46 +823,105 @@ RT.editor = (function () {
     _raycaster.setFromCamera(_ndc, camera);
     let best = null, bestT = Infinity;
     const numLayers = Math.max(1, doc.grid.length);
-    const dims = { cols: doc.cols, rows: doc.rows, numLayers: numLayers };
+    const dims = { cols: doc.cols, rows: doc.rows, numLayers: numLayers, centerCol: doc.centerCol, centerLayer: doc.centerLayer };
     for (let l = 0; l < doc.grid.length; l++) {
-      // One layer's real per-row floor heights (board/rubble rows are
+      // One layer's real per-cell floor heights (board/rubble cells are
       // thinner) — computed once per layer, not per cell, since it only
       // depends on that layer's own content.
-      const bottoms = LV.rowBottoms(doc.grid[l], doc.rows);
+      const bottoms = LV.rowBottoms(doc.grid[l], doc.rows, doc.cols);
       for (let r = 0; r < doc.rows; r++) {
         for (let c = 0; c < doc.cols; c++) {
-          if (cellAt(l, r, c) === '.') continue;
+          const ch = cellAt(l, r, c);
+          if (ch === '.') continue;
           const cc = LV.cellCentre(doc.dist, dims, l, r, c, bottoms);
-          _box.min.set(cc.x - CELL / 2, cc.y - CELL / 2, cc.z - CELL / 2);
-          _box.max.set(cc.x + CELL / 2, cc.y + CELL / 2, cc.z + CELL / 2);
+          // The pick box's Y-extent is this cell's OWN real thickness, not a
+          // blanket CELL — cellCentre's "always a full CELL" y is right for
+          // rendering a merged run (see its own doc) but wrong here: a full-
+          // CELL pick box on a thin board/rubble cell used to be harmless
+          // (every row reserved a full CELL of empty space above it anyway),
+          // but now that a thin cell's row genuinely ends where its own
+          // content does, that inflated box bleeds into the space the NEXT
+          // row actually occupies. A click meant for the open cell just
+          // above a board would then register as a hit on the board itself,
+          // on whatever face the ray happened to graze — exactly the kind of
+          // wrong-target paste that corrupts a saved sub-assembly's shape.
+          const thickness = LV.cellThickness(ch);
+          const bottom = bottoms[r][c];
+          const centreY = bottom + thickness / 2;
+          _box.min.set(cc.x - CELL / 2, bottom, cc.z - CELL / 2);
+          _box.max.set(cc.x + CELL / 2, bottom + thickness, cc.z + CELL / 2);
           const hit = _raycaster.ray.intersectBox(_box, _hitPt);
           if (!hit) continue;
           const t = _raycaster.ray.origin.distanceTo(_hitPt);
           if (t < bestT) {
             bestT = t;
-            const face = faceFromLocal(_hitPt.x - cc.x, _hitPt.y - cc.y, _hitPt.z - cc.z, CELL / 2);
+            const face = faceFromLocal(_hitPt.x - cc.x, _hitPt.y - centreY, _hitPt.z - cc.z, CELL / 2, thickness / 2, CELL / 2);
             best = { layer: l, row: r, col: c, face: face };
           }
         }
       }
     }
     if (best) return best;
-    // Nothing occupied was hit: fall back to the active layer's z-plane, then
-    // the ground plane, and find the nearest cell to where the ray lands.
-    const numLayersFallback = Math.max(1, doc.grid.length, activeLayer + 1);
-    const planeZ = doc.grid.length
-      ? LV.layerZ(doc.dist, numLayersFallback, Math.min(activeLayer, doc.grid.length - 1))
-      : LV.layerZ(doc.dist, 1, 0);
-    let plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -planeZ);
-    let pt = new THREE.Vector3();
-    if (Math.abs(_raycaster.ray.direction.z) < 1e-4 || !_raycaster.ray.intersectPlane(plane, pt)) {
-      plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      if (!_raycaster.ray.intersectPlane(plane, pt)) return null;
+    return groundPick();
+  }
+
+  /** How far outside the current grid a single click may reach. Without a
+   *  bound, one stray click on the distant horizon (the ground plane is
+   *  enormous) would resolve to something like col +180 / layer -40 and grow
+   *  the document to match. Depth gets a tighter bound than width on
+   *  purpose: lateral position is unambiguous on screen, but depth is the
+   *  axis a perspective view hides, so an overshoot there is far easier to
+   *  make and far more expensive (a prepended layer reindexes every other). */
+  const MAX_REACH = 12, MAX_LAYER_REACH = 2;
+  const _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const _skyPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const _pt = new THREE.Vector3();
+
+  /** Nothing occupied was hit, so resolve the ray against the GROUND — and
+   *  take BOTH axes of the ground position from it: x gives the column, z
+   *  gives the LAYER. That is the whole point: the ground is a real 3D grid,
+   *  so "where my cursor is pointing" is a genuine (col, layer) spot on it,
+   *  and a click lands there.
+   *
+   *  This used to resolve against a single z-plane pinned to the ACTIVE
+   *  layer instead, which meant depth never came from the cursor at all —
+   *  every ground click landed in whichever layer the sidebar happened to
+   *  have selected, and you could not put a block anywhere else on the
+   *  ground no matter where you pointed. Row is the floor row here, because
+   *  the ground IS the floor; stacking upward is what a FACE click is for
+   *  (see adjacentCell), which is the other half of the same gesture set.
+   *
+   *  Looking above the horizon has no ground to hit; that falls back to the
+   *  active layer's z-plane so mid-air placement still resolves to a row. */
+  function groundPick() {
+    const rows = Math.max(doc.rows, 1);
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    if (_raycaster.ray.direction.y < -1e-4 && _raycaster.ray.intersectPlane(_groundPlane, _pt)) {
+      // Inverses of cellCentre()'s x and layerZ()'s z — both MUST use the
+      // same stable doc.centerCol/doc.centerLayer the forward direction
+      // uses, or a click resolves to the wrong cell the moment the grid has
+      // grown asymmetrically at all.
+      const col = clamp(Math.floor(_pt.x / CELL + doc.centerCol), -MAX_REACH, doc.cols - 1 + MAX_REACH);
+      const layer = clamp(Math.round(doc.centerLayer - (_pt.z + doc.dist) / CELL), -MAX_LAYER_REACH, doc.grid.length - 1 + MAX_LAYER_REACH);
+      return { layer: layer, row: rows - 1, col: col, face: null, empty: true, ground: true };
     }
-    const cols = Math.max(doc.cols, 1), rows = Math.max(doc.rows, 1);
-    const col = Math.floor(pt.x / CELL + cols / 2);
-    const row = rows - 1 - Math.round((pt.y - CELL / 2) / CELL);
-    return { layer: Math.min(activeLayer, Math.max(0, doc.grid.length - 1)), row: row, col: col, face: null, empty: true };
+    // Above the horizon: no ground to land on, so fall back to the active
+    // layer's own z-plane and read the row off the real per-cell heights.
+    const fallbackLayer = Math.min(activeLayer, Math.max(0, doc.grid.length - 1));
+    const planeZ = LV.layerZ(doc.dist, Math.max(1, doc.grid.length), fallbackLayer, doc.centerLayer);
+    _skyPlane.set(new THREE.Vector3(0, 0, 1), -planeZ);
+    if (Math.abs(_raycaster.ray.direction.z) < 1e-4 || !_raycaster.ray.intersectPlane(_skyPlane, _pt)) return null;
+    const col = clamp(Math.floor(_pt.x / CELL + doc.centerCol), -MAX_REACH, doc.cols - 1 + MAX_REACH);
+    let row = rows - 1;
+    if (doc.grid.length && col >= 0 && col < doc.cols) {
+      const bottoms = LV.rowBottoms(doc.grid[fallbackLayer], doc.rows, doc.cols);
+      for (let r = 0; r < rows; r++) {
+        if (bottoms[r][col] <= _pt.y) { row = r; break; }
+      }
+    } else {
+      row = clamp(rows - 1 - Math.round((_pt.y - CELL / 2) / CELL), -MAX_REACH, rows - 1);
+    }
+    return { layer: fallbackLayer, row: row, col: col, face: null, empty: true };
   }
   /** Step one cell along the face a hit came in through — used by Erase/Place
    *  adjacency in a later revision; kept small and pure. */
@@ -700,17 +933,136 @@ RT.editor = (function () {
     return { layer: l, row: r, col: c };
   }
 
-  /* ── Ghost preview + cell cage ────────────────────────────────────────────
-   * One persistent translucent clone, moved on pointermove — never triggers a
-   * rebuild. Necessary because a B fills 15% of its cell and w/s/i fill 50%,
-   * so without the wireframe cage the ghost alone doesn't say which CELL is
-   * about to be written. */
-  let ghost = null, ghostMatId = null;
-  function updateGhost(hit) {
-    if (!hit || tool.kind !== 'place') { if (ghost) ghost.visible = false; cellCage.visible = false; return; }
-    let target = hit;
-    if (!hit.empty) target = adjacentCell(hit);
-    let r = target.row;
+  /** A stamp's FILLED bounding box within its own w/h/d — cached on the
+   *  stamp itself. Anchoring on the filled extent rather than the raw
+   *  selection box is what makes attachment land flush: a copied selection
+   *  usually carries blank rows/columns around the piece, and aligning THOSE
+   *  to a surface would hang the piece a cell or two off it. Null for an
+   *  entirely blank stamp (nothing to place). */
+  function stampFill(stamp) {
+    if (stamp._fill !== undefined) return stamp._fill;
+    let r0 = Infinity, r1 = -1, c0 = Infinity, c1 = -1, l0 = Infinity, l1 = -1;
+    for (let dl = 0; dl < stamp.d; dl++)
+      for (let dr = 0; dr < stamp.h; dr++)
+        for (let dc = 0; dc < stamp.w; dc++) {
+          if (stamp.cells[dl][dr][dc] === '.') continue;
+          if (dr < r0) r0 = dr;
+          if (dr > r1) r1 = dr;
+          if (dc < c0) c0 = dc;
+          if (dc > c1) c1 = dc;
+          if (dl < l0) l0 = dl;
+          if (dl > l1) l1 = dl;
+        }
+    stamp._fill = (r1 < 0) ? null : { r0: r0, r1: r1, c0: c0, c1: c1, l0: l0, l1: l1 };
+    return stamp._fill;
+  }
+
+  /** Quarter-turns a stamp, returning a NEW stamp (never mutates the old one,
+   *  so an assembly saved in the library keeps the orientation it was saved
+   *  in). Ninety degrees exactly, no free angles — a level is a grid of cells,
+   *  so any other angle simply has nowhere to be stored.
+   *
+   *  `axis` 'y' turns it in the horizontal (transverse) plane about a VERTICAL
+   *  axis — a wall facing the ballista becomes a wall running away from it,
+   *  swapping the column and layer axes and leaving heights alone. `axis` 'z'
+   *  turns it in the plane of a layer, about the depth axis — a tall column
+   *  tips over into a long horizontal run, swapping rows and columns and
+   *  staying in the same layer (the useful vertical turn here: layers are
+   *  scarce, columns are not). `dir` +1/-1 picks the direction.
+   *
+   *  Rotation happens in the stamp's own local space, and placementTarget()
+   *  then re-derives the anchor from the rotated stamp's filled bbox and the
+   *  clicked face — so the piece's facing edge stays on the cell you pointed
+   *  at, which is exactly what makes it read as spinning about the root
+   *  marker rather than wandering off it. */
+  function rotateStamp(stamp, axis, dir) {
+    const w = stamp.w, h = stamp.h, d = stamp.d;
+    let W, H, D, map;
+    if (axis === 'y') {
+      W = d; H = h; D = w;
+      map = dir > 0
+        ? (dl, dr, dc) => ({ l: dc, r: dr, c: d - 1 - dl })
+        : (dl, dr, dc) => ({ l: w - 1 - dc, r: dr, c: dl });
+    } else {
+      W = h; H = w; D = d;
+      map = dir > 0
+        ? (dl, dr, dc) => ({ l: dl, r: w - 1 - dc, c: dr })
+        : (dl, dr, dc) => ({ l: dl, r: dc, c: h - 1 - dr });
+    }
+    const cells = [];
+    for (let l = 0; l < D; l++) {
+      const layer = [];
+      for (let r = 0; r < H; r++) layer.push(new Array(W).fill('.'));
+      cells.push(layer);
+    }
+    for (let dl = 0; dl < d; dl++)
+      for (let dr = 0; dr < h; dr++)
+        for (let dc = 0; dc < w; dc++) {
+          const ch = stamp.cells[dl][dr][dc];
+          if (ch === '.') continue;
+          const m = map(dl, dr, dc);
+          cells[m.l][m.r][m.c] = ch;
+        }
+    return { w: W, h: H, d: D, cells: cells };
+  }
+
+  /** Turns whatever is on the clipboard and refreshes the live preview in
+   *  place, so the piece visibly spins under a stationary cursor instead of
+   *  needing a mouse nudge to catch up. */
+  function rotateClipboard(axis, dir) {
+    if (!clipboard) return false;
+    setClipboard(rotateStamp(clipboard, axis, dir), true);
+    // Four quarter-turns per axis is a full circle and lands back on 0 — each
+    // axis turns all the way round, in either direction, without limit.
+    clipTurns[axis] = (((clipTurns[axis] + dir) % 4) + 4) % 4;
+    refreshPaletteButtons();
+    if (lastPointer) updateGhost(pickCell(lastPointer.x, lastPointer.y));
+    return true;
+  }
+
+  /* ── Placement target ─────────────────────────────────────────────────────
+   * The ONE place that decides where the active tool would write for a given
+   * pick. Both the ghost preview and the click commit call it, which is what
+   * makes the preview a promise rather than a guess — there is no second
+   * code path that could disagree with it. Returns a uniform shape for both
+   * tools (Place is just a 1x1x1 stamp), so everything downstream — preview,
+   * cage, ground shadow, root marker, commit — handles one case instead of
+   * two. `root` is the cell the piece attaches BY: the preview marks it, so
+   * which part of a pasted piece is the attachment point is something you
+   * can see rather than something you have to remember. */
+  function placementTarget(hit) {
+    if (!hit) return null;
+    if (tool.kind === 'paste') {
+      if (!clipboard) return null;
+      const f = stampFill(clipboard);
+      if (!f) return null;
+      const base = hit.empty ? hit : adjacentCell(hit);
+      const face = hit.empty ? null : hit.face;
+      /* THE ATTACHMENT RULE. The cell you point at is where the piece's own
+         facing EDGE lands, so the side of the piece that meets the surface
+         is decided by the face you clicked — never a fixed corner:
+           top (y+)    → the piece's BOTTOM row rests on it
+           bottom (y-) → its TOP row hangs under it
+           right (x+)  → its LEFT column butts against it
+           left (x-)   → its RIGHT column butts against it
+           front (z+)  → its BACK layer butts against it
+           back (z-)   → its FRONT layer butts against it
+         Open ground is the same rule with no normal: bottom row, left
+         column, front layer — the piece stands on the cell you pointed at.
+         Anchoring a fixed top-left-front corner instead (what this did
+         before) meant clicking a left or top face drove the piece INTO the
+         structure it was supposed to sit against. */
+      const row = base.row - (face === 'y-' ? f.r0 : f.r1);
+      const col = base.col - (face === 'x-' ? f.c1 : f.c0);
+      const layer = base.layer - (face === 'z+' ? f.l1 : f.l0);
+      return {
+        layer: layer, row: row, col: col, stamp: clipboard, fill: f,
+        key: 'paste|' + clipboardSeq, root: base
+      };
+    }
+    if (tool.kind !== 'place') return null;
+    const t = hit.empty ? hit : adjacentCell(hit);
+    let row = t.row;
     /* Snap-drop only applies to the EMPTY-SPACE fallback (no specific face
        was clicked) — it's a convenience for "roughly here, let gravity find
        the resting spot." Clicking an actual FACE of an existing block
@@ -721,22 +1073,149 @@ RT.editor = (function () {
        underside or a front/back (depth) face of a block sent the placement
        falling on past it to the floor of whatever layer/column it landed in,
        ignoring the very face that was clicked. */
-    if (snap && hit.empty) r = snapDrop(target.layer, r, target.col);
-    if (ghostMatId !== tool.matId || !ghost) {
-      if (ghost) scene.remove(ghost);
-      const proto = protoFor(tool.matId, CELL, CELL, CELL);
-      ghost = proto.clone();
-      ghost.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.45; } });
-      ghostMatId = tool.matId;
-      scene.add(ghost);
+    if (snap && hit.empty) row = snapDrop(t.layer, row, t.col);
+    return {
+      layer: t.layer, row: row, col: t.col, matId: tool.matId,
+      stamp: { w: 1, h: 1, d: 1, cells: [[[tool.matId]]] }, key: 'place|' + tool.matId,
+      fill: { r0: 0, r1: 0, c0: 0, c1: 0, l0: 0, l1: 0 },
+      // A single block IS its own attachment point, so the root marker would
+      // just double the cage — left off deliberately.
+      root: null
+    };
+  }
+
+  /* ── Ghost preview ────────────────────────────────────────────────────────
+   * Translucent copies of exactly what's about to be written, moved on
+   * pointermove — never triggers a rebuild. Shown for Paste as well as
+   * Place: a saved piece is the one thing you most need to see before
+   * committing, and it used to appear only after the click.
+   *
+   * The wireframe cage marks which CELLS get written, which the ghost alone
+   * can't say — a B fills 15% of its cell and w/s/i fill 50%. */
+  function hideGhost() {
+    ghostGroup.visible = false;
+    cellCage.visible = false;
+    ghostShadow.visible = false;
+    rootMarker.visible = false;
+  }
+  function buildGhostCells(stamp, key) {
+    for (const g of ghostCells) ghostGroup.remove(g.mesh);
+    ghostCells = [];
+    for (let dl = 0; dl < stamp.d; dl++) {
+      for (let dr = 0; dr < stamp.h; dr++) {
+        for (let dc = 0; dc < stamp.w; dc++) {
+          const ch = stamp.cells[dl][dr][dc];
+          const mat = ch === '.' ? null : D.MAT[ch];
+          if (!mat) continue;
+          // The material's REAL proportions, same as parseLevel gives it, so
+          // the preview reads as the thing itself, not a generic cube.
+          const h = mat.plank ? CELL * LV.PLANK_FRAC : (mat.small ? CELL * 0.5 : CELL);
+          const wd = mat.small ? CELL * 0.5 : CELL;
+          const mesh = protoFor(ch, wd, h, wd).clone();
+          mesh.traverse((o) => {
+            if (!o.material) return;
+            o.material = o.material.clone();
+            o.material.transparent = true;
+            o.material.opacity = 0.5;
+            o.material.depthWrite = false;
+          });
+          ghostGroup.add(mesh);
+          ghostCells.push({ dl: dl, dr: dr, dc: dc, h: h, mesh: mesh });
+        }
+      }
     }
-    const dims = { cols: Math.max(doc.cols, target.col + 1), rows: Math.max(doc.rows, r + 1), numLayers: Math.max(doc.grid.length, target.layer + 1) };
-    const ghostBottoms = LV.rowBottoms(doc.grid[target.layer], dims.rows);
-    const cc = LV.cellCentre(doc.dist, dims, target.layer, r, target.col, ghostBottoms);
-    ghost.position.set(cc.x, cc.y, cc.z);
-    ghost.visible = true;
-    cellCage.position.copy(ghost.position);
+    ghostKey = key;
+  }
+  function updateGhost(hit) {
+    const target = placementTarget(hit);
+    if (!target) { hideGhost(); return; }
+    const stamp = target.stamp;
+    if (target.key !== ghostKey) buildGhostCells(stamp, target.key);
+    if (!ghostCells.length) { hideGhost(); return; }
+
+    /* Mirror EXACTLY what growTo()/growLayersTo() would do on commit, so the
+       preview shows the POST-growth position rather than a pre-growth guess:
+       growing at a low edge reindexes existing content and bumps the stable
+       centre by the same amount, and these offsets are those amounts. */
+    // Bounds taken from the FILLED extent, exactly as blitStamp() grows for
+    // it — a blank margin writes nothing, so previewing growth for it would
+    // show the level lifted by a row that the commit never actually adds.
+    const f = target.fill;
+    const colOff = Math.max(0, -(target.col + f.c0));
+    const rowOff = Math.max(0, -(target.row + f.r0));
+    const layerOff = Math.max(0, -(target.layer + f.l0));
+    const dims = {
+      cols: Math.max(doc.cols + colOff, target.col + colOff + f.c1 + 1),
+      rows: Math.max(doc.rows + rowOff, target.row + rowOff + f.r1 + 1),
+      numLayers: Math.max(doc.grid.length + layerOff, target.layer + layerOff + f.l1 + 1),
+      centerCol: doc.centerCol + colOff,
+      centerLayer: doc.centerLayer + layerOff
+    };
+
+    /* Per-layer floor heights computed WITH the stamp written in, so the
+       preview sits at the height it will really rest at — a board is thin,
+       and anything the stamp stacks on its own cells rests flush on them. */
+    const bottomsFor = [];
+    for (let dl = 0; dl < stamp.d; dl++) {
+      const l = target.layer + dl;
+      const src = (l >= 0 && l < doc.grid.length) ? doc.grid[l] : null;
+      const rowsArr = [];
+      for (let r = 0; r < dims.rows; r++) rowsArr.push(new Array(dims.cols).fill('.'));
+      if (src) {
+        for (let r = 0; r < src.length; r++)
+          for (let c = 0; c < src[r].length; c++) rowsArr[r + rowOff][c + colOff] = src[r][c];
+      }
+      for (let dr = 0; dr < stamp.h; dr++)
+        for (let dc = 0; dc < stamp.w; dc++) {
+          const ch = stamp.cells[dl][dr][dc];
+          if (ch === '.') continue;
+          rowsArr[target.row + rowOff + dr][target.col + colOff + dc] = ch;
+        }
+      bottomsFor.push(LV.rowBottoms(rowsArr, dims.rows, dims.cols));
+    }
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const g of ghostCells) {
+      const l = target.layer + layerOff + g.dl;
+      const r = target.row + rowOff + g.dr;
+      const c = target.col + colOff + g.dc;
+      const bottoms = bottomsFor[g.dl];
+      const cc = LV.cellCentre(doc.dist, dims, l, r, c, bottoms);
+      const bottom = bottoms[r][c];
+      g.mesh.position.set(cc.x, bottom + g.h / 2, cc.z);
+      minX = Math.min(minX, cc.x - CELL / 2); maxX = Math.max(maxX, cc.x + CELL / 2);
+      minZ = Math.min(minZ, cc.z - CELL / 2); maxZ = Math.max(maxZ, cc.z + CELL / 2);
+      minY = Math.min(minY, bottom); maxY = Math.max(maxY, bottom + CELL);
+    }
+    ghostGroup.visible = true;
+
+    cellCage.scale.set(maxX - minX, maxY - minY, maxZ - minZ);
+    cellCage.position.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
     cellCage.visible = true;
+
+    // Straight down onto the ground, at the footprint's real size.
+    ghostShadow.scale.set(maxX - minX, maxZ - minZ, 1);
+    ghostShadow.position.set((minX + maxX) / 2, 0.02, (minZ + maxZ) / 2);
+    ghostShadow.visible = true;
+
+    /* The root cell — the one the piece attaches BY (see placementTarget's
+       attachment rule). Marked only when the piece is bigger than one cell;
+       for a single block the cage already says it. */
+    const multiCell = stamp.w > 1 || stamp.h > 1 || stamp.d > 1;
+    if (target.root && multiCell) {
+      const rl = target.root.layer + layerOff;
+      const rr = target.root.row + rowOff;
+      const rc = target.root.col + colOff;
+      const dl = target.root.layer - target.layer;
+      const bottoms = bottomsFor[dl >= 0 && dl < bottomsFor.length ? dl : 0];
+      const rcc = LV.cellCentre(doc.dist, dims, rl, rr, rc, bottoms);
+      const rBottom = (bottoms[rr] && bottoms[rr][rc] !== undefined) ? bottoms[rr][rc] : rcc.y - CELL / 2;
+      rootMarker.scale.set(1, 1, 1);
+      rootMarker.position.set(rcc.x, rBottom + CELL / 2, rcc.z);
+      rootMarker.visible = true;
+    } else {
+      rootMarker.visible = false;
+    }
   }
   function rebuildCage() {
     // Keep the cage visible over the active layer even without a live hover,
@@ -789,42 +1268,92 @@ RT.editor = (function () {
         for (let c = sel.col0; c <= sel.col1; c++)
           if (cellAt(l, r, c) !== '.') blocks++;
     els.selectionInfo.textContent = w + ' x ' + h + ' x ' + d + ' cells (' + blocks + ' filled)';
-    const dims = { cols: Math.max(doc.cols, sel.col1 + 1), rows: Math.max(doc.rows, sel.row1 + 1), numLayers: Math.max(doc.grid.length, sel.layer1 + 1) };
-    const cMin = LV.cellCentre(doc.dist, dims, sel.layer1, sel.row1, sel.col0, LV.rowBottoms(doc.grid[sel.layer1], dims.rows));
-    const cMax = LV.cellCentre(doc.dist, dims, sel.layer0, sel.row0, sel.col1, LV.rowBottoms(doc.grid[sel.layer0], dims.rows));
+    const dims = { cols: Math.max(doc.cols, sel.col1 + 1), rows: Math.max(doc.rows, sel.row1 + 1), numLayers: Math.max(doc.grid.length, sel.layer1 + 1), centerCol: doc.centerCol, centerLayer: doc.centerLayer };
+    const cMin = LV.cellCentre(doc.dist, dims, sel.layer1, sel.row1, sel.col0, LV.rowBottoms(doc.grid[sel.layer1], dims.rows, dims.cols));
+    const cMax = LV.cellCentre(doc.dist, dims, sel.layer0, sel.row0, sel.col1, LV.rowBottoms(doc.grid[sel.layer0], dims.rows, dims.cols));
     selBoxHelper.box.min.set(Math.min(cMin.x, cMax.x) - CELL / 2, cMin.y - CELL / 2, Math.min(cMin.z, cMax.z) - CELL / 2);
     selBoxHelper.box.max.set(Math.max(cMin.x, cMax.x) + CELL / 2, cMax.y + CELL / 2, Math.max(cMin.z, cMax.z) + CELL / 2);
     selBoxHelper.visible = true;
   }
 
   let clipboard = null; // {w,h,d,cells[dl][dr][dc]}
-  function copySelection() {
-    if (!sel) return;
-    const w = sel.col1 - sel.col0 + 1, h = sel.row1 - sel.row0 + 1, d = sel.layer1 - sel.layer0 + 1;
+  // Bumped on every clipboard write so the ghost preview knows its cached
+  // meshes are stale — the stamp's SHAPE decides what meshes to build, and
+  // object identity alone wouldn't catch a same-sized replacement.
+  let clipboardSeq = 0;
+  /* Net quarter-turns applied on each axis since the piece was copied, purely
+   * so the readout can distinguish orientations a shape's own dimensions
+   * cannot: a left-right symmetric piece looks IDENTICAL at 0° and 180°, so
+   * without this there is no way to tell how far round you actually are. */
+  let clipTurns = { y: 0, z: 0 };
+  function setClipboard(stamp, keepTurns) {
+    clipboard = stamp;
+    clipboardSeq++;
+    if (!keepTurns) clipTurns = { y: 0, z: 0 };
+    refreshPaletteButtons();
+  }
+  /** Pure: reads the current selection into a {w,h,d,cells} stamp without
+   *  touching the ad hoc clipboard. copySelection() (Ctrl+C, quick same-
+   *  session duplication) and saveAssembly() (the persisted, named library,
+   *  for reuse across levels or much later in this one) both build a stamp
+   *  from this — but only copySelection() assigns it to `clipboard`. Before
+   *  this split, saving an assembly called copySelection() itself, so
+   *  hitting "Save" silently clobbered whatever you had ready to paste. */
+  function extractCells(s) {
+    const w = s.col1 - s.col0 + 1, h = s.row1 - s.row0 + 1, d = s.layer1 - s.layer0 + 1;
     const cells = [];
     for (let dl = 0; dl < d; dl++) {
       const layer = [];
       for (let dr = 0; dr < h; dr++) {
         const row = [];
-        for (let dc = 0; dc < w; dc++) row.push(cellAt(sel.layer0 + dl, sel.row0 + dr, sel.col0 + dc));
+        for (let dc = 0; dc < w; dc++) row.push(cellAt(s.layer0 + dl, s.row0 + dr, s.col0 + dc));
         layer.push(row);
       }
       cells.push(layer);
     }
-    clipboard = { w: w, h: h, d: d, cells: cells };
-    refreshPaletteButtons();
+    return { w: w, h: h, d: d, cells: cells };
+  }
+  function copySelection() {
+    if (!sel) return;
+    setClipboard(extractCells(sel));
   }
   /** Stamps a clipboard/assembly at (l,r,c) as its layer0/row0/col0 corner.
    *  '.' cells are transparent by default (a tower stamp is mostly empty; an
-   *  opaque paste would gouge holes in whatever it lands on). */
+   *  opaque paste would gouge holes in whatever it lands on).
+   *
+   *  Grows the grid ONCE for the stamp's whole footprint, up front — going
+   *  cell-by-cell through setCell() (each of which calls growTo() itself)
+   *  would have the first cell's growth (if it needed room on the left/top)
+   *  shift every existing column/row index out from under the *rest* of the
+   *  loop, which is still writing in pre-growth coordinates. A stamp placed
+   *  near the grid's low edge would scatter into the wrong cells partway
+   *  through its own paste — exactly the kind of "can't place it anywhere"
+   *  corruption a saved sub-assembly must never suffer. */
   function blitStamp(stamp, l, r, c, opaque) {
+    /* Grow only for what actually gets WRITTEN. A transparent paste skips
+       '.' cells, so growing for a selection's blank margin buys nothing and
+       costs real damage: a blank bottom row would push the document's floor
+       down a row, and since row heights count up from whatever the last row
+       is, that lifts the entire rest of the level to make room for nothing.
+       An opaque paste does write '.', so it grows for the full footprint. */
+    const f = opaque
+      ? { r0: 0, r1: stamp.h - 1, c0: 0, c1: stamp.w - 1, l0: 0, l1: stamp.d - 1 }
+      : stampFill(stamp);
+    if (!f) return;   // entirely blank stamp — nothing to place
     pushUndo();
+    const off = growTo(c + f.c0, c + f.c1, r + f.r0, r + f.r1);
+    r += off.addTop; c += off.addLeft;
+    // Same one-shot growth for the DEPTH axis, and via growLayersTo() so a
+    // stamp reaching in FRONT of layer 0 prepends (with its centre
+    // compensation) instead of being silently dropped.
+    l += growLayersTo(l + f.l0);
+    growLayersTo(l + f.l1);
     for (let dl = 0; dl < stamp.d; dl++) {
       for (let dr = 0; dr < stamp.h; dr++) {
         for (let dc = 0; dc < stamp.w; dc++) {
           const ch = stamp.cells[dl][dr][dc];
           if (ch === '.' && !opaque) continue;
-          setCell(l + dl, r + dr, c + dc, ch);
+          doc.grid[l + dl][r + dr][c + dc] = ch;
         }
       }
     }
@@ -858,7 +1387,7 @@ RT.editor = (function () {
     ).join('');
     els.assemblyList.querySelectorAll('[data-place]').forEach((b) => b.addEventListener('click', () => {
       const item = loadLib().items[+b.dataset.place];
-      clipboard = { w: item.w, h: item.h, d: item.d, cells: item.cells };
+      setClipboard({ w: item.w, h: item.h, d: item.d, cells: item.cells });
       setTool('paste');
     }));
     els.assemblyList.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
@@ -871,9 +1400,9 @@ RT.editor = (function () {
   document.getElementById('btnSaveAssembly').addEventListener('click', () => {
     if (!sel) { alert('Select a box first (click one corner, then the opposite corner).'); return; }
     const name = els.assemblyName.value.trim() || ('Assembly ' + (loadLib().items.length + 1));
-    copySelection();
+    const stamp = extractCells(sel);
     const lib = loadLib();
-    lib.items.push({ name: name, w: clipboard.w, h: clipboard.h, d: clipboard.d, cells: clipboard.cells });
+    lib.items.push({ name: name, w: stamp.w, h: stamp.h, d: stamp.d, cells: stamp.cells });
     saveLib(lib);
     els.assemblyName.value = '';
     renderAssemblyList();
@@ -924,6 +1453,7 @@ RT.editor = (function () {
         down.x = e.clientX; down.y = e.clientY;
       }
     }
+    lastPointer = { x: e.clientX, y: e.clientY };
     const hit = pickCell(e.clientX, e.clientY);
     updateGhost(hit);
   });
@@ -941,19 +1471,18 @@ RT.editor = (function () {
     }
     if (tool.kind === 'select') { selectClick(hit); return; }
     if (tool.kind === 'erase') { eraseAt(hit.layer, hit.row, hit.col); return; }
-    if (tool.kind === 'paste') {
-      if (!clipboard) return;
-      const target = hit.empty ? hit : adjacentCell(hit);
-      blitStamp(clipboard, target.layer, target.row, target.col, false);
-      return;
-    }
-    // 'place' — see updateGhost()'s comment: snap-drop only applies when no
-    // specific face was clicked (the empty-space fallback); an explicit face
-    // click attaches exactly there.
-    let target = hit.empty ? hit : adjacentCell(hit);
-    let r = target.row;
-    if (snap && hit.empty) r = snapDrop(target.layer, r, target.col);
-    placeAt(target.layer, r, target.col, tool.matId);
+    // Place and Paste both commit exactly what the ghost was showing, because
+    // both read the same placementTarget() the ghost read.
+    const target = placementTarget(hit);
+    if (!target) return;
+    if (tool.kind === 'paste') blitStamp(target.stamp, target.layer, target.row, target.col, false);
+    else placeAt(target.layer, target.row, target.col, target.matId);
+    // Follow the cursor's depth: a negative target got layers prepended, so
+    // what was layer -n is now layer 0. Keeps the layer readout honest about
+    // where you are actually building.
+    activeLayer = Math.min(Math.max(0, target.layer), Math.max(0, doc.grid.length - 1));
+    updateLayerLabel();
+    updateGhost(pickCell(e.clientX, e.clientY));
   });
   dom.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -971,6 +1500,17 @@ RT.editor = (function () {
     else if (e.key === 'Escape') { selCorner = null; sel = null; updateSelectionUI(); setTool('place'); }
     else if (e.key === '[') { activeLayer = Math.max(0, activeLayer - 1); updateLayerLabel(); }
     else if (e.key === ']') { activeLayer = Math.min(Math.max(0, doc.grid.length - 1), activeLayer + 1); updateLayerLabel(); }
+    /* Quarter-turns for the piece on the clipboard. R is the horizontal
+       (transverse-plane, vertical-axis) turn — the one you reach for most, so
+       it gets the obvious key; T tips it over within its layer. Shift
+       reverses either. Guarded against Ctrl/Alt/Meta so Ctrl+R still reloads
+       the page. */
+    else if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'r' || e.key === 'R')) {
+      if (rotateClipboard('y', e.key === 'R' ? -1 : 1)) e.preventDefault();
+    }
+    else if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 't' || e.key === 'T')) {
+      if (rotateClipboard('z', e.key === 'T' ? -1 : 1)) e.preventDefault();
+    }
   });
 
   /* ── Stability test ───────────────────────────────────────────────────────
@@ -1050,12 +1590,53 @@ RT.editor = (function () {
   }
   document.getElementById('btnCheck').addEventListener('click', runStabilityTest);
 
+  /** Strips padBuildVolume()'s empty build margin back off before export —
+   *  UP TO doc.padBack fully-blank layers off the back, UP TO doc.padLeft/
+   *  padRight fully-blank columns off the left/right, UP TO doc.padTop
+   *  fully-blank rows off the top, stopping early the moment one isn't
+   *  blank (the user drew into part of the margin — that part is real now).
+   *  Deliberately capped at the tracked amounts rather than just "trim
+   *  every blank edge": a real level can have its OWN intentional blank
+   *  border (a symmetric frame, spacing around a tower) that looks
+   *  identical to unused margin — trimming by blankness alone would just as
+   *  happily eat a designer's real framing, which is exactly what a naive
+   *  first version of this did to a shipped level's frame. Never trims the
+   *  front (padBuildVolume() never pads there) or the bottom row (the
+   *  floor; rows are floor-anchored, never padded there either), and never
+   *  an INTERIOR gap (a bridge's open shaft isn't a blank row/column/layer —
+   *  the row still has the bridge itself in other columns). */
+  function trimLevelLayers(layers) {
+    const isBlankCh = (ch) => ch === undefined || ch === '.' || ch === ' ';
+    const isBlankRow = (row) => !row || !/[^. ]/.test(row);
+    const isBlankLayer = (layer) => layer.every(isBlankRow);
+
+    let ls = layers.map((layer) => layer.slice());
+    let backTrim = 0;
+    while (backTrim < doc.padBack && ls.length > 1 && isBlankLayer(ls[ls.length - 1])) { ls.pop(); backTrim++; }
+
+    let cols = 0, rows = 0;
+    for (const layer of ls) { rows = Math.max(rows, layer.length); for (const row of layer) cols = Math.max(cols, row.length); }
+    const colBlank = (c) => ls.every((layer) => layer.every((row) => isBlankCh(row[c])));
+    let left = 0, right = cols - 1;
+    let leftTrim = 0;
+    while (leftTrim < doc.padLeft && left < right && colBlank(left)) { left++; leftTrim++; }
+    let rightTrim = 0;
+    while (rightTrim < doc.padRight && right > left && colBlank(right)) { right--; rightTrim++; }
+
+    const rowBlankAt = (r) => ls.every((layer) => isBlankRow(layer[r]));
+    let top = 0, topTrim = 0;
+    while (topTrim < doc.padTop && top < rows - 1 && rowBlankAt(top)) { top++; topTrim++; }
+
+    return ls.map((layer) => layer.slice(top).map((row) => row.slice(left, right + 1)));
+  }
+
   /* ── Export ───────────────────────────────────────────────────────────────
    * Single-quote style to match levels.js, not JSON.stringify's doubles; only
    * emits `ammo:` when set; never emits _cols/_depth (levels.js computes those
    * at load, :506-510). */
   function exportText() {
     const level = docAsLevel();
+    level.layers = trimLevelLayers(level.layers);
     const lines = [];
     let head = '{ name: ' + quote(level.name) + ', par: ' + level.par + ', bolts: ' + level.bolts + ', dist: ' + level.dist;
     if (level.ammo) head += ', ammo: [' + level.ammo.map(quote).join(', ') + ']';
@@ -1093,7 +1674,13 @@ RT.editor = (function () {
     doc.bolts = parseInt(els.bolts.value, 10); if (!Number.isFinite(doc.bolts)) doc.bolts = 6;
     const g = gridFromLayers(textToLayers(els.layers.value));
     doc.grid = g.grid; doc.cols = g.cols; doc.rows = g.rows;
+    // Same reasoning as loadLevelIntoDoc(): re-applying the text is a fresh
+    // ground truth, not an incremental edit, so the centre resets naturally.
+    doc.centerCol = doc.cols / 2;
+    doc.centerLayer = (doc.grid.length - 1) / 2;
+    padBuildVolume();
     if (activeLayer >= doc.grid.length) activeLayer = Math.max(0, doc.grid.length - 1);
+    frameDoc();
     rebuild();
     if (g.notes.length) els.validation.innerHTML += g.notes.map((n) => '<div class="warn">⚠ ' + escapeHtml(n) + '</div>').join('');
   }
@@ -1103,6 +1690,7 @@ RT.editor = (function () {
     loadLevelIntoDoc(level);
     syncFormFromDoc();
     updateLayerLabel();
+    frameDoc();
     // Keep the dropdown's displayed value in sync even when a level is loaded
     // some way other than the user picking it (e.g. RT.editor.__test.loadLevel) —
     // otherwise the label silently lies about which level is actually live.
@@ -1177,6 +1765,21 @@ RT.editor = (function () {
       place(l, r, c) { let rr = r; if (snap) rr = snapDrop(l, r, c); placeAt(l, rr, c, tool.matId); },
       erase(l, r, c) { eraseAt(l, r, c); },
       pickAt(x, y) { return pickCell(x, y); },
+      camera() { return camera; },
+      hoverAt(x, y) { const hit = pickCell(x, y); lastPointer = { x: x, y: y }; updateGhost(hit); return hit; },
+      rotate(axis, dir) { return rotateClipboard(axis, dir); },
+      turns() { return { y: clipTurns.y, z: clipTurns.z }; },
+      target(x, y) { return placementTarget(pickCell(x, y)); },
+      ghost() {
+        return {
+          visible: ghostGroup.visible,
+          cells: ghostCells.map((g) => ({ x: g.mesh.position.x, y: g.mesh.position.y, z: g.mesh.position.z })),
+          shadow: { visible: ghostShadow.visible, x: ghostShadow.position.x, z: ghostShadow.position.z, w: ghostShadow.scale.x, d: ghostShadow.scale.y },
+          cage: { visible: cellCage.visible, x: cellCage.position.x, y: cellCage.position.y, z: cellCage.position.z },
+          root: { visible: rootMarker.visible, x: rootMarker.position.x, y: rootMarker.position.y, z: rootMarker.position.z }
+        };
+      },
+      liveBlocks() { return live.recs.map((r) => ({ matId: r.spec.matId, x: r.spec.x, y: r.spec.y, z: r.spec.z, w: r.spec.w, h: r.spec.h, d: r.spec.d, layer: r.spec.layer, row: r.spec.row, col: r.spec.col })); },
       blockCount() { return live.recs.length; },
       protoCacheSize() { return Object.keys(protoCache).length; },
       validate() { return validate(); },
@@ -1193,7 +1796,7 @@ RT.editor = (function () {
       copy() { copySelection(); },
       paste(l, r, c, opaque) { if (clipboard) blitStamp(clipboard, l, r, c, !!opaque); },
       getClipboard() { return clipboard; },
-      saveAssembly(name) { if (!sel) return false; copySelection(); const lib = loadLib(); lib.items.push({ name: name, w: clipboard.w, h: clipboard.h, d: clipboard.d, cells: clipboard.cells }); saveLib(lib); renderAssemblyList(); return true; },
+      saveAssembly(name) { if (!sel) return false; const stamp = extractCells(sel); const lib = loadLib(); lib.items.push({ name: name, w: stamp.w, h: stamp.h, d: stamp.d, cells: stamp.cells }); saveLib(lib); renderAssemblyList(); return true; },
       lib() { return loadLib(); },
       undo() { undo(); },
       redo() { redo(); },

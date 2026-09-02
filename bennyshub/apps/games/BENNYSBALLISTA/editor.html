@@ -211,13 +211,36 @@ button.on{outline:2px solid var(--accent2);outline-offset:1px}
     </div>
 
     <div id="hint">
+      <b>Where things land.</b> A translucent preview follows the cursor and
+      shows exactly what a click will write — the white cage marks the cells,
+      the dark patch is its shadow on the ground. Clicking open ground places
+      on the ground under the cursor (side to side picks the column, near to
+      far picks the layer). Clicking a FACE of an existing block attaches
+      against that face.
+      <br><br>
+      <b>Pasting a piece.</b> The cyan cell in the preview is the piece's
+      attachment point — the cell that lands on whatever you pointed at. Which
+      side of the piece that is follows the face you click: click a top face
+      and the piece's bottom rests on it, a left face and its right side butts
+      against it, and so on. Blank margin around a copied selection is
+      ignored, so a piece always lands flush.
+      <br><br>
+      <b>Turning a piece.</b> <b>R</b> turns it flat — in the horizontal plane
+      about a vertical axis, so a wall facing the ballista becomes one running
+      away from it. <b>T</b> tips it over within its layer, so a tall column
+      becomes a long horizontal run. Shift with either to turn the other way.
+      Ninety degrees <i>per press</i>, and each axis keeps going all the way
+      round — four presses is a full turn back to where you started, and the
+      two axes combine, so any orientation is reachable. It turns about the
+      cyan attachment cell, so the piece swings around the spot it's anchored
+      to instead of drifting off it. The Paste button shows the current size
+      as columns&times;rows&times;layers plus how far it's turned (a symmetric
+      piece looks the same at 0&deg; and 180&deg;, so the angle is the only
+      way to tell).
+      <br><br>
       Letters and flags are generated from js/data.js's MAT table above — this
       panel used to be the only documentation and could rot the moment a
-      material changed. Never place anything (especially a crown) directly
-      above a timber board's row in the same column, snap or no — every other
-      row's block sits on its own row floor regardless of what's beneath it,
-      which a board's thin height leaves a gap under. The validation panel
-      above flags this. Drag to orbit, scroll to zoom, Ctrl+C/Ctrl+V copy and
+      material changed. Drag to orbit, scroll to zoom, Ctrl+C/Ctrl+V copy and
       paste a selection, Ctrl+Z/Ctrl+Y undo/redo, Esc cancels a tool. This tool
       never runs the real game's camera, input or scan lists — mouse/keyboard
       only, on purpose.

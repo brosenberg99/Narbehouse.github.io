@@ -74,56 +74,68 @@ RT.levels = (function () {
    *  function) so a caller that needs to place a single cell — the level
    *  editor mapping a mouse ray back to a cell, not a full re-parse — has the
    *  exact inverse of parseLevel()'s own placement maths to call instead of
-   *  re-deriving it and risking the two drifting apart. */
-  function layerZ(dist, numLayers, i) {
-    return -dist + ((numLayers - 1) / 2 - i) * CELL;
+   *  re-deriving it and risking the two drifting apart.
+   *
+   *  `centerLayer` (optional) overrides the default `(numLayers-1)/2` centre.
+   *  A FINISHED level always wants the default (naturally centred on its own
+   *  true depth) — only the EDITOR passes an explicit, persistent centre: its
+   *  depth grows one layer at a time as you work, and the default's centre
+   *  moves every time `numLayers` does, dragging every ALREADY-placed layer's
+   *  Z sideways along with it even though nothing about that layer changed.
+   *  Passing a centre that only moves when a layer is actually inserted IN
+   *  FRONT of existing content (see editor.js's `doc.centerLayer`) keeps
+   *  everything else exactly where it was. */
+  function layerZ(dist, numLayers, i, centerLayer) {
+    const c = (centerLayer !== undefined) ? centerLayer : (numLayers - 1) / 2;
+    return -dist + (c - i) * CELL;
   }
 
-  /** Real vertical space one ROW of one layer claims — CELL for an ordinary
-   *  row, but only the tallest actual occupant's own height when every
-   *  occupied cell in that row is thinner than a full cell (a `plank`/`B`
-   *  row at PLANK_FRAC*CELL, a small-rubble row at 0.5*CELL). A row mixing a
-   *  thin material with a full-height one still reserves the full cell — only
-   *  a row that's ENTIRELY thin content (or plain empty, which keeps its full
-   *  CELL of reserved authoring space regardless) gets thinner. This is what
-   *  used to be hardcoded as "every row is exactly CELL" everywhere below;
-   *  making it real is what lets something rest flush on a board or a chunk
-   *  of rubble instead of floating ~0.85 cell above it.
+  /** Real vertical space one CELL claims — CELL for an ordinary occupant,
+   *  but a `plank`/`B` cell claims only PLANK_FRAC*CELL and a small-rubble
+   *  cell claims 0.5*CELL. Empty ('.'/space) keeps a full CELL of reserved
+   *  authoring space, same as an ordinary occupant, so a row with nothing in
+   *  it yet still stacks like a plain full-height row.
+   *
+   *  Per-CELL, not per-row: an earlier version measured this per row (the
+   *  tallest occupant anywhere across the row's full width), which let one
+   *  unrelated column's tall content inflate the floor under every other
+   *  column sharing that row index — paste a stone block two columns over
+   *  from a board bridge, in a row that used to be entirely thin content,
+   *  and the bridge (and everything resting on it) would silently jump up to
+   *  full-CELL height. A saved sub-assembly has to sit the same way wherever
+   *  it's placed, so each column now tracks only what's actually stacked
+   *  beneath it. */
+  function cellThickness(ch) {
+    if (ch === undefined || ch === '.' || ch === ' ') return CELL;
+    const mat = MAT[ch];
+    if (!mat) return CELL;
+    return mat.plank ? CELL * PLANK_FRAC : (mat.small ? CELL * 0.5 : CELL);
+  }
+
+  /** Cumulative floor height for every (row, col) of one layer —
+   *  bottoms[row][col] is the sum of cellThickness() for every row BELOW it
+   *  IN THAT SAME COLUMN (row index increases downward; the true floor row's
+   *  bottom is 0). Replaces the old `(rows - row - 1) * CELL` assumption
+   *  everywhere a row's real height might not be a full CELL — and, per
+   *  cellThickness()'s note above, replaced a row-wide version of this same
+   *  idea that let columns interfere with each other.
    *
    *  `layerRows` is one layer's array of row pictures — either a real level's
    *  row STRINGS (`level.layers[i]`) or the editor's row CHAR-ARRAYS
    *  (`doc.grid[l]`); `row[c]` reads identically either way, so this one
    *  function serves both callers. */
-  function rowThickness(layerRows, rows) {
-    const t = new Array(rows).fill(CELL);
+  function rowBottoms(layerRows, rows, cols) {
+    const bottoms = [];
+    for (let r = 0; r < rows; r++) bottoms.push(new Array(cols).fill(0));
+    const acc = new Array(cols).fill(0);
     const n = Math.min(layerRows ? layerRows.length : 0, rows);
-    for (let r = 0; r < n; r++) {
-      const row = layerRows[r];
-      let maxH = 0, any = false;
-      for (let c = 0; c < row.length; c++) {
-        const ch = row[c];
-        if (ch === '.' || ch === ' ') continue;
-        const mat = MAT[ch];
-        if (!mat) continue;
-        any = true;
-        const h = mat.plank ? CELL * PLANK_FRAC : (mat.small ? CELL * 0.5 : CELL);
-        if (h > maxH) maxH = h;
+    for (let r = rows - 1; r >= 0; r--) {
+      const row = r < n ? layerRows[r] : null;
+      for (let c = 0; c < cols; c++) {
+        bottoms[r][c] = acc[c];
+        acc[c] += cellThickness(row ? row[c] : undefined);
       }
-      if (any) t[r] = maxH;
     }
-    return t;
-  }
-
-  /** Cumulative floor height for every row of one layer — bottoms[row] is
-   *  the sum of rowThickness() for every row BELOW it (row index increases
-   *  downward; the true floor row's bottom is 0). Replaces the old
-   *  `(rows - row - 1) * CELL` assumption everywhere a row's real height
-   *  might not be a full CELL. */
-  function rowBottoms(layerRows, rows) {
-    const t = rowThickness(layerRows, rows);
-    const bottoms = new Array(rows).fill(0);
-    let acc = 0;
-    for (let r = rows - 1; r >= 0; r--) { bottoms[r] = acc; acc += t[r]; }
     return bottoms;
   }
 
@@ -135,17 +147,27 @@ RT.levels = (function () {
    *  return shape (or the `_cols`/`_depth` pair cached onto a level, plus its
    *  layer count) — same convention data.js's castleBounds() reads.
    *
-   *  `bottoms` (optional) is a rowBottoms()-shaped array for THIS specific
-   *  layer — pass it whenever real grid content for that layer exists, so
-   *  picking/ghost placement agrees with where parseLevel() will actually put
-   *  things. Omitted (no grid content to base it on yet), this falls back to
-   *  the old uniform-CELL assumption. */
+   *  `bottoms` (optional) is a rowBottoms()-shaped [row][col] array for THIS
+   *  specific layer — pass it whenever real grid content for that layer
+   *  exists, so picking/ghost placement agrees with where parseLevel() will
+   *  actually put things. Omitted (no grid content to base it on yet), this
+   *  falls back to the old uniform-CELL assumption.
+   *
+   *  `dims.centerCol`/`dims.centerLayer` (optional) override the default
+   *  `dims.cols/2` / layerZ's own default centre — see layerZ's note on why:
+   *  X is centred on total COLUMN count exactly the way Z is centred on
+   *  total LAYER count, so growing the column count during editing shifts
+   *  every already-placed column sideways for the same reason growing the
+   *  layer count shifts every layer in Z. Only the editor ever passes these
+   *  (its `doc.centerCol`/`doc.centerLayer`); a finished level always wants
+   *  the natural, true-dimensions centre. */
   function cellCentre(dist, dims, layer, row, col, bottoms) {
-    const bottom = (bottoms && bottoms[row] !== undefined) ? bottoms[row] : (dims.rows - row - 1) * CELL;
+    const bottom = (bottoms && bottoms[row] && bottoms[row][col] !== undefined) ? bottoms[row][col] : (dims.rows - row - 1) * CELL;
+    const centerCol = (dims.centerCol !== undefined) ? dims.centerCol : dims.cols / 2;
     return {
-      x: (col + 0.5 - dims.cols / 2) * CELL,
+      x: (col + 0.5 - centerCol) * CELL,
       y: bottom + CELL / 2,
-      z: layerZ(dist, dims.numLayers, layer),
+      z: layerZ(dist, dims.numLayers, layer, dims.centerLayer),
       size: CELL
     };
   }
@@ -170,19 +192,25 @@ RT.levels = (function () {
     const blocks = [];
     let crownCount = 0;
 
-    // Real per-row floor height, one array per layer (each layer stands on
-    // its own — see the file header — so a board in layer 0 never affects
-    // layer 1's heights). This is what makes something resting in the row
-    // above a board/rubble row sit flush on its actual surface instead of
-    // assuming every row below is a full CELL tall.
-    const layerBottoms = layers.map((layerRows) => rowBottoms(layerRows, rows));
+    // Real per-cell floor height, one [row][col] grid per layer (each layer
+    // stands on its own — see the file header — so a board in layer 0 never
+    // affects layer 1's heights, and per cellThickness()'s note, one column
+    // never affects another sharing its row). This is what makes something
+    // resting above a board/rubble cell sit flush on its actual surface
+    // instead of assuming every row below is a full CELL tall.
+    const layerBottoms = layers.map((layerRows) => rowBottoms(layerRows, rows, cols));
 
     // Layer 0 is nearest the ballista (least negative Z); layers stack away
     // from it in even CELL-wide steps, centred on level.dist. `lz` rather than
     // shadowing the module-level layerZ() above — same maths, this closure
     // just bakes in level.dist/numLayers so every call site below doesn't
-    // have to repeat them.
-    const lz = (i) => layerZ(level.dist, numLayers, i);
+    // have to repeat them. `level.centerCol`/`level.centerLayer` (optional —
+    // only the editor ever sets them, see layerZ()'s/cellCentre()'s notes)
+    // keep an in-progress castle's already-placed content from sliding
+    // sideways/in-depth every time the document grows during editing; a
+    // finished level omits them and gets the natural, true-dimensions centre.
+    const centerCol = (level.centerCol !== undefined) ? level.centerCol : cols / 2;
+    const lz = (i) => layerZ(level.dist, numLayers, i, level.centerLayer);
 
     for (let li = 0; li < numLayers; li++) {
       const runs = layerRuns[li];
@@ -208,15 +236,19 @@ RT.levels = (function () {
         let x, y, z, w, h, d;
         if (run.small) {
           w = h = d = CELL * 0.5;
-          x = (run.col + 0.5 - cols / 2) * CELL;
-          y = layerBottoms[li][run.row] + h / 2;   // resting on its cell's REAL floor
+          x = (run.col + 0.5 - centerCol) * CELL;
+          y = layerBottoms[li][run.row][run.col] + h / 2;   // resting on its cell's REAL floor
           z = lz(li);
         } else {
           w = run.len * CELL;
           h = mat.plank ? CELL * PLANK_FRAC : CELL;
           d = (endLayer - li + 1) * CELL;
-          x = (run.col + run.len / 2 - cols / 2) * CELL;
-          const bottom = layerBottoms[li][run.row];   // this row's REAL floor, not an assumed one
+          x = (run.col + run.len / 2 - centerCol) * CELL;
+          // A merged run is one rigid body, so it needs one shared Y — the
+          // tallest real floor under any column it actually spans (never a
+          // column outside its own footprint; that's the per-cell fix above).
+          let bottom = 0;
+          for (let cc = run.col; cc < run.col + run.len; cc++) bottom = Math.max(bottom, layerBottoms[li][run.row][cc]);
           y = bottom + h / 2;
           z = (lz(li) + lz(endLayer)) / 2;
         }
@@ -617,6 +649,6 @@ RT.levels = (function () {
   return {
     CELL: CELL, PLANK_FRAC: PLANK_FRAC, LEVELS: LEVELS,
     parseLevel: parseLevel, layerZ: layerZ, cellCentre: cellCentre,
-    rowThickness: rowThickness, rowBottoms: rowBottoms
+    cellThickness: cellThickness, rowBottoms: rowBottoms
   };
 })();
