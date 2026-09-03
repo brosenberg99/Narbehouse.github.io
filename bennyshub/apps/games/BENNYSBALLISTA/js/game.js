@@ -1345,10 +1345,13 @@ RT.game = (function () {
   function update(dt) {
     if (world) W.update(world, dt);
 
-    /* Flushes whatever the impact voice cap folded into a rumble this frame.
-       Called before the physics step so a rumble follows the collapse it came
-       from rather than lagging a frame behind it. */
-    sfx('tick', dt);
+    /* Flushes whatever the impact voice cap folded into a rumble this frame,
+       and fades the background music toward whatever CAM.phase wants it at
+       right now (js/audio.js's musicTick) — one call so the two can never
+       drift out of step on what "this frame" means. Called before the
+       physics step so a rumble follows the collapse it came from rather than
+       lagging a frame behind it. */
+    sfx('tick', dt, CAM.phase);
     if (physicsReady) {
       stepPhysicsWithImpacts(dt);
       updateShots(dt);

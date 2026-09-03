@@ -611,3 +611,16 @@ r155 (MIT licence). `js/ammo.js` is vendored unmodified from
 [ammo.js](https://github.com/kripken/ammo.js/) (zlib licence), a port of
 [Bullet Physics](https://pybullet.org/) to JavaScript. Don't hand-edit
 either; pull a fresh build from upstream if either needs updating.
+
+## Third-party audio
+
+`audio/music/horde-war-drums-130bpm.mp3` — **"Horde War Drums loop 130bpm"**
+by WilliamHector, downloaded from
+[Pixabay](https://pixabay.com/sound-effects/musical-horde-war-drums-loop-130bpm-342956/)
+under the [Pixabay Content License](https://pixabay.com/service/license-summary/)
+(free for commercial use, no attribution required, modification/looping
+explicitly permitted). This is the one audio FILE this game ships — everything
+else in `js/audio.js` (impacts, destruction, fanfare, UI blips) is still
+synthesised at runtime, per that file's own header. Loop point is untrimmed
+from the original download (14.8s); if it's ever re-cut or replaced, redo the
+loop-seam check in `js/audio.js`'s own comment before shipping it.

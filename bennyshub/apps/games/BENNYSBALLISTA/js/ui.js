@@ -256,6 +256,17 @@ RT.ui = (function () {
       : 'Sound off. Speech still works.');
   }
 
+  /** Separate from Sound on purpose (own row, own hub-shared-audio.js key) —
+   *  someone who wants the destruction cues but not a drum loop under them,
+   *  or the other way round, gets that choice. */
+  function musicOn() { return RT.audio ? RT.audio.isMusicEnabled() : false; }
+  function toggleMusic() {
+    if (!RT.audio) return;
+    const next = !musicOn();
+    RT.audio.setMusicEnabled(next);
+    afterSettingChange(next ? 'Music on.' : 'Music off. Sound effects still play.');
+  }
+
   /** The one definition of every overlay screen. */
   function screenDef() {
     const phase = G.CAM.phase;
@@ -329,6 +340,7 @@ RT.ui = (function () {
           + 'Steady Camera holds one fixed view instead of chasing the bolt. '
           + 'Endless Bolts means running out never blocks you — it only affects your star rating. '
           + 'Sound turns the shot and impact effects on or off; it does not affect speech. '
+          + 'Music turns the background war drums on or off, separately from Sound. '
           + 'Colour Profile repaints the whole game, the 3D world included — High Contrast '
           + 'uses solid colours and white outlines on black.',
         items: [
@@ -338,6 +350,7 @@ RT.ui = (function () {
           { label: '🎥 Steady Camera', sub: onOff(G.steadyCameraOn()), action: toggleSteadyCamera },
           { label: '♾ Endless Bolts', sub: onOff(G.save.endlessBolts), action: toggleEndlessBolts },
           { label: '🔊 Sound', sub: onOff(soundOn()), action: toggleSound },
+          { label: '🥁 Music', sub: onOff(musicOn()), action: toggleMusic },
           { label: '← Back', sub: '', action: () => gotoMenuScreen('root') }
         ],
         speech: 'Settings. Press space to scan, return to change the highlighted option.'
@@ -1158,6 +1171,7 @@ RT.ui = (function () {
        so ask directly too rather than depending on that. Cheap and idempotent
        once the context is running. */
     audioFn('resume');
+    audioFn('musicResume'); // same gesture requirement, same idempotent-to-call-again shape
     if (e.repeat || (!canAct() && !overlayPhase())) return;
     if (e.code === 'Space') {
       e.preventDefault();
@@ -1265,6 +1279,18 @@ RT.ui = (function () {
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+
+    /* A mouse/touch-only player never fires onKeyDown, so its
+       audioFn('musicResume') call never runs for them — the shared
+       ios-audio-fix.js unlocks the AudioContext on a pointer gesture too,
+       but it only knows about AudioContext/SpeechSynthesis, not this game's
+       plain `<audio>` music element. Same event list as that shared script,
+       independently, so music starts for a pointer-only player exactly the
+       way it already does for a keyboard one. Calling musicResume() again
+       on every subsequent pointer press is harmless (it's a no-op once
+       playing), so this needs no cleanup/one-shot bookkeeping of its own. */
+    ['mousedown', 'touchstart'].forEach((evt) =>
+      document.addEventListener(evt, () => audioFn('musicResume'), { capture: true, passive: true }));
 
     if (U.sm()) U.sm().subscribe(() => resetAutoScan());
 

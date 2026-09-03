@@ -1,11 +1,18 @@
 /**
  * Benny's Ballista — audio.
  *
- * All sound is synthesised at runtime; the game ships no audio files, which is
- * what keeps it working from a bare file:// page with nothing to fetch or fail
- * to load. A single AudioContext is shared for the whole session, and every
- * entry point is wrapped defensively: if Web Audio misbehaves inside the
+ * Every REACTIVE sound (impacts, destruction, fanfare, UI blips) is still
+ * synthesised at runtime — that part of the design is unchanged, and is what
+ * keeps THOSE sounds working from a bare file:// page with nothing to fetch or
+ * fail to load. A single AudioContext is shared for the whole session, and
+ * every entry point is wrapped defensively: if Web Audio misbehaves inside the
  * Electron iframe the game keeps running silently rather than throwing.
+ *
+ * The one exception is the background music loop (see "Music" below): a real
+ * file, played through a plain HTML5 `<audio>` element, deliberately NOT
+ * routed through the AudioContext at all. See that section's own comment for
+ * why a loop wants different tools than a one-shot effect does, and
+ * README.md's "Third-party audio" section for the file's source and licence.
  *
  * The core (ensure / resume / chain / tone / noise / setEnabled) is ported from
  * BENNYSRACETRACKS' js/audio.js lines 1-252, including its `broken` flag and
@@ -44,6 +51,12 @@ RT.audio = (function () {
      Race Tracks and FishMaster already do it — turning sound off in one turns
      it off in all of them, which matches how the hub treats its TTS toggle. */
   let enabled = U.load('sound', true);
+  /* Separate from `enabled` on purpose — see the "Music" section below for
+     why a player might want one on without the other. Its own key (not
+     shared with `sound`) because no other RT game has a music loop yet; if
+     one grows one, sharing this key the way `sound` is shared is the right
+     move then, not now. */
+  let musicEnabled = U.load('music', true);
 
   /* Continuous flight whoosh */
   let flyGain = null, flyFilter = null, flySrc = null;
@@ -189,8 +202,11 @@ RT.audio = (function () {
     return true;
   }
 
-  /** Call once per frame from game.update(). */
-  function tick(dt) {
+  /** Call once per frame from game.update(). `phase` (game.js's CAM.phase)
+   *  is optional — omitting it just leaves the music wherever it already
+   *  was, which is what every OTHER caller of tick() (auditLevels() never
+   *  calls it at all; it doesn't run the frame loop) already expects. */
+  function tick(dt, phase) {
     if (rumbleCooldown > 0) rumbleCooldown -= dt;
     if (pendingRumble > 0.2 && rumbleCooldown <= 0) {
       const v = U.clamp(0.06 + pendingRumble * 0.05, 0.06, 0.30);
@@ -199,7 +215,99 @@ RT.audio = (function () {
       rumbleCooldown = 0.25;
     }
     pendingRumble *= Math.max(0, 1 - dt * 4);
+    if (phase !== undefined) musicTick(dt, phase);
   }
+
+  /* ── Music ─────────────────────────────────────────────────────────────
+   * A single looping background track — war drums, playing under a shot
+   * being composed. Everything else in this file is a one-shot effect built
+   * from oscillators/noise because a one-shot needs pitch/force/pan control
+   * the Web Audio graph gives for free; a LOOP needs none of that; it needs
+   * to play one file, forever, at a volume that drifts with what's on
+   * screen. A plain HTML5 `<audio loop>` element already does exactly that,
+   * with none of the AudioContext-in-Electron risk this file's header
+   * warns about — so the music is deliberately NOT part of the `ctx`/
+   * `master` graph above, and keeps playing (or stays correctly silent)
+   * whether or not that graph ever gets built. See README.md's "Third-party
+   * audio" section for where the file came from and its licence.
+   *
+   * Volume, not play/pause, is how this responds to the game — see
+   * musicTick()'s phase table. Actually pausing/resuming a real media
+   * element on every phase change risks an audible restart chirp and a
+   * decode hiccup on resume; fading the SAME playing loop up and down never
+   * does either. The one time this genuinely pauses is the Music setting
+   * itself being switched off — that has to stop real hardware activity,
+   * not just go quiet — and the very first start, which still waits for a
+   * user gesture the same way `resume()` above does for the AudioContext.
+   */
+  const MUSIC_SRC = 'audio/music/horde-war-drums-130bpm.mp3';
+  /* Per-phase target volume. AIM is the only phase with no clock on it —
+     the player may sit there for an hour — so it's the one place the music
+     gets to be a real presence. Everything from FLIGHT through RESULTS is
+     the cinematic: destruction audio there is load-bearing (README — a
+     player who can't resolve the blocks visually still has to be able to
+     tell what just broke), so music ducks well under it rather than
+     competing for the same frequency space. RESULTS_MENU/OUTOFBOLTS duck
+     further still, under whichever sting (win()/outOfBolts() below) is
+     playing right then. MENU (pause) goes to zero, same as any game pausing
+     its music, but still by fading rather than pausing the element. */
+  const MUSIC_VOL = { AIM: 0.022, ATTRACT: 0.022, CINEMATIC: 0.011, RESULT: 0.0055, MENU: 0 };
+  const MUSIC_FADE_PER_S = 1.0; // full-scale fade takes ~1s; a phase change is never that abrupt
+
+  let musicEl = null;
+  let musicVol = 0;
+
+  function ensureMusic() {
+    if (musicEl) return musicEl;
+    try {
+      musicEl = new Audio(MUSIC_SRC);
+      musicEl.loop = true;
+      musicEl.volume = 0;
+    } catch (e) { musicEl = null; }
+    return musicEl;
+  }
+
+  /** Starts the loop. Call from the same first-gesture handler that calls
+   *  resume() — browsers block a real `<audio>` element's playback before a
+   *  gesture exactly the same way they suspend an AudioContext, so this
+   *  needs the identical trigger. Safe to call again on every subsequent
+   *  gesture too: a second `.play()` on an already-playing element is a
+   *  harmless no-op. */
+  function musicResume() {
+    if (!musicEnabled) return;
+    const el = ensureMusic();
+    if (!el) return;
+    try { if (el.paused) el.play().catch(() => {}); } catch (e) { /* ignore */ }
+  }
+
+  function musicTarget(phase) {
+    if (phase === 'MENU') return MUSIC_VOL.MENU;
+    if (phase === 'RESULTS_MENU' || phase === 'OUTOFBOLTS') return MUSIC_VOL.RESULT;
+    if (phase === 'AIM' || phase === 'ATTRACT') return MUSIC_VOL.AIM;
+    return MUSIC_VOL.CINEMATIC; // FLIGHT / IMPACT / SETTLE / RESULTS
+  }
+
+  function musicTick(dt, phase) {
+    if (!musicEl || !musicEnabled) return;
+    const target = musicTarget(phase);
+    musicVol += U.clamp(target - musicVol, -MUSIC_FADE_PER_S * dt, MUSIC_FADE_PER_S * dt);
+    try { musicEl.volume = U.clamp(musicVol, 0, 1); } catch (e) { /* ignore */ }
+  }
+
+  /** Actually stops playback — used only by the Music setting itself, never
+   *  by a phase change (see the section header above for why). */
+  function stopMusic() {
+    musicVol = 0;
+    if (!musicEl) return;
+    try { musicEl.pause(); } catch (e) { /* ignore */ }
+  }
+
+  function setMusicEnabled(on) {
+    musicEnabled = !!on;
+    U.save('music', musicEnabled);
+    if (musicEnabled) musicResume(); else stopMusic();
+  }
+  function isMusicEnabled() { return musicEnabled; }
 
   /* ── Material impacts ─────────────────────────────────────────────────────
    * `energy` is an impact speed in world units; `pan` is -1..1 screen position.
@@ -438,6 +546,7 @@ RT.audio = (function () {
     guardDown, crownTopple, win, outOfBolts,
     menuMove, menuSelect, menuBlocked,
     tone, noise,
+    musicResume, setMusicEnabled, isMusicEnabled,
 
     /* Same convention as js/game.js and js/ui.js. The context is created
      * lazily by the first sound that actually plays, which makes `ctxExists`
@@ -450,7 +559,12 @@ RT.audio = (function () {
       broken: () => broken,
       flightRunning: () => flyRunning,
       pendingRumble: () => pendingRumble,
-      liveVoices: () => voiceTimes.length
+      liveVoices: () => voiceTimes.length,
+      musicEnabled: () => musicEnabled,
+      musicExists: () => !!musicEl,
+      musicPaused: () => (musicEl ? musicEl.paused : null),
+      musicVolume: () => (musicEl ? musicEl.volume : null),
+      musicTarget: (phase) => musicTarget(phase)
     }
   };
 })();
