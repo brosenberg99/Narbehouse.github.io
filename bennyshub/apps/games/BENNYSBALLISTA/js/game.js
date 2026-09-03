@@ -352,7 +352,12 @@ RT.game = (function () {
    * Ties one Ammo body to one Three.js mesh — loadLevel() below is what
    * calls this once per parsed block spec from RT.levels.parseLevel().
    */
-  function spawnBlock(matId, x, y, z, w, h, d) {
+  /** `spec` is one js/levels.js parser block — {matId, x, y, z, w, h, d} plus
+   *  the cell provenance (layer/row/col) the parser attaches. It's kept on
+   *  the record so anything reporting a problem with a block can name the
+   *  cell its author actually drew rather than a world-space coordinate. */
+  function spawnBlock(spec) {
+    const { matId, x, y, z, w, h, d } = spec;
     const mat = D.MAT[matId];
     const color = css(mat.css.replace('--', ''));
     const mesh = A.buildBlock(w, h, d, color, { glow: !!mat.crown, shape: mat.shape });
@@ -365,7 +370,7 @@ RT.game = (function () {
     const rec = {
       mesh: mesh, body: body, mat: mat, alive: true,
       half: new THREE.Vector3(w / 2, h / 2, d / 2),
-      hp: mat.hp
+      hp: mat.hp, spec: spec
     };
     blocks.push(rec);
     return rec;
@@ -520,7 +525,12 @@ RT.game = (function () {
     levelIx = ((ix % LV.LEVELS.length) + LV.LEVELS.length) % LV.LEVELS.length;
     liveLevel = LV.LEVELS[levelIx];
     const parsed = LV.parseLevel(liveLevel);
-    for (const b of parsed.blocks) spawnBlock(b.matId, b.x, b.y, b.z, b.w, b.h, b.d);
+    for (const b of parsed.blocks) spawnBlock(b);
+    /* Bond touching boards into one assembly — spawnBlock() appends in the
+       order it's called, so a weldPairs() index IS the blocks[] index. Every
+       body has to exist before any weld references it, hence a second pass
+       rather than welding inside the loop above. */
+    for (const [i, j] of LV.weldPairs(parsed.blocks)) P.addWeld(blocks[i].body, blocks[j].body);
 
     AIM_LOOKAT.z = -liveLevel.dist;
     if (world) W.recenterShadow(world, liveLevel.dist);
@@ -556,25 +566,42 @@ RT.game = (function () {
     }
   }
 
+  /** Describes a block the way a level author drew it — the cell provenance
+   *  js/levels.js's parser attaches to every spec — since "the board at layer
+   *  2, row 5, col 6" is something you can go and look at, and a world-space
+   *  Y is not. */
+  function whereBlock(b) {
+    const s = b.spec;
+    if (!s) return b.mat.id;
+    return `${b.mat.name} at layer ${s.layer + 1}, row ${s.row + 1}, col ${s.col + 1}`;
+  }
+
   function auditLevelsInner() {
-    const steps = Math.ceil(4 / CFG.DT);
     for (let ix = 0; ix < LV.LEVELS.length; ix++) {
       loadLevel(ix);
       const name = LV.LEVELS[ix].name;
-      const before = blocks.filter((b) => b.mat.crown).map((b) => b.mesh.position.clone());
-      for (let i = 0; i < steps; i++) stepPhysicsWithImpacts(CFG.DT);
-      const after = blocks.filter((b) => b.mat.crown);
-      if (after.length !== before.length) {
-        throw new Error(`auditLevels: "${name}" lost a crown just from standing (${before.length} -> ${after.length})`);
+      /* Same shared verdict the editor's stability button computes — see
+         RT.settle.standingReport() for why asking "did anything move or die"
+         beats asking "is it quiet yet", and for what shipped while the two
+         callers were each asking their own narrower question. */
+      const report = RT.settle.standingReport(blocks, undefined, {
+        onImpact: (b, drop) => { sfx('impact', b.mat, drop, panFor(b.mesh.position)); },
+        onDestroy: destroyBlockRec
+      });
+      checkWin();
+      if (report.crownsLost.length) {
+        throw new Error(`auditLevels: "${name}" lost a crown just from standing (${whereBlock(report.crownsLost[0])})`);
       }
-      for (let i = 0; i < after.length; i++) {
-        const moved = after[i].mesh.position.distanceTo(before[i]);
-        if (moved > 0.05) {
-          throw new Error(`auditLevels: "${name}" crown ${i} moved ${moved.toFixed(3)} units while settling — it doesn't stand on its own`);
-        }
+      if (report.destroyed.length) {
+        throw new Error(`auditLevels: "${name}" destroyed ${report.destroyed.length} piece(s) just from standing — first: ${whereBlock(report.destroyed[0])}. It doesn't stand on its own.`);
       }
-      const awake = blocks.some((b) => b.alive && !b.mat.static && P.isAwake(b.body));
-      if (awake) throw new Error(`auditLevels: "${name}" never settled to sleep within ${steps} steps`);
+      if (report.moved.length) {
+        const w = report.worst;
+        throw new Error(`auditLevels: "${name}" shifted ${report.moved.length} piece(s) while settling — worst: ${whereBlock(w.rec)} moved ${w.dist.toFixed(3)} units (limit ${RT.settle.STILL_EPS}). It doesn't stand on its own.`);
+      }
+      if (report.awake.length) {
+        throw new Error(`auditLevels: "${name}" never settled to sleep within ${report.steps} steps (${report.awake.length} still awake, e.g. ${whereBlock(report.awake[0])})`);
+      }
     }
   }
 

@@ -110,5 +110,74 @@ RT.settle = (function () {
     return { steps: steps };
   }
 
-  return { step: step, settle: settle, DEFAULT_SECONDS: 4 };
+  /** How far a piece may shift while settling and still count as having
+   *  stayed put. Long the crown's own tolerance; standingReport() below holds
+   *  every piece to it, so it is now one number rather than a per-caller
+   *  choice. */
+  const STILL_EPS = 0.05;
+
+  /** Simulated seconds a castle gets to prove it stands. */
+  const DEFAULT_SECONDS = 4;
+
+  /**
+   * "Does this castle stand on its own?", computed once for every caller that
+   * asks — js/game.js's boot audit and the level editor's stability button.
+   * Settles `recs` and reports what standing there alone did to them.
+   *
+   * Both callers used to ask this question themselves, and they asked
+   * DIFFERENT questions: each only ever compared CROWN positions, and leaned
+   * on "is anything still awake at 4 seconds" to notice everything else. That
+   * let a castle through whose four board frames free-fell eight units and
+   * shattered on landing the instant it loaded — no crown was touched, so the
+   * only check that could object was the sleep deadline, and whether a pile of
+   * debris has gone quiet by an arbitrary 4-second mark is a stopwatch race
+   * that Bullet resolves differently depending on what the physics world did
+   * beforehand. The editor won that race and shipped the level; the game lost
+   * it and refused to boot.
+   *
+   * So the real question is asked directly instead: did anything MOVE, and did
+   * anything DIE, from merely being stood up? Both are facts about the castle
+   * rather than about the clock, both are decided long before any deadline,
+   * and either one is enough on its own. The sleep check stays as a backstop
+   * for genuine jitter, but it is no longer the only thing standing between a
+   * collapsing castle and a clean verdict.
+   *
+   * Every entry carries the `rec` it describes, so a caller can name the
+   * failure in whatever coordinates it knows about (the editor has cell
+   * provenance on `rec.spec`; the game has the material and a world position)
+   * without this needing to know about either.
+   */
+  function standingReport(recs, seconds, hooks) {
+    const starts = recs.map((r) => r.mesh.position.clone());
+    const destroyed = [];
+    const res = settle(recs, seconds === undefined ? DEFAULT_SECONDS : seconds, {
+      onImpact: hooks && hooks.onImpact,
+      onDestroy: (rec) => {
+        destroyed.push(rec);
+        if (hooks && hooks.onDestroy) hooks.onDestroy(rec);
+      }
+    });
+    const moved = [];
+    const awake = [];
+    for (let i = 0; i < recs.length; i++) {
+      const r = recs[i];
+      if (!r.alive) continue;
+      const dist = r.mesh.position.distanceTo(starts[i]);
+      if (dist > STILL_EPS) moved.push({ rec: r, dist: dist });
+      if (!r.mat.static && P.isAwake(r.body)) awake.push(r);
+    }
+    moved.sort((a, b) => b.dist - a.dist);
+    return {
+      steps: res.steps,
+      stands: !destroyed.length && !moved.length && !awake.length,
+      destroyed: destroyed,
+      crownsLost: destroyed.filter((r) => r.mat.crown),
+      moved: moved,
+      worst: moved.length ? moved[0] : null,
+      awake: awake
+    };
+  }
+
+  return { step: step, settle: settle, standingReport: standingReport,
+           STILL_EPS: STILL_EPS, DEFAULT_SECONDS: DEFAULT_SECONDS };
 })();

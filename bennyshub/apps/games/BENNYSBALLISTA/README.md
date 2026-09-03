@@ -117,7 +117,7 @@ the current shot over in the new mode, the same reset a retry goes through.
 | `Q` | Guard (spear) | A real, placed target, not the decorative pair standing beside the ballista. Worth real points — see "Scoring" below. Drawn as the baked `guard-spear` model. |
 | `H` | Guard (halberd) | Same as `Q`, a different pose (`guard-halberd`) so a level can mix the two. |
 | `X` | Steel girder | Never breaks and never moves. Go around it. |
-| `B` | Timber board | Thin (15% of a cell) and mergeable, sitting flush on its own row's floor instead of filling the cell — for bridges, ceilings and floors. See "Boards" below. |
+| `B` | Timber board | Thin (15% of a cell) and mergeable, sitting flush on its own row's floor instead of filling the cell — for bridges, ceilings and floors. Boards that touch are bonded, so a span can turn a corner and still be held up. See "Boards" below. |
 | `w` / `s` / `i` | Small rubble | Half-size, lighter, never welds to a neighbour — loose debris. |
 
 **Some pieces have their own silhouette, and that is deliberate.** Two things
@@ -171,6 +171,9 @@ below.
 Every piece of every castle is a real Ammo.js (Bullet) rigid body from the
 moment the level loads — not a special case for "loose" pieces. That means
 there is no hand-written "is this block held up?" check anywhere in the game.
+(The one thing the parser does add is a real Bullet *constraint* between
+touching boards — see "Boards" below. That is still the solver doing the
+holding-up; it just knows the joint is there.)
 A well-built castle stands because Bullet's own contact solver is
 distributing weight through it via friction and normal force, exactly the
 way a real stack of blocks does. Knock the right piece out and the same
@@ -284,6 +287,31 @@ This opens up patterns the other materials can't: a bridge spanning a gap on
 two end supports with an open shaft in between (see "The Bridge"), or a roof
 over a crown that a lob thuds into while a flat shot sails underneath at the
 crown's own height (see "The Vaulted Hall" family).
+
+**Boards that touch are bonded, and that is what lets a span turn a corner.**
+Two board bodies meeting face-to-face are joined by a real Bullet constraint
+(`js/levels.js`'s `weldPairs()`, applied by `js/physics.js`'s `addWeld()`), so
+a run of boards carries load across the joint the way nailed timber does.
+
+This is a different mechanism from the row/depth **merge** above, and the
+difference is the point. A merge fuses cells into ONE body with one hp, which
+only works for a straight run — so a floor that runs *around* an open shaft (a
+span across the front, a span across the back, and a rail down each side
+through depth) necessarily comes out as four separate bodies, and each of those
+is judged on what sits directly beneath it *alone*. For the two side rails that
+is nothing at all: they are held up by pillars in the layers in *front of* and
+*behind* them, which the "each layer stands on its own" rule can't see. Drawn
+that way, all four of The Watchtower's floors used to drop out the instant the
+level loaded. Welded, each floor is one assembly resting on its four corner
+pillars, exactly as drawn.
+
+A weld is not armour. Each board keeps **its own hp** and dies on its own, and
+a dying board takes its welds with it (`removeWeldsFor()`, which also wakes
+whatever was on the other end — losing a weld is not a collision event, so
+without that a board held up only by the weld that just vanished would sleep on
+in mid-air). So a struck floor loses the board you hit, and whatever that board
+was holding up is then free to come down. Only `B` welds today; it's a
+per-material flag (`weld:true` in `js/data.js`), not a property of thin things.
 
 **Drawing something directly above a board (or a small-rubble chunk) now
 rests flush on its real surface**, no gap — `js/levels.js`'s `rowBottoms()`
@@ -459,14 +487,30 @@ Two things to check after drawing one:
 
 1. **It must stand up** (`auditLevels()`, a boot-time assertion in
    `js/game.js`, throws on failure) — build it, step a few seconds of
-   physics, and confirm no crown drifted, none was destroyed by collateral
-   damage, and nothing is still awake. If it collapses the moment the level
+   physics, and confirm that **nothing moved and nothing broke**: no piece
+   shifted more than `RT.settle.STILL_EPS`, no piece was destroyed, and
+   nothing is still awake at the end. If it collapses the moment the level
    loads, it genuinely wasn't standing on its own: check that every piece
-   sits on the ground or on something wide enough underneath it, and mind
-   the small-rubble caveat under Physics above (a beam with only rubble for
-   legs can sag and fall). `editor.html`'s stability test runs the identical
-   check, idempotently, without needing to touch the shipped `LEVELS` array
-   first.
+   sits on the ground, on something wide enough underneath it, or on a board
+   it can bond to that has one (see "Boards" above), and mind the
+   small-rubble caveat under Physics above (a beam with only rubble for legs
+   can sag and fall).
+
+   `editor.html`'s stability test is not a reimplementation of this — both
+   call the same `RT.settle.standingReport()` (`js/settle.js`) and build the
+   same welds, so the two cannot reach different verdicts about the same
+   castle. **They used to, and it shipped a broken level.** Each asked only
+   about CROWN positions and leaned on "is anything still awake at 4
+   seconds" to notice everything else, which let a castle through whose four
+   board frames free-fell up to eight units and shattered on landing — no
+   crown was touched, so the only check that could object was the sleep
+   deadline, and whether a pile of debris has gone quiet by an arbitrary
+   4-second mark is a stopwatch race Bullet resolves differently depending on
+   what the physics world did beforehand. The editor won that race; the game
+   lost it and refused to boot. Asking "did anything move, did anything die"
+   is a fact about the castle rather than about the clock, and it is decided
+   long before any deadline. If you add another check here, put it there, not
+   in one caller.
 2. **Ammo range is sanity-checked, not required** (`auditAmmoOffers()`, pure
    arithmetic against `maxRange()`/`minRange()`, warn-only, never throws) —
    if none of a level's offered ammo can physically reach it at all, or an

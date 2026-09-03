@@ -1521,11 +1521,12 @@ RT.editor = (function () {
    * same state, unlike the old check which left bodies wherever 4s of
    * simulation put them and compared the NEXT run against that.
    *
-   * Using RT.settle rather than a bare P.step loop closes the real gap the
-   * old check had: applyCrush() can kill a crown IN PLACE (crushed by a
-   * falling block resting on it), which may never drift the 0.05 units a
-   * pure-settling check watches for. This test now catches that the same way
-   * the game's own boot audit does — see the crown-count condition below.
+   * The verdict itself is NOT computed here — RT.settle.standingReport() is
+   * the single implementation this and the game's boot audit both call, so
+   * the two can't ask different questions about the same castle. They used to,
+   * and it shipped a broken level: see that function's own comment. The welds
+   * below are part of the same discipline — build what the game builds, or the
+   * agreement is only skin deep.
    *
    * Mass uses the same w*h*d-for-dynamic/0-for-static rule game.js:337 uses;
    * a different rule here would make this test lie about whether the real
@@ -1546,27 +1547,21 @@ RT.editor = (function () {
       mesh.position.set(b.x, b.y, b.z);
       return {
         body: body, mesh: mesh, mat: mat, spec: b, alive: true, hp: mat.hp,
-        _peakSpeed: 0, _peakResolved: false, _lastHitSpeed: 0,
-        start: new THREE.Vector3(b.x, b.y, b.z)
+        _peakSpeed: 0, _peakResolved: false, _lastHitSpeed: 0
       };
     });
-    const crownRecs = testRecs.filter((r) => r.mat.crown);
-    const destroyedCrowns = [];
-    RT.settle.settle(testRecs, RT.settle.DEFAULT_SECONDS, {
+    /* The same bonds the real game builds (js/game.js's loadLevel) — without
+       these the test would judge a welded span as loose bodies and disagree
+       with the game about the very levels welds exist for. */
+    for (const [i, j] of LV.weldPairs(live.recs.map((r) => r.spec))) {
+      P.addWeld(testRecs[i].body, testRecs[j].body);
+    }
+    const report = RT.settle.standingReport(testRecs, RT.settle.DEFAULT_SECONDS, {
       onDestroy: (rec) => {
         rec.alive = false;
         P.destroyBlock(rec.body);
-        if (rec.mat.crown) destroyedCrowns.push(rec);
       }
     });
-    let worst = 0, worstRec = null;
-    for (const r of crownRecs) {
-      if (!r.alive) continue; // reported via destroyedCrowns instead
-      const moved = r.mesh.position.distanceTo(r.start);
-      if (moved > worst) { worst = moved; worstRec = r; }
-    }
-    const awake = testRecs.some((r) => r.alive && !r.mat.static && P.isAwake(r.body));
-    const pass = destroyedCrowns.length === 0 && worst <= 0.05 && !awake;
     for (const r of testRecs) {
       if (r.alive) P.destroyBlock(r.body);
       r.mesh.geometry.dispose();
@@ -1577,16 +1572,45 @@ RT.editor = (function () {
     // instant it's set. Idempotent either way: the doc/scene end up identical
     // regardless of the order, but the user actually gets to read the result.
     rebuild();
-    els.checkResult.className = pass ? 'pass' : 'fail';
-    if (pass) {
-      els.checkResult.textContent = 'Stands on its own. Worst crown drift: ' + worst.toFixed(4) + ' units. All bodies asleep.';
-    } else if (destroyedCrowns.length) {
-      const where = destroyedCrowns.map((r) => '(layer ' + (r.spec.layer + 1) + ', row ' + (r.spec.row + 1) + ', col ' + (r.spec.col + 1) + ')').join(', ');
-      els.checkResult.textContent = 'Does not stand on its own: ' + destroyedCrowns.length + ' crown(s) destroyed just settling ' + where + ' — likely crushed by a falling block, or an outright fall. Not merely drifted; actually destroyed.';
-    } else {
-      const where = worstRec ? (' (layer ' + (worstRec.spec.layer + 1) + ', row ' + (worstRec.spec.row + 1) + ', col ' + (worstRec.spec.col + 1) + ')') : '';
-      els.checkResult.textContent = 'Does not stand on its own.\nWorst crown drift: ' + worst.toFixed(4) + ' units' + where + ' (fail if > 0.05).\nStill awake: ' + awake + '.';
+    els.checkResult.className = report.stands ? 'pass' : 'fail';
+    els.checkResult.textContent = verdictText(report);
+  }
+
+  /** The report in the author's own terms — which piece, in which cell, and
+   *  what standing there did to it. Every failing case names a specific
+   *  block: "does not stand on its own" with nothing to go and look at is the
+   *  hardest kind of result to act on. */
+  function cellOf(rec) {
+    const s = rec.spec;
+    return rec.mat.name + ' (layer ' + (s.layer + 1) + ', row ' + (s.row + 1) + ', col ' + (s.col + 1) + ')';
+  }
+  function verdictText(report) {
+    if (report.stands) {
+      return 'Stands on its own. Nothing moved, nothing broke, all bodies asleep after '
+        + RT.settle.DEFAULT_SECONDS + 's.';
     }
+    const lines = ['Does not stand on its own.'];
+    if (report.crownsLost.length) {
+      lines.push('· ' + report.crownsLost.length + ' crown(s) DESTROYED just settling: '
+        + report.crownsLost.map(cellOf).join(', ')
+        + ' — an outright fall, or crushed in place by something falling on it.');
+    }
+    const other = report.destroyed.filter((r) => !r.mat.crown);
+    if (other.length) {
+      lines.push('· ' + other.length + ' other piece(s) destroyed just settling: '
+        + other.slice(0, 4).map(cellOf).join(', ') + (other.length > 4 ? ', …' : '')
+        + ' — these fell and broke on landing.');
+    }
+    if (report.moved.length) {
+      lines.push('· ' + report.moved.length + ' piece(s) shifted (limit ' + RT.settle.STILL_EPS
+        + ' units). Worst: ' + cellOf(report.worst.rec) + ' moved ' + report.worst.dist.toFixed(3) + ' units.');
+    }
+    if (report.awake.length) {
+      lines.push('· ' + report.awake.length + ' piece(s) still moving after '
+        + RT.settle.DEFAULT_SECONDS + 's, e.g. ' + cellOf(report.awake[0]) + '.');
+    }
+    lines.push('A piece with nothing under it needs a support below, or a board it can bond to that has one.');
+    return lines.join('\n');
   }
   document.getElementById('btnCheck').addEventListener('click', runStabilityTest);
 

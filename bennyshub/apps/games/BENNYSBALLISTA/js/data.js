@@ -253,8 +253,20 @@ RT.data = (function () {
        small/static/glass/explodes pattern) — it thins the block to
        PLANK_FRAC of a cell and sits it flush on its own row's floor instead
        of filling the cell, for ceilings/floors/bridges. See js/levels.js and
-       the board authoring rule in README.md. */
-    B:{ id:'B', name:'timber board',      hp: 24,  css:'--wood',   family:'wood',  mergeable:true, plank:true },
+       the board authoring rule in README.md.
+
+       `weld` is what makes those spans structural: two touching bodies of a
+       welding material bond into one assembly (js/levels.js's weldPairs(),
+       realised as real Bullet constraints by js/physics.js's addWeld()), so a
+       run of boards carries load across the joint the way nailed timber does
+       — otherwise a span that turns a corner has nothing under the corner and
+       drops out on load. Deliberately NOT the same idea as `mergeable`: a
+       merge fuses cells into ONE body with one hp, which only works for a
+       straight run of a single box; a weld joins SEPARATE bodies that each
+       keep their own hp, so a struck board still breaks on its own and frees
+       its neighbours to tumble. Set on `B` alone: boards are the only
+       material whose job is to span open air between supports. */
+    B:{ id:'B', name:'timber board',      hp: 24,  css:'--wood',   family:'wood',  mergeable:true, plank:true, weld:true },
     w:{ id:'w', name:'small wood chunk',  hp: 14,  css:'--wood',   family:'wood',  small:true },
     s:{ id:'s', name:'small stone chunk', hp: 30,  css:'--stone',  family:'stone', small:true },
     i:{ id:'i', name:'small glass shard', hp: 5,   css:'--glass',  family:'glass', small:true, glass:true }

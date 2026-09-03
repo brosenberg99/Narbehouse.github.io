@@ -321,6 +321,65 @@ RT.levels = (function () {
     return { blocks: blocks, cols: cols, rows: rows, numLayers: numLayers, crownCount: crownCount };
   }
 
+  /**
+   * Which pairs of parseLevel() blocks are bonded into one structural
+   * assembly — returned as `[i, j]` index pairs into the array passed in, for
+   * js/physics.js's addWeld() to realise as real Bullet constraints. Pure
+   * geometry; knows nothing about bodies.
+   *
+   * A weld joins two SEPARATE bodies that keep their own hp, which is what
+   * makes it the right tool where a merge is the wrong one. The row/depth
+   * merges in parseLevel() above can only fuse a straight run into a single
+   * box, so a span that turns a corner necessarily comes out as several
+   * bodies — and each of those is then judged on what sits directly beneath
+   * it ALONE, which for the middle of a span is nothing at all. That is why a
+   * board frame (a floor running around an open shaft: a span across the
+   * front, a span across the back, and a rail down each side through depth)
+   * used to drop out the instant a level loaded even though it is supported at
+   * all four corners. Welded, the frame is one assembly resting on those
+   * corners, exactly as its author drew it; destroy any one board and only
+   * that board dies, freeing whatever it was holding to fall.
+   *
+   * The rule is deliberately narrow — same material, `weld:true` (only `B`
+   * today, see js/data.js), and genuinely face-to-face. Two blocks that meet
+   * along an edge or at a corner only, with no shared face area, are not
+   * bonded: nothing is load-bearing there.
+   */
+  const WELD_EPS = 1e-6;
+  function weldPairs(blocks) {
+    const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
+    const ext = blocks.map((b) => ({
+      x0: b.x - b.w / 2, x1: b.x + b.w / 2,
+      y0: b.y - b.h / 2, y1: b.y + b.h / 2,
+      z0: b.z - b.d / 2, z1: b.z + b.d / 2,
+      weld: !!(MAT[b.matId] && MAT[b.matId].weld)
+    }));
+    /* Face contact on one axis needs POSITIVE overlap on the other two — an
+       edge-on or corner-on meeting has zero area on at least one of them and
+       carries no load. */
+    function touching(A, B) {
+      if (Math.abs(A.x1 - B.x0) < WELD_EPS || Math.abs(B.x1 - A.x0) < WELD_EPS) {
+        return overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS;
+      }
+      if (Math.abs(A.y1 - B.y0) < WELD_EPS || Math.abs(B.y1 - A.y0) < WELD_EPS) {
+        return overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS;
+      }
+      if (Math.abs(A.z1 - B.z0) < WELD_EPS || Math.abs(B.z1 - A.z0) < WELD_EPS) {
+        return overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS;
+      }
+      return false;
+    }
+    const pairs = [];
+    for (let i = 0; i < blocks.length; i++) {
+      if (!ext[i].weld) continue;
+      for (let j = i + 1; j < blocks.length; j++) {
+        if (!ext[j].weld || blocks[j].matId !== blocks[i].matId) continue;
+        if (touching(ext[i], ext[j])) pairs.push([i, j]);
+      }
+    }
+    return pairs;
+  }
+
   /* ── Levels ───────────────────────────────────────────────────────────────
    * `dist` is the castle's centre distance downrange (see data.js's
    * castleBounds/rangeWindow) — retuned 2026-08-30 for real cinematic flight
@@ -440,12 +499,113 @@ RT.levels = (function () {
     'S...S'
   ]
 ] },
-    { name: 'Scaffold Twins', par: 2, bolts: 7, dist: 26, layers: [[
-      '.K.....K.',
-      'WWWWWWWWW',
-      'W.......W',
-      'W.......W'
-    ]] },
+    { name: 'The Watchtower', par: 2, bolts: 7, dist: 26, layers: [
+  [
+    '.....WW.QWW..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W....W..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....WQ...W..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W...HW..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W....W..........'
+  ],
+  [
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................'
+  ],
+  [
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................'
+  ],
+  [
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................'
+  ],
+  [
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................',
+    '.....B....B..........',
+    '.....................',
+    '.....................'
+  ],
+  [
+    '.....WW.KWW..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W..H.W..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W....W..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W....W..........',
+    '.....BBBBBB..........',
+    '.....W....W..........',
+    '.....W....W..........'
+  ],
+  [
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................',
+    '.....................'
+  ]
+] },
     { name: 'The Long Colonnade', par: 2, bolts: 7, dist: 27, layers: [[
       '....K....',
       '.WWWWWWW.',
@@ -732,7 +892,11 @@ RT.levels = (function () {
         '...............',
         '...............',
         '...............',
-        'S.......S.IIS.S',           // merlons + an arrow-slit over the right gate
+        'S.......SIIII.S',           // merlons + an arrow-slit over the right gate,
+                                     // spanning cols 10-13 so its two end cells sit on
+                                     // the gate's own jambs. At cols 11-12 (the gate's
+                                     // exact width) the pane had nothing whatsoever
+                                     // beneath it and dropped into the gateway on load.
         'SS.....SSS..SSS',           // gates — cols 2-6 (widened) and 10-11
         'SS.....SSS..SSS',
         'SSSSSSSSSSSSSSS'            // solid base
@@ -784,7 +948,7 @@ RT.levels = (function () {
 
   return {
     CELL: CELL, PLANK_FRAC: PLANK_FRAC, LEVELS: LEVELS,
-    parseLevel: parseLevel, layerZ: layerZ, cellCentre: cellCentre,
+    parseLevel: parseLevel, weldPairs: weldPairs, layerZ: layerZ, cellCentre: cellCentre,
     cellThickness: cellThickness, rowBottoms: rowBottoms
   };
 })();

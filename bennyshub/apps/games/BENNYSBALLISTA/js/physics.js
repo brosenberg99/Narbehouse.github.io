@@ -132,9 +132,83 @@ RT.physics = (function () {
     return body;
   }
 
+  /* ── Welds ────────────────────────────────────────────────────────────────
+   * A weld is a real btFixedConstraint between two bodies that touch, making
+   * them one structural assembly while each stays its own body with its own
+   * hp — see js/levels.js's weldPairs() for which pairs get one and why a
+   * merge can't do this job.
+   *
+   * Bullet gives no notification when a body a constraint references goes
+   * away, and a constraint left pointing at freed memory is a crash rather
+   * than a glitch — so removeRigidBody() must never happen while a weld still
+   * names that body. destroyBlock() below therefore drops a body's welds
+   * itself instead of trusting callers to remember (game.js's
+   * destroyBlockRec, its clearBlocks, and the editor's stability test would
+   * each have to, and one of them would eventually not).
+   *
+   * `welds` holds the JS wrapper objects handed to addWeld(), so identity
+   * comparison against the `body` a caller passes back is exact — the same
+   * wrapper instance travels from addBlock() through the caller's own record.
+   */
+  let welds = [];
+
+  /** Bonds two touching bodies into one assembly. Called at level build
+   *  time, before anything has moved, so both bodies are still unrotated and
+   *  a shared world pivot midway between their centres is enough to pin the
+   *  joint — no basis maths needed. Collisions between the pair are disabled
+   *  (addConstraint's second argument): once welded, their touching faces
+   *  would otherwise have the contact solver and the constraint solver both
+   *  trying to own the same joint, which reads as jitter. */
+  function addWeld(bodyA, bodyB) {
+    const pa = bodyA.getCenterOfMassTransform().getOrigin();
+    const ax = pa.x(), ay = pa.y(), az = pa.z();
+    const pb = bodyB.getCenterOfMassTransform().getOrigin();
+    const bx = pb.x(), by = pb.y(), bz = pb.z();
+    const px = (ax + bx) / 2, py = (ay + by) / 2, pz = (az + bz) / 2;
+
+    const frameA = new Ammo.btTransform();
+    frameA.setIdentity();
+    _v0.setValue(px - ax, py - ay, pz - az);
+    frameA.setOrigin(_v0);
+
+    const frameB = new Ammo.btTransform();
+    frameB.setIdentity();
+    _v0.setValue(px - bx, py - by, pz - bz);
+    frameB.setOrigin(_v0);
+
+    const c = new Ammo.btFixedConstraint(bodyA, bodyB, frameA, frameB);
+    world.addConstraint(c, true);
+    // Bullet copies the frames into the constraint; these two were ours.
+    Ammo.destroy(frameA);
+    Ammo.destroy(frameB);
+
+    welds.push({ c: c, a: bodyA, b: bodyB });
+    return c;
+  }
+
+  /** Drops every weld naming `body` and wakes whatever was on the other end.
+   *  The wake matters for the same reason wake() below exists at all: losing
+   *  a constraint is not a collision event, so a body held up only by a weld
+   *  that just vanished would sleep on in mid-air rather than fall. */
+  function removeWeldsFor(body) {
+    const kept = [];
+    for (const wd of welds) {
+      if (wd.a !== body && wd.b !== body) { kept.push(wd); continue; }
+      world.removeConstraint(wd.c);
+      Ammo.destroy(wd.c);
+      const other = wd.a === body ? wd.b : wd.a;
+      if (other !== body) other.activate(true);
+    }
+    welds = kept;
+  }
+
+  function weldCount() { return welds.length; }
+
   /** The shape is shared (see boxShape() above) and outlives this body, so
-   *  only the body's own motion state and the body itself are destroyed. */
+   *  only the body's own motion state and the body itself are destroyed. Any
+   *  weld naming this body goes first — see the Welds note above. */
   function destroyBlock(body) {
+    removeWeldsFor(body);
     world.removeRigidBody(body);
     const ms = body.getMotionState();
     if (ms) Ammo.destroy(ms);
@@ -185,6 +259,8 @@ RT.physics = (function () {
 
   function dispose() {
     if (!world) return;
+    for (const wd of welds) { world.removeConstraint(wd.c); Ammo.destroy(wd.c); }
+    welds = [];
     for (const key in shapeCache) { Ammo.destroy(shapeCache[key]); delete shapeCache[key]; }
     if (groundBody) {
       world.removeRigidBody(groundBody);
@@ -196,5 +272,6 @@ RT.physics = (function () {
     world = null;
   }
 
-  return { init, addBlock, destroyBlock, step, sync, speed, isAwake, addVelocity, wake, dispose };
+  return { init, addBlock, destroyBlock, addWeld, removeWeldsFor, weldCount,
+           step, sync, speed, isAwake, addVelocity, wake, dispose };
 })();
