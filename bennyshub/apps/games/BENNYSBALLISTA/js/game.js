@@ -184,6 +184,7 @@ RT.game = (function () {
     phase: 'ATTRACT',
     attractT: 0,
     impactPoint: new THREE.Vector3(),
+    lookAt: new THREE.Vector3(),      // what the cinematic camera aims at — see seatLookAt()
     seatPos: new THREE.Vector3(),
     impactT: 0,
     settleT: 0,
@@ -1191,17 +1192,28 @@ RT.game = (function () {
    * preference); prefer a three-quarter view over dead side-on; prefer
    * seeing the most destructible mass still in play.
    */
-  const SEAT_RADIUS = 4.5, SEAT_HEIGHT = 2.4, SEAT_STEPS = 8;
+  const SEAT_STEPS = 8;
   const THREE_QUARTER_RAD = 60 * Math.PI / 180;
 
   const _segPoint = new THREE.Vector3();
+  const SEAT_SAMPLE_STEP = 0.5;
   /** Cheap occlusion test — reuses the same oriented-box test the shot
    *  itself hits blocks with, rather than a real ray query, so a candidate
    *  seat is rejected if any surviving block sits between it and the
-   *  impact point. */
+   *  impact point.
+   *
+   *  Sampled every SEAT_SAMPLE_STEP world units rather than at four fixed
+   *  fractions: the seat now sits up to three times further out for a big
+   *  castle (data.js's cinematicSeat), and four samples spread along a
+   *  segment that long leave gaps a whole 1-unit block can sit inside
+   *  unnoticed — which would seat the camera behind a wall. Still ignores
+   *  the last 20% at either end, so a block right at the impact point (or
+   *  right under the camera) doesn't veto every seat on the ring. */
   function segmentBlocked(from, to) {
-    for (let t = 0.2; t <= 0.8; t += 0.2) {
-      _segPoint.lerpVectors(from, to, t);
+    const span = from.distanceTo(to) * 0.6;      // the 0.2..0.8 window
+    const n = Math.max(4, Math.ceil(span / SEAT_SAMPLE_STEP));
+    for (let i = 0; i <= n; i++) {
+      _segPoint.lerpVectors(from, to, 0.2 + 0.6 * (i / n));
       if (findHitBlock(_segPoint, 0.15)) return true;
     }
     return false;
@@ -1230,31 +1242,67 @@ RT.game = (function () {
     return total;
   }
 
+  /** Where the cinematic camera actually points: the impact slid part of the
+   *  way toward the middle of the castle (CFG.SEAT_LOOK_BIAS). Aiming dead at
+   *  the impact is right for a camera 5 units away, where everything around
+   *  the hit is masonry; from three times that distance it fills half the
+   *  frame with whatever empty ground happens to lie on the far side of the
+   *  block that got hit. */
+  function seatLookAt(impactPoint, out) {
+    const c = liveLevel && liveLevel._centre;
+    if (!c) return out.copy(impactPoint);
+    const t = CFG.SEAT_LOOK_BIAS;
+    return out.set(
+      impactPoint.x + (c.x - impactPoint.x) * t,
+      impactPoint.y + (c.y - impactPoint.y) * t,
+      impactPoint.z + (c.z - impactPoint.z) * t
+    );
+  }
+
+  const _seatLook = new THREE.Vector3();
+  /**
+   * Best pose on a ring around what the camera will AIM at (seatLookAt), not
+   * around the impact point itself. Whatever the ring is centred on is what
+   * lands in the middle of the frame, so centring it on the aim point is the
+   * whole reason re-aiming does anything: a ring centred on the impact with
+   * the lens pointed elsewhere just swings the castle towards one edge and
+   * fills the rest with grass.
+   *
+   * The impact still decides which SIDE the camera sits on (the home angle
+   * below) and still has to be visible from the seat (the occlusion test) —
+   * it is the subject of the shot. It just isn't the centre of the frame any
+   * more, now that the frame is big enough to hold more than it.
+   */
   function pickImpactSeat(impactPoint) {
-    const homeX = AIM_POS.x - impactPoint.x, homeZ = AIM_POS.z - impactPoint.z;
-    const homeAngle = Math.atan2(homeZ, homeX);
+    const look = seatLookAt(impactPoint, _seatLook);
+    const homeAngle = Math.atan2(AIM_POS.z - look.z, AIM_POS.x - look.x);
+    /* How far back this castle wants the camera — see data.js's
+       cinematicSeat(). Read per shot rather than baked in as a constant,
+       because it's a property of the castle being watched, not of the game. */
+    const seat = D.cinematicSeat(liveLevel);
 
     let best = null, bestScore = -Infinity;
     for (let i = 0; i <= SEAT_STEPS; i++) {
       const off = -Math.PI / 2 + (i / SEAT_STEPS) * Math.PI;     // stays within +-90 of home
       const angle = homeAngle + off;
       const pos = new THREE.Vector3(
-        impactPoint.x + Math.cos(angle) * SEAT_RADIUS,
-        impactPoint.y + SEAT_HEIGHT,
-        impactPoint.z + Math.sin(angle) * SEAT_RADIUS
+        look.x + Math.cos(angle) * seat.radius,
+        look.y + seat.height,
+        look.z + Math.sin(angle) * seat.radius
       );
       if (pos.y < CFG.GROUND_Y + 0.3) continue;
       if (segmentBlocked(pos, impactPoint)) continue;
 
       const threeQuarter = 1 - Math.abs(Math.abs(off) - THREE_QUARTER_RAD) / (Math.PI / 2);
-      const score = threeQuarter * 3 + visibleDynamicMass(pos, impactPoint);
+      const score = threeQuarter * 3 + visibleDynamicMass(pos, look);
       if (score > bestScore) { bestScore = score; best = pos; }
     }
-    return best || new THREE.Vector3(impactPoint.x, impactPoint.y + SEAT_HEIGHT, impactPoint.z + SEAT_RADIUS);
+    return best || new THREE.Vector3(look.x, look.y + seat.height, look.z + seat.radius);
   }
 
   function beginImpact(impactPoint, impactVel) {
     CAM.impactPoint.copy(impactPoint);
+    seatLookAt(impactPoint, CAM.lookAt);
     CAM.seatPos.copy(pickImpactSeat(impactPoint));
     CAM.phase = 'IMPACT';
     CAM.impactT = 0;
@@ -1268,16 +1316,19 @@ RT.game = (function () {
   /** Camera at CAM.seatPos, optionally drifting around the impact point by
    *  `extraAngle` radians (the slow SETTLE orbit) — always looking at the
    *  impact point. */
+  /** Orbits, and aims at, CAM.lookAt — the point pickImpactSeat() built the
+   *  seat ring around. Orbiting one point while aiming at another would swing
+   *  the framing off centre and back as the angle advanced. */
   function positionAtSeat(extraAngle) {
-    _seatOffset.subVectors(CAM.seatPos, CAM.impactPoint);
+    _seatOffset.subVectors(CAM.seatPos, CAM.lookAt);
     if (extraAngle) {
       const cos = Math.cos(extraAngle), sin = Math.sin(extraAngle);
       const x = _seatOffset.x * cos - _seatOffset.z * sin;
       const z = _seatOffset.x * sin + _seatOffset.z * cos;
       _seatOffset.x = x; _seatOffset.z = z;
     }
-    camera.position.copy(CAM.impactPoint).add(_seatOffset);
-    camera.lookAt(CAM.impactPoint);
+    camera.position.copy(CAM.lookAt).add(_seatOffset);
+    camera.lookAt(CAM.lookAt);
   }
 
   /** Scales with impact energy, zeroed under reduced motion or Steady

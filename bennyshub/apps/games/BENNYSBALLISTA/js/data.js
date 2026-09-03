@@ -142,7 +142,29 @@ RT.data = (function () {
     /* ── Pacing ───────────────────────────────────────────────────────────── */
     SETTLE_MIN      : 0.55,   // hold after the last body sleeps
     SETTLE_MAX      : 9.0,    // safety net, in case something never sleeps
-    WIN_PAUSE       : 1.9     // beat on the wreckage before the results panel
+    WIN_PAUSE       : 1.9,    // beat on the wreckage before the results panel
+
+    /* ── Cinematic framing ────────────────────────────────────────────────
+     * The impact/settle camera sits on a ring around the point that was hit
+     * (js/game.js's pickImpactSeat) — these say how far back and how high,
+     * via cinematicSeat() below. Turn PULLBACK up to see more of the castle
+     * and less of the individual block; it is the one number to reach for. */
+    SEAT_RADIUS     : 4.5,    // distance from the impact point, at REFERENCE size
+    SEAT_HEIGHT     : 2.4,    // how far above it, at REFERENCE size
+    SEAT_PULLBACK   : 1.6,    // flat multiplier on both, every castle
+    SEAT_REFERENCE  : 7,      // castle extent the two numbers above were tuned at
+    SEAT_MAX_SCALE  : 2.2,    // ceiling, so a huge castle can't push the camera
+                              // so far out that the wreckage turns into confetti
+    /* How far the camera's aim slides off the point that was hit and toward
+       the middle of the castle. 0 aims dead at the impact — right for a
+       camera close enough that everything around the hit is masonry. 1 frames
+       the castle itself, which is what a pulled-back camera is FOR: at 0.55
+       the tower still sat against one edge with a third of the frame given to
+       empty ground, because the aim point is what lands in the middle of the
+       shot. The impact stays in frame regardless (it is inside the castle),
+       still decides which side the camera watches from, and still has to be
+       unobstructed from the seat — see game.js's pickImpactSeat. */
+    SEAT_LOOK_BIAS  : 1.0
   };
 
   /* ── Ammunition ─────────────────────────────────────────────────────────
@@ -364,6 +386,35 @@ RT.data = (function () {
     };
   }
 
+  /**
+   * How far back and how high the impact/settle camera should sit for THIS
+   * castle — see CFG.SEAT_* above.
+   *
+   * A single fixed distance can't work now that a castle's size varies as
+   * much as it does: 4.5 units back was framed for the early single-layer
+   * castles (~7 cells across), and pointed at a 13-row tower it fills the
+   * screen with one board and shows nothing of what that board just fell
+   * off. So the distance scales with the castle's largest authored extent —
+   * width, height, or depth, whichever dominates — around the size the
+   * original numbers were tuned at, and never scales BELOW it (a small
+   * castle keeps the framing it already had, it does not get pushed closer).
+   *
+   * Deliberately the castle's AUTHORED size rather than the live bounding box
+   * of what's left standing: a shrinking box would zoom the camera in further
+   * with every shot, so the same castle would be framed differently on bolt 1
+   * and bolt 5, and the last shot of a level — the one worth watching — would
+   * be the tightest of all.
+   */
+  function cinematicSeat(level) {
+    /* _extent is the castle's real occupied size (js/levels.js), NOT its grid
+       dimensions — a level that keeps blank margin around its castle must not
+       be framed as though that margin were masonry. */
+    const extent = level._extent || (level._cols || 1);
+    const scale = Math.min(CFG.SEAT_MAX_SCALE, Math.max(1, extent / CFG.SEAT_REFERENCE));
+    const k = scale * CFG.SEAT_PULLBACK;
+    return { radius: CFG.SEAT_RADIUS * k, height: CFG.SEAT_HEIGHT * k, scale: scale };
+  }
+
   /** Furthest of every non-lob ammo's minRange() — the closest distance ANY
    *  unlocked ammo can be relied on to hit. Lob ammo has no such floor, so
    *  only flat ammo constrains this. */
@@ -524,7 +575,7 @@ RT.data = (function () {
   return {
     CFG, AMMO, MAT, KEG_BLAST,
     solveElevation, maxRange, minRange, flatRangeOf,
-    castleBounds, rangeWindow, yawLimit, ammoReachReport,
+    castleBounds, cinematicSeat, rangeWindow, yawLimit, ammoReachReport,
     pctToRange, rangeToPct, launchFor, damageFor, solveTarget
   };
 })();

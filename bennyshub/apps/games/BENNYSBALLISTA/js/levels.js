@@ -940,10 +940,37 @@ RT.levels = (function () {
   // Compute and cache each level's footprint once, at load — data.js's
   // castleBounds()/rangeWindow()/yawLimit() read these directly, the same
   // way they already read TEST_LEVEL's hand-set _cols/_depth.
+  /** The box the blocks actually occupy: its largest side, and its middle.
+   *  Height is measured from the ground rather than from the lowest block,
+   *  since a castle standing on the floor is as tall as its highest point. */
+  function blockBox(blocks) {
+    if (!blocks.length) return { extent: CELL, centre: { x: 0, y: CELL / 2, z: 0 } };
+    let x0 = Infinity, x1 = -Infinity, top = 0, z0 = Infinity, z1 = -Infinity;
+    for (const b of blocks) {
+      x0 = Math.min(x0, b.x - b.w / 2); x1 = Math.max(x1, b.x + b.w / 2);
+      top = Math.max(top, b.y + b.h / 2);
+      z0 = Math.min(z0, b.z - b.d / 2); z1 = Math.max(z1, b.z + b.d / 2);
+    }
+    return {
+      extent: Math.max(x1 - x0, top, z1 - z0),
+      centre: { x: (x0 + x1) / 2, y: top / 2, z: (z0 + z1) / 2 }
+    };
+  }
+
   for (const level of LEVELS) {
     const parsed = parseLevel(level);
     level._cols = parsed.cols;
     level._depth = parsed.numLayers;
+    /* The castle's real occupied size and middle, from the blocks themselves
+       rather than the grid they were drawn on — both for the cinematic camera
+       (data.js's cinematicSeat, game.js's seatLookAt). _cols and _depth above
+       are GRID dimensions and describe neither whenever a level keeps blank
+       margin: The Watchtower's rows are 21 wide for a castle six cells
+       across, sitting well off to one side of its own grid. Measured once
+       here because a castle's authored size never changes. */
+    const box = blockBox(parsed.blocks);
+    level._extent = box.extent;
+    level._centre = box.centre;
   }
 
   return {
