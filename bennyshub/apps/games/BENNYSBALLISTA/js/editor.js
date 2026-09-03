@@ -1686,6 +1686,16 @@ RT.editor = (function () {
   }
   document.getElementById('btnApplyText').addEventListener('click', applyText);
 
+  // Name/Dist/Par/Bolts previously only reached `doc` via applyText() (the
+  // layers-textarea "Apply" button), so typing a name and then exporting
+  // without ever touching the textarea silently discarded it. Sync these on
+  // every keystroke instead — Apply text still re-applies them redundantly,
+  // which is harmless.
+  els.name.addEventListener('input', () => { doc.name = els.name.value || 'Untitled'; });
+  els.dist.addEventListener('input', () => { const v = parseFloat(els.dist.value); if (Number.isFinite(v)) doc.dist = v; });
+  els.par.addEventListener('input', () => { const v = parseInt(els.par.value, 10); if (Number.isFinite(v)) doc.par = v; });
+  els.bolts.addEventListener('input', () => { const v = parseInt(els.bolts.value, 10); if (Number.isFinite(v)) doc.bolts = v; });
+
   function loadIntoForm(level, ix) {
     loadLevelIntoDoc(level);
     syncFormFromDoc();

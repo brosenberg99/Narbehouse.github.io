@@ -47,22 +47,38 @@ RT.levels = (function () {
    *  cell like every other material. Tunable — not a locked design constant. */
   const PLANK_FRAC = 0.15;
 
+  /** The merge runs within ONE row — the single definition of what welds
+   *  together side by side. rowRuns() walks a whole layer with it, and
+   *  rowBottoms() needs the very same grouping to give a welded run one
+   *  shared floor, so the two cannot drift apart. `row` is a row STRING or a
+   *  char ARRAY (the editor's `doc.grid[l][r]`); `row[c]` reads the same
+   *  either way. `width` defaults to the row's own length — parseLevel passes
+   *  the layer's full column count so a short/ragged row still reports runs
+   *  in the same coordinate space as every other row. */
+  function runsInRow(row, width) {
+    const runs = [];
+    const n = (width !== undefined) ? width : (row ? row.length : 0);
+    let c = 0;
+    while (c < n) {
+      const ch = row ? row[c] : undefined;
+      if (ch === undefined || ch === '.' || ch === ' ') { c++; continue; }
+      const mat = MAT[ch];
+      if (!mat) { c++; continue; }
+      let len = 1;
+      if (mat.mergeable) { while (c + len < n && row[c + len] === ch) len++; }
+      runs.push({ col: c, len: len, matId: ch, small: !!mat.small });
+      c += len;
+    }
+    return runs;
+  }
+
   /** Same-letter runs within one row of one layer, exactly as the 2D
    *  version's buildLevel() found them. */
   function rowRuns(rows) {
     const runs = [];
     for (let r = 0; r < rows.length; r++) {
-      const row = rows[r];
-      let c = 0;
-      while (c < row.length) {
-        const ch = row[c];
-        if (ch === '.' || ch === ' ') { c++; continue; }
-        const mat = MAT[ch];
-        if (!mat) { c++; continue; }
-        let len = 1;
-        if (mat.mergeable) { while (c + len < row.length && row[c + len] === ch) len++; }
-        runs.push({ row: r, col: c, len: len, matId: ch, small: !!mat.small });
-        c += len;
+      for (const run of runsInRow(rows[r])) {
+        runs.push({ row: r, col: run.col, len: run.len, matId: run.matId, small: run.small });
       }
     }
     return runs;
@@ -129,11 +145,36 @@ RT.levels = (function () {
     for (let r = 0; r < rows; r++) bottoms.push(new Array(cols).fill(0));
     const acc = new Array(cols).fill(0);
     const n = Math.min(layerRows ? layerRows.length : 0, rows);
+    const shared = new Array(cols);
     for (let r = rows - 1; r >= 0; r--) {
       const row = r < n ? layerRows[r] : null;
+      /* Cells that WELD into one rigid body share ONE floor — the highest
+         under any column the run spans — because that shared floor is the
+         single Y parseLevel() gives the merged body, and its flat top is
+         what the next row up actually rests on. Per-column accumulation
+         alone (what this did before) disagreed with the geometry the moment
+         a run's columns sat at different heights, which is exactly what a
+         thin `B` board or a half-size `w/s/i` chunk under ONE column of a
+         run creates: the body was drawn on the tallest column's floor while
+         every other column still reported its own, up to 0.85 CELL lower.
+         Everything that reads a cell's floor off this — the editor's cell
+         picker and its ghost preview especially — then pointed at a spot
+         the block was not drawn in. */
+      shared.fill(-1);
+      if (row) {
+        for (const run of runsInRow(row, cols)) {
+          if (run.len < 2) continue;                    // nothing welded, nothing to share
+          let top = 0;
+          for (let c = run.col; c < run.col + run.len; c++) top = Math.max(top, acc[c]);
+          for (let c = run.col; c < run.col + run.len; c++) shared[c] = top;
+        }
+      }
       for (let c = 0; c < cols; c++) {
-        bottoms[r][c] = acc[c];
-        acc[c] += cellThickness(row ? row[c] : undefined);
+        // -1 is the sentinel for "not part of a welded run"; a real floor is
+        // never negative, and 0 (the true ground row) is a legitimate share.
+        const bottom = shared[c] >= 0 ? shared[c] : acc[c];
+        bottoms[r][c] = bottom;
+        acc[c] = bottom + cellThickness(row ? row[c] : undefined);
       }
     }
     return bottoms;
@@ -223,11 +264,22 @@ RT.levels = (function () {
 
         let endLayer = li;
         if (mat.mergeable && !run.small) {
+          // A layer merge welds this run to the identical run behind it — but
+          // only if that run actually sits at the SAME height. Two runs on
+          // different floors are not one rigid body, and welding them anyway
+          // drew the pair at the front layer's height, silently lifting (or
+          // dropping) the back one off the floor its own layer put it on —
+          // the depth-axis twin of the row-run mismatch rowBottoms() fixes.
+          // Only a thin/half-height piece under one of the layers can make
+          // the floors differ, so ordinary full-cell castles merge exactly as
+          // they always did.
+          const myBottom = layerBottoms[li][run.row][run.col];
           for (let nl = li + 1; nl < numLayers; nl++) {
             const idx = layerRuns[nl].findIndex((r2, i2) => !used[nl][i2] &&
               r2.row === run.row && r2.col === run.col &&
               r2.len === run.len && r2.matId === run.matId);
             if (idx === -1) break;
+            if (Math.abs(layerBottoms[nl][run.row][run.col] - myBottom) > 1e-6) break;
             used[nl][idx] = true;
             endLayer = nl;
           }
@@ -247,6 +299,10 @@ RT.levels = (function () {
           // A merged run is one rigid body, so it needs one shared Y — the
           // tallest real floor under any column it actually spans (never a
           // column outside its own footprint; that's the per-cell fix above).
+          // rowBottoms() now hands back that shared floor on every column of
+          // the run already, so this max only re-confirms it — kept because
+          // it is what DEFINES the shared Y, and anything that reads a floor
+          // per cell has to agree with it rather than the other way round.
           let bottom = 0;
           for (let cc = run.col; cc < run.col + run.len; cc++) bottom = Math.max(bottom, layerBottoms[li][run.row][cc]);
           y = bottom + h / 2;
@@ -289,21 +345,101 @@ RT.levels = (function () {
    * last four introduce depth, escalating from two layers to three.
    */
   const LEVELS = [
-    { name: 'The Reed Tower', par: 1, bolts: 6, dist: 24, layers: [[
-      '..K..',
-      '.WWW.',
-      '.W.W.',
-      '.W.W.',
-      '.W.W.'
-    ]] },
-    { name: 'The Clad Pillar', par: 2, bolts: 7, dist: 25, layers: [[
-      '.K',
-      '.W',
-      'SW',
-      'SW',
-      'SW',
-      'SW'
-    ]] },
+    { name: 'The Effigy', par: 1, bolts: 6, dist: 24, ammo: ['stone'], layers: [
+  [
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '.W.W..'
+  ],
+  [
+    'WWWWW.',
+    'W...W.',
+    'W.K.W.',
+    'W.W.W.',
+    'W.W.W.',
+    'WWWWW.',
+    'WWWWW.'
+  ],
+  [
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '.W.W..'
+  ],
+  [
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '......',
+    '......'
+  ]
+] },
+    { name: 'The Monument', par: 2, bolts: 7, dist: 25, layers: [
+  [
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    'Q...H',
+    'S...S',
+    'S...S'
+  ],
+  [
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '..S..',
+    '.SSS.',
+    '.SSS.'
+  ],
+  [
+    '..K..',
+    '..W..',
+    '..W..',
+    '.SWS.',
+    '.SWS.',
+    '.SWS.',
+    '.SWS.',       // the centre column runs all the way to the floor — without
+    '.SWS.',       // these three the crown's pillar stopped at row 5 and the
+    '.SWS.'        // whole stack fell 2.3 units on load (auditLevels caught it)
+  ],
+  [
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '..S..',
+    '.SSS.',
+    '.SSS.'
+  ],
+  [
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    '.....',
+    'S...S',
+    'S...S'
+  ]
+] },
     { name: 'Scaffold Twins', par: 2, bolts: 7, dist: 26, layers: [[
       '.K.....K.',
       'WWWWWWWWW',
