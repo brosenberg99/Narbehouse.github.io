@@ -88,10 +88,16 @@ RT.ui = (function () {
    *  substitution, not a third stage on top of the other two. The two
    *  modes never mix: 'aim'/'range' only ever appear together, 'target'
    *  only ever appears alone. */
+  /** Range comes before aim: the camera's aim-phase zoom (js/game.js's
+   *  updateAimZoom()) dollies in on wherever the live trace currently lands,
+   *  and that landing point only means anything once range is fixed — with
+   *  range set first, the whole yaw sweep tracks a real, already-committed
+   *  distance instead of whatever range happened to be left over from the
+   *  last shot. */
   function stageOrder() {
     const withAmmo = availableAmmo().length > 1;
     if (G.aimModeOn()) return withAmmo ? ['ammo', 'target'] : ['target'];
-    return withAmmo ? ['ammo', 'aim', 'range'] : ['aim', 'range'];
+    return withAmmo ? ['ammo', 'range', 'aim'] : ['range', 'aim'];
   }
 
   /* UI blips come from js/audio.js now rather than the shared SafeAudio — see
@@ -210,7 +216,7 @@ RT.ui = (function () {
     enterShot(false);
     afterSettingChange(next === 'target'
       ? 'Select-Target aim mode on. Scan the castle and lock onto a specific piece instead of sweeping.'
-      : 'Select-Target aim mode off. Back to sweeping the aim and charging the range.');
+      : 'Select-Target aim mode off. Back to charging the range and sweeping the aim.');
   }
   function toggleEndlessBolts() {
     const next = !G.save.endlessBolts;
@@ -315,8 +321,9 @@ RT.ui = (function () {
           + 'in your line of fire — you can bring it down by smashing whatever holds it up, '
           + 'or by burying it in falling rubble.'
           + '<br><br><b>Pick ammunition</b> (once you’ve unlocked more than one), then '
-          + '<b>sweep the aim</b> left and right, then <b>set the range</b>. The dotted arc and '
-          + 'the minimap crosshair always show exactly where the shot will land.'
+          + '<b>set the range</b>, then <b>sweep the aim</b> left and right — the camera zooms in '
+          + 'toward wherever the shot will land as you do. The dotted arc and the minimap '
+          + 'crosshair always show exactly where the shot will land.'
           + '<br><br>Letting go early never weakens a shot — the range meter picks '
           + '<i>where</i> it lands, never how hard it hits.',
         note: '<b>Space</b> hold: move the meter, let go to stop &middot; '
@@ -325,7 +332,7 @@ RT.ui = (function () {
         items: [{ label: '← Back', sub: '', action: () => gotoMenuScreen('root') }],
         speech: 'How to play. Knock down every gold crown to clear the castle. A crown does not have '
           + 'to be in your line of fire — you can bring it down by smashing what holds it up, or by '
-          + 'burying it in falling rubble. Sweep the aim, then set the range. Letting go early never '
+          + 'burying it in falling rubble. Set the range, then sweep the aim. Letting go early never '
           + 'weakens a shot. Press return to go back.'
       };
     }
@@ -334,10 +341,10 @@ RT.ui = (function () {
       return {
         title: 'Settings',
         sub: 'Adjust how Benny’s Ballista looks and plays.',
-        note: 'Aim Mode switches between sweeping the aim and charging the range, or scanning the '
+        note: 'Aim Mode switches between charging the range and sweeping the aim, or scanning the '
           + 'castle and locking onto a specific piece to aim at instead. '
           + 'Minimap Size sets how big the top-down map gets while you’re composing a shot. '
-          + 'Steady Camera holds one fixed view instead of chasing the bolt. '
+          + 'Steady Camera holds one fixed view instead of zooming toward your shot and chasing the bolt. '
           + 'Endless Bolts means running out never blocks you — it only affects your star rating. '
           + 'Sound turns the shot and impact effects on or off; it does not affect speech. '
           + 'Music turns the background war drums on or off, separately from Sound. '
@@ -682,7 +689,7 @@ RT.ui = (function () {
     updatePreview(true);
     renderMeters(); updateFooter();
     sfx('hover', 0.5);
-    U.speak(`${Math.round(state.yawDeg)} degrees. This shot ${previewPhrase()}. Press return to lock it in.`);
+    U.speak(`${Math.round(state.yawDeg)} degrees. This shot ${previewPhrase()}. Press return to fire.`);
   }
 
   function stopCharge() {
@@ -692,8 +699,8 @@ RT.ui = (function () {
     sfx('hover', 0.5);
     const full = state.rangePct >= 100;
     U.speak(`${full ? 'Full range. ' : ''}${Math.round(state.rangePct)} percent. This shot ${previewPhrase()}. `
-      + (full ? 'Press return to fire, or hold return to go back and set the range again.'
-               : 'Press return to fire, or hold space to charge further.'));
+      + (full ? 'Press return to lock it in, or hold return to go back and set the range again.'
+               : 'Press return to lock it in, or hold space to charge further.'));
   }
 
   function stepMeters(dt) {
@@ -1010,27 +1017,31 @@ RT.ui = (function () {
     U.speak(`${it.label} locked. ${stageHint()}`);
   }
 
+  /** Aim is always the last stage before ammo (see stageOrder()) — locking
+   *  it fires the shot, same way confirmShot() used to. */
   function lockAim() {
     if (state.aiming) { stopAim(); return; }
     state.locked.aim = true;
     sfx('select', 0.6);
-    const deg = Math.round(state.yawDeg);
-    beginStage('range');
-    U.speak(`${deg} degrees locked. ${stageHint()}`);
+    U.speak(`${Math.round(state.yawDeg)} degrees. Firing.`);
+    doFire();
   }
 
+  /** Range is always locked before aim (see stageOrder()) — confirming it
+   *  just advances to the yaw sweep rather than firing directly. */
   function confirmShot() {
     if (state.charging) { stopCharge(); return; }
     if (!state.charged) {
       U.speak('No range yet. ' + (autoScanOn()
         ? 'The meter fills by itself — press return to stop it where you want it.'
-        : 'Hold space to charge the shot, then press return to fire.'));
+        : 'Hold space to charge the shot, then press return to lock it in.'));
       return;
     }
     state.locked.range = true;
     sfx('select', 0.6);
-    U.speak(`Firing at ${Math.round(state.rangePct)} percent range.`);
-    doFire();
+    const pct = Math.round(state.rangePct);
+    beginStage('aim');
+    U.speak(`${pct} percent locked. ${stageHint()}`);
   }
 
   function doFire() {

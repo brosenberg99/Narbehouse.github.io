@@ -296,21 +296,24 @@ body[data-theme="light"] #overlay{background:rgba(230,236,245,.93)}
         <button class="chip act" id="btnLockTarget" type="button">Lock</button>
         <button class="chip act" id="btnFireTarget" type="button">Fire</button>
       </div>
-      <div class="lane" id="laneAim">
-        <span class="laneLabel">Aim</span>
-        <!-- ids stay the historical "Aim" from the 2D angle meter; it now
-             drives lateral yaw, not elevation — see js/ui.js. -->
-        <div class="meter" id="meterAim" role="progressbar" aria-label="Aim"
-             aria-valuemin="-20" aria-valuemax="20" aria-valuenow="0"><div class="fill" id="fillAim"></div><span class="mval" id="valAim">0&deg;</span></div>
-        <button class="chip act" id="btnLockAim" type="button">Lock</button>
-      </div>
+      <!-- Range is locked before aim (js/ui.js's stageOrder()) — the aim
+           camera's zoom-to-reticle only means something once range is fixed,
+           so this lane is drawn first to match. Ids stay the historical
+           "Power"/"Aim" from the 2D meters (Power now picks landing distance,
+           not muzzle speed; Aim now drives lateral yaw, not elevation), and
+           the two act buttons keep their ids too even though their LABELS
+           now swap: whichever meter is locked last is the one that fires. -->
       <div class="lane" id="lanePower">
         <span class="laneLabel">Range</span>
-        <!-- ids stay the historical "Power" from the 2D charge meter; it now
-             picks landing distance, not muzzle speed — see js/ui.js. -->
         <div class="meter" id="meterPower" role="progressbar" aria-label="Range"
              aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill" id="fillPower"></div><span class="mval" id="valPower">0%</span></div>
-        <button class="chip act" id="btnFire" type="button">Fire</button>
+        <button class="chip act" id="btnFire" type="button">Lock</button>
+      </div>
+      <div class="lane" id="laneAim">
+        <span class="laneLabel">Aim</span>
+        <div class="meter" id="meterAim" role="progressbar" aria-label="Aim"
+             aria-valuemin="-20" aria-valuemax="20" aria-valuenow="0"><div class="fill" id="fillAim"></div><span class="mval" id="valAim">0&deg;</span></div>
+        <button class="chip act" id="btnLockAim" type="button">Fire</button>
       </div>
     </div>
 

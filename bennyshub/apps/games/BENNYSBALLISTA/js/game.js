@@ -189,13 +189,22 @@ RT.game = (function () {
     impactT: 0,
     settleT: 0,
     resultsT: 0,
-    shake: 0
+    shake: 0,
+    // AIM-phase zoom (see updateAimZoom()) — eased 0..1, how far the camera
+    // has dollied in from AIM_POS toward aimTarget right now. aimTarget is
+    // wherever the live trace currently lands (updateAimPreview() below);
+    // aimTracing is false only in the instant before a level's first trace
+    // exists.
+    aimZoom: 0,
+    aimTarget: new THREE.Vector3(),
+    aimTracing: false
   };
 
-  /** The fixed pose everything about a shot is judged from. Never moves —
-   *  all camera personality happens after Return is pressed. Its look-at
-   *  point re-centres on whatever castle is live (see loadLevel()) so a
-   *  distant level doesn't leave the frame aimed short of it. */
+  /** The anchor pose AIM eases from/to: zoomed all the way out, this is what
+   *  the player sees. Its look-at point re-centres on whatever castle is live
+   *  (see loadLevel()) so a distant level doesn't leave the frame aimed short
+   *  of it. Never moves on its own — all camera personality beyond the zoom
+   *  (see updateAimZoom()) happens after Return is pressed. */
   const AIM_POS = new THREE.Vector3(0, 3.6, 7.5);
   const AIM_LOOKAT = new THREE.Vector3(0, 2.0, -20);
 
@@ -297,8 +306,9 @@ RT.game = (function () {
    *  since traceShot() already solves the elevation this needs. */
   function updateAimPreview(trace) {
     if (!previewGroup) return;
-    if (!trace || CAM.phase !== 'AIM') { previewGroup.visible = false; return; }
+    if (!trace || CAM.phase !== 'AIM') { previewGroup.visible = false; CAM.aimTracing = false; return; }
     previewGroup.visible = true;
+    CAM.aimTracing = true;
 
     const pts = trace.points;
     for (let i = 0; i < PREVIEW_DOTS; i++) {
@@ -322,6 +332,7 @@ RT.game = (function () {
      * function tests it — the axis with the least remaining margin inside
      * the block's (rotated) half-extents is the face the shot just crossed. */
     const last = pts[pts.length - 1];
+    CAM.aimTarget.copy(last);
     const hitBlock = trace.hit.type === 'block' ? trace.hit.block : null;
     if (hitBlock) {
       _previewInvQuat.copy(hitBlock.mesh.quaternion).invert();
@@ -948,7 +959,7 @@ RT.game = (function () {
     } else if (!save.endlessBolts && boltsUsed >= liveLevel.bolts) {
       CAM.phase = 'OUTOFBOLTS';
     } else {
-      CAM.phase = 'AIM';
+      enterAim();
     }
   }
 
@@ -1147,7 +1158,7 @@ RT.game = (function () {
         }
         // No main menu yet (that's later polish) — go straight to aiming
         // against level 0 rather than orbiting forever.
-        CAM.phase = 'AIM';
+        enterAim();
       });
     }
     CAM.phase = 'ATTRACT';
@@ -1165,13 +1176,61 @@ RT.game = (function () {
   }
 
   /**
-   * AIM never moves — everything the player judges a shot by is in a fixed
-   * frame; all camera personality happens after Return is pressed. That is
-   * what keeps the cinematics below from becoming an accessibility problem.
+   * The fixed fallback pose — no zoom, no dolly. Everything about a shot
+   * used to be judged from exactly this frame; it's still what OUTOFBOLTS/
+   * MENU hold underneath their overlay, and what Steady Camera forces every
+   * frame (see update() below) for anyone the zoom below would bother.
    */
   function updateAim() {
     camera.position.copy(AIM_POS);
     camera.lookAt(AIM_LOOKAT);
+  }
+
+  /** How far AIM dollies in, and how fast it eases there — see
+   *  updateAimZoom()'s own comment. */
+  const AIM_ZOOM_PULL = 0.7;      // fraction of the AIM_POS->reticle distance to close
+  const AIM_ZOOM_MAX_PULL = 13;   // world units — caps it so a far reticle can't overshoot into the castle
+  const AIM_ZOOM_RATE = 3.2;      // exponential ease, 1/s
+
+  const _aimZoomPos = new THREE.Vector3();
+  const _aimZoomLook = new THREE.Vector3();
+
+  /**
+   * The real gameplay AIM camera: eases from AIM_POS/AIM_LOOKAT toward a
+   * partial dolly-in on CAM.aimTarget — the reticle's current landing spot,
+   * kept live by updateAimPreview() every time the meters move — so someone
+   * with low vision gets a closer, better-framed view of where the shot is
+   * about to land instead of judging it from a wide, far shot of the whole
+   * field. Bounded to AIM_ZOOM_MAX_PULL rather than arriving at the reticle
+   * outright, so the ballista and the shot's starting line stay in frame too.
+   *
+   * Only ever called for the actual AIM phase (see update() below) — the
+   * fixed updateAim() above is what OUTOFBOLTS/MENU and Steady Camera still
+   * use, so this never leaks into either of those.
+   */
+  function updateAimZoom(dt) {
+    const target = CAM.aimTracing ? 1 : 0;
+    const k = 1 - Math.exp(-AIM_ZOOM_RATE * dt);
+    CAM.aimZoom += (target - CAM.aimZoom) * k;
+    if (CAM.aimZoom < 0.002) { updateAim(); return; }
+
+    _aimZoomPos.copy(CAM.aimTarget).sub(AIM_POS);
+    const dist = _aimZoomPos.length();
+    if (dist > 0.001) _aimZoomPos.setLength(Math.min(dist * AIM_ZOOM_PULL, AIM_ZOOM_MAX_PULL));
+    _aimZoomPos.add(AIM_POS);
+
+    camera.position.lerpVectors(AIM_POS, _aimZoomPos, CAM.aimZoom);
+    _aimZoomLook.lerpVectors(AIM_LOOKAT, CAM.aimTarget, CAM.aimZoom);
+    camera.lookAt(_aimZoomLook);
+  }
+
+  /** Every path back into AIM goes through here so the zoom always starts
+   *  back at zoomed-out — otherwise a shot fired at close zoom would leave
+   *  CAM.aimZoom near 1, and the next shot would open already dollied in
+   *  before updateAimZoom() had a chance to ease it back out. */
+  function enterAim() {
+    CAM.phase = 'AIM';
+    CAM.aimZoom = 0;
   }
 
   const _flightEye = new THREE.Vector3();
@@ -1401,8 +1460,8 @@ RT.game = (function () {
       // framing underneath, same as OUTOFBOLTS.
       updateAim();
     } else {
-      CAM.phase = 'AIM';
-      updateAim();
+      if (CAM.phase !== 'AIM') enterAim();
+      updateAimZoom(dt);
     }
 
     // One fixed wide view for every phase — still runs the state machine
@@ -1502,16 +1561,16 @@ RT.game = (function () {
    */
   function confirmResults() {
     loadLevel(levelIx + 1);
-    CAM.phase = 'AIM';
+    enterAim();
   }
   function retryLevel() {
     loadLevel(levelIx);
-    CAM.phase = 'AIM';
+    enterAim();
   }
   function enableEndlessAndContinue() {
     save.endlessBolts = true;
     persistSave();
-    CAM.phase = 'AIM';   // same wreckage, no rebuild — just allowed to keep firing
+    enterAim();   // same wreckage, no rebuild — just allowed to keep firing
   }
 
   /** The context/pause menu — a third overlay phase alongside RESULTS_MENU/
@@ -1521,7 +1580,7 @@ RT.game = (function () {
    *  *screen* within it is showing (root / how-to-play / settings) and
    *  renders all of them through the same #overlay/#panel list machinery. */
   function openMenu() { if (CAM.phase === 'AIM') CAM.phase = 'MENU'; }
-  function closeMenu() { CAM.phase = 'AIM'; }
+  function closeMenu() { enterAim(); }
 
   function setMinimapSize(size) {
     if (['large', 'medium', 'none'].indexOf(size) === -1) return;

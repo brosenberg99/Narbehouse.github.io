@@ -49,6 +49,7 @@ RT.data = (function () {
     YAW_TICK_DEG    : 3,      // soft tick every this many degrees while sweeping
     YAW_PAD_CELLS   : 2.0,    // sweep this far past each side of the castle
     YAW_MIN_HALF_DEG: 7,      // ...but never a sweep narrower than this
+    YAW_EXTRA_DEG   : 2,      // flat bonus added to every level's half-angle, on top of the above
 
     RANGE_PCT_PER_S : 12,     // 0 -> 100% in 8.3s
     RANGE_TICK_PCT  : 10,     // beep every this much
@@ -189,11 +190,30 @@ RT.data = (function () {
    */
   const AMMO = [
     { id:'stone',    name:'Stone Bolt', sub:'Flat and true',   speed:23.0, dmg:1.00, r:0.22, lob:false, unlockAt:0 },
-    { id:'boulder',  name:'Boulder',    sub:'Lobs, smashes rock', speed:21.5, dmg:2.20, r:0.38, lob:true,  unlockAt:3 },
+    /* speed bumped 21.5->24.5: at the old speed, boulder's own max range sat
+       within ~10% of several levels' range window (even slightly UNDER it on
+       the tightest, "The Siege Tower") — a shot charged near the top of the
+       meter silently capped short of the requested distance, and its high
+       arc (already collapsing toward 45 degrees as requested distance nears
+       max range, see solveElevation's header) collapsed hardest exactly
+       there. The new speed keeps ~20% of headroom over every level's window
+       on the worst case, so the "lobs" arc stays a real arc across the whole
+       meter instead of flattening out toward the far end of it. */
+    { id:'boulder',  name:'Boulder',    sub:'Lobs, smashes rock', speed:24.5, dmg:2.20, r:0.38, lob:true,  unlockAt:3 },
     { id:'fire',     name:'Fire Bolt',  sub:'Flat, burns wood', speed:24.0, dmg:1.00, r:0.20, lob:false, unlockAt:6 },
-    { id:'splitter', name:'Splitter',   sub:'Lobs, splits in 3', speed:22.0, dmg:0.62, r:0.20, lob:true,  unlockAt:9 },
+    { id:'splitter', name:'Splitter',   sub:'Lobs, splits in 3', speed:25.0, dmg:0.62, r:0.20, lob:true,  unlockAt:9 },   // same reach fix as boulder above
+    /* speed bumped 19.0->21.0: at the old speed its own max range (28.0) fell
+       half a unit SHORT of "The Cantilever" 's castle front (28.5) — the one
+       level, of the six this unlocks for, where it's a genuine problem-tier
+       auditAmmoOffers() failure (a scarce, one-per-level ammo that can't
+       even reach the castle at all). The new speed clears every level's
+       castle front with room to spare (and its back face too, on every
+       level currently offering it) without chasing the full range meter the
+       way boulder/splitter above do — it's meant to stay the shorter-reach,
+       big-splash specialist of the two lob ammo, just no longer one that
+       can whiff an entire castle. */
     { id:'bomb',     name:'Powder Bomb', sub:'Lobs, blasts a wide radius — one per level',
-      speed:19.0, dmg:1.40, r:0.34, lob:true, unlockAt:10, limit:1, splash:true, splashRadius:3.2, splashDmgScale:0.6 }
+      speed:21.0, dmg:1.40, r:0.34, lob:true, unlockAt:10, limit:1, splash:true, splashRadius:3.2, splashDmgScale:0.6 }
   ];
 
   /* A powder keg's own death-explosion, fed through the same applySplash()
@@ -441,7 +461,8 @@ RT.data = (function () {
     const b = castleBounds(level);
     const reach = b.halfWidth + CFG.YAW_PAD_CELLS;
     const deg = Math.max(CFG.YAW_MIN_HALF_DEG,
-                         Math.atan2(reach, Math.max(1, b.centre)) * 180 / Math.PI);
+                         Math.atan2(reach, Math.max(1, b.centre)) * 180 / Math.PI)
+                + CFG.YAW_EXTRA_DEG;
     return deg * Math.PI / 180;
   }
 

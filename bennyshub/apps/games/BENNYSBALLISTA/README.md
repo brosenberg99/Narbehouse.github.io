@@ -44,30 +44,37 @@ While a meter is moving a dotted trail of gold dots and a ground-ring
 reticle show the exact arc the bolt will take and where it lands — in the
 main 3D view *and* on a top-down minimap — and the game says out loud what
 it is about to hit, but only once you stop moving, never while a meter is
-sweeping: *"12 degrees. This shot hits the stone block. Press return to lock
-it in."* Nothing is hidden, nothing is rushed, and you can sit between
-presses for an hour.
+sweeping: *"12 degrees. This shot hits the stone block. Press return to
+fire."* Nothing is hidden, nothing is rushed, and you can sit between
+presses for an hour. The main-view camera also eases in toward wherever the
+shot currently lands as you set it up, so the reticle reads clearly even on
+a small screen or with low vision, rather than staying a wide, far-off shot
+of the whole field.
 
 Once you fire, a cinematic camera takes over completely — chasing the bolt,
 cutting to a scored seat on impact, orbiting the wreckage until it settles —
 and every input is blocked until it's done, so the cinematic actually gets
 watched rather than raced past. **Steady Camera** (in Settings, and on
 automatically under the OS's reduced-motion setting) holds one fixed pose
-through all of it instead, for anyone the cuts and shake would bother.
+through all of it instead — including the aim-phase zoom — for anyone the
+movement itself would bother.
 
 ## How to play
 
 | Input | What it does |
 |---|---|
-| **Space**, held | Sweeps the aim, then charges the range. Let go to stop. |
-| **Return**, short press | Stops a moving meter; otherwise locks the aim or fires the shot |
+| **Space**, held | Charges the range, then sweeps the aim. Let go to stop. |
+| **Return**, short press | Stops a moving meter; otherwise locks the range or fires the shot |
 | **Return**, held 3 seconds | Back up one step, or open the menu |
 | **Space**, short press | *In a scan list (ammunition, or a menu):* move to the next choice |
 | **Space**, held 3 seconds | *In a scan list:* scan backwards until you let go |
 | Mouse / touch | Optional. Hold a meter to move it, then press Lock or Fire. Never a drag. |
 
-A shot goes: ammunition (once you have more than one unlocked), then **aim**,
-then **range**, then Return to fire. Destroy every crown to clear the level.
+A shot goes: ammunition (once you have more than one unlocked), then
+**range**, then **aim**, then Return to fire. Range is set before aim on
+purpose — the aim camera's zoom (above) tracks where the shot actually lands,
+which only means something once the range is already fixed. Destroy every
+crown to clear the level.
 
 Each meter takes two Return presses, never one that does both jobs: the first
 stops the meter, the second commits it. That is what makes the whole thing
