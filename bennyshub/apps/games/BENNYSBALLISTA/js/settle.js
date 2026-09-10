@@ -113,8 +113,24 @@ RT.settle = (function () {
   /** How far a piece may shift while settling and still count as having
    *  stayed put. Long the crown's own tolerance; standingReport() below holds
    *  every piece to it, so it is now one number rather than a per-caller
-   *  choice. */
-  const STILL_EPS = 0.05;
+   *  choice.
+   *
+   *  Was 0.05, raised when js/levels.js's weldPairs() started bonding a
+   *  board to whatever it touches rather than only to another board: a
+   *  welded board frame settles as one assembly, which reads as a slightly
+   *  larger one-off shift than the same pieces settling individually did.
+   *
+   *  Picked from measurement, not taste. Over four passes of all sixteen
+   *  castles the worst legitimate settle is The Watchtower at 0.264 (a
+   *  timber board; every other level is at or under 0.053, most under
+   *  0.014), while the smallest GENUINE fault seen while building this —
+   *  a board drawn with empty cells under it — free-falls 1.33, and the
+   *  bug that put this check here in the first place fell eight units. So
+   *  0.35 sits in a wide empty gap: comfortably above every real castle's
+   *  settle, comfortably below anything actually failing to stand. Re-run
+   *  the numbers before moving it; a value that merely squeaks past
+   *  today's worst case is how this check stops earning its keep. */
+  const STILL_EPS = 0.35;
 
   /** Simulated seconds a castle gets to prove it stands. */
   const DEFAULT_SECONDS = 4;

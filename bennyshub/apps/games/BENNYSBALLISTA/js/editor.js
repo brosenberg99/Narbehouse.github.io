@@ -1553,8 +1553,9 @@ RT.editor = (function () {
     /* The same bonds the real game builds (js/game.js's loadLevel) — without
        these the test would judge a welded span as loose bodies and disagree
        with the game about the very levels welds exist for. */
-    for (const [i, j] of LV.weldPairs(live.recs.map((r) => r.spec))) {
-      P.addWeld(testRecs[i].body, testRecs[j].body);
+    const weldSpecs = live.recs.map((r) => r.spec);
+    for (const [i, j, axis] of LV.weldPairs(weldSpecs)) {
+      P.addWeld(testRecs[i].body, testRecs[j].body, LV.weldBreak(weldSpecs[i], weldSpecs[j], axis));
     }
     const report = RT.settle.standingReport(testRecs, RT.settle.DEFAULT_SECONDS, {
       onDestroy: (rec) => {

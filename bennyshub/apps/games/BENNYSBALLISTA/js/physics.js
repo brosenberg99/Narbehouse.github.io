@@ -158,8 +158,23 @@ RT.physics = (function () {
    *  joint — no basis maths needed. Collisions between the pair are disabled
    *  (addConstraint's second argument): once welded, their touching faces
    *  would otherwise have the contact solver and the constraint solver both
-   *  trying to own the same joint, which reads as jitter. */
-  function addWeld(bodyA, bodyB) {
+   *  trying to own the same joint, which reads as jitter.
+   *
+   *  `breakImpulse` (optional) makes the joint BREAKABLE: once the impulse
+   *  Bullet has to push through it in one step exceeds this, Bullet disables
+   *  the constraint itself and the two bodies come apart. That is how a
+   *  lateral bond lets go under a hit instead of transmitting the whole blow
+   *  into the rest of the castle — see CFG.LATERAL_WELD_BREAK. Omit it (or
+   *  pass 0) for a bond that only ever ends when one of its blocks dies.
+   *
+   *  Note this Ammo build exposes set/getBreakingImpulseThreshold but NOT
+   *  isEnabled()/getAppliedImpulse(), so nothing here can ask a constraint
+   *  whether it has broken yet. It doesn't need to: a joint only breaks
+   *  under a violent event, which leaves both bodies awake and falling on
+   *  their own, unlike destroyBlock()'s silent removal (see wake()'s note).
+   *  The disabled constraint stays in `welds` and is torn down normally when
+   *  either block dies or the level is cleared. */
+  function addWeld(bodyA, bodyB, breakImpulse) {
     const pa = bodyA.getCenterOfMassTransform().getOrigin();
     const ax = pa.x(), ay = pa.y(), az = pa.z();
     const pb = bodyB.getCenterOfMassTransform().getOrigin();
@@ -177,6 +192,7 @@ RT.physics = (function () {
     frameB.setOrigin(_v0);
 
     const c = new Ammo.btFixedConstraint(bodyA, bodyB, frameA, frameB);
+    if (breakImpulse > 0) c.setBreakingImpulseThreshold(breakImpulse);
     world.addConstraint(c, true);
     // Bullet copies the frames into the constraint; these two were ours.
     Ammo.destroy(frameA);
@@ -237,6 +253,16 @@ RT.physics = (function () {
     return Math.hypot(v.x(), v.y(), v.z());
   }
 
+  /** The same velocity as a direction, not just a magnitude — rubble needs to
+   *  fly on with whatever the block it broke off was already doing, which
+   *  speed() alone can't say. Returns a plain object rather than a reused
+   *  scratch vector because a caller spawning several chunks reads it once
+   *  and holds it across all of them. */
+  function velocity(body) {
+    const v = body.getLinearVelocity();
+    return { x: v.x(), y: v.y(), z: v.z() };
+  }
+
   /** Adds a knock (world units/s) on top of whatever velocity the body
    *  already has, and wakes it — used for a direct bolt hit, never by the
    *  general sim. */
@@ -273,5 +299,5 @@ RT.physics = (function () {
   }
 
   return { init, addBlock, destroyBlock, addWeld, removeWeldsFor, weldCount,
-           step, sync, speed, isAwake, addVelocity, wake, dispose };
+           step, sync, speed, velocity, isAwake, addVelocity, wake, dispose };
 })();

@@ -89,6 +89,57 @@ RT.data = (function () {
     SLEEP_LINEAR      : 0.28,
     SLEEP_ANGULAR     : 0.35,
 
+    /* How hard a LATERAL board bond can be pushed before it lets go, in
+       Bullet impulse (mass * velocity, and a 1-cell block masses 1). Only
+       side-by-side/front-to-back bonds get this; a board resting ON a post
+       stays rigid, since that is what stops a crown tipping off it. See
+       js/levels.js's contactAxis() and js/physics.js's addWeld().
+
+       The window is bounded at both ends and both ends are measured, not
+       guessed. Sweeping the threshold against all sixteen castles standing,
+       and against a realistic bolt knock (ammo speed ~24 * KNOCK_SCALE, so
+       about 30 units/s) into The Warehouse's board frame:
+
+         0.25  The Warehouse no longer STANDS — a frame sags apart under its
+               own weight (worst piece 2.8 units).
+         0.5   ) every castle stands, and a hit scatters 21-33 pieces up to
+         1.0   ) 7 units — the span actually comes apart and tumbles.
+         1.5   )
+         3     a hit on a rail only frees 2 pieces.
+         5     a hit on a rail frees NOTHING, and the lintel nudges 0.49 as
+               one unit: the immovable-lump feel this constant exists to fix.
+
+       1.0 sits four times above where frames stop standing and squarely in
+       the responsive band. Re-measure both ends before moving it — the
+       failure at the bottom is abrupt, not gradual. */
+    LATERAL_WELD_BREAK: 1,
+
+    /* The crown's and a guard's own bond to whatever they're standing on
+       (js/levels.js's weldBreak()). Far weaker than a structural bond on
+       purpose: it exists only to stop a figure sliding off a narrow perch
+       while the castle stands, and a figure that stays stuck to its board
+       through a collapse looks nailed down. Above the roughly
+       mass * GRAVITY * DT (~0.12 for a one-cell figure) it takes just to
+       hold one still, and well below what any real hit delivers. */
+    PROP_WELD_BREAK   : 0.4,
+
+    /* Rubble — what a killed building block leaves behind (MAT's `rubble`
+       above, game.js's spawnDebris()). One chunk per CELL the dead block
+       spanned, so the full-width stone beam that used to vanish as a single
+       body now drops a row of blocks; a one-cell block still breaks in two,
+       or "breaking" would just look like shrinking.
+
+       DEBRIS_CHUNK is the chunk's edge as a fraction of a cell — under 1 so
+       rubble reads as smaller than what it came from. DEBRIS_SCATTER is the
+       random kick (units/s) added on top of the dead block's own velocity so
+       a pile bursts apart rather than dropping in formation. DEBRIS_MAX caps
+       how many live at once: a full collapse of a big castle could otherwise
+       spawn hundreds of bodies in a few frames, and the cost is paid every
+       step afterwards, not just once. */
+    DEBRIS_CHUNK      : 0.5,
+    DEBRIS_SCATTER    : 2.2,
+    DEBRIS_MAX        : 160,
+
     /* Impact damage is a before/after speed check rather than a contact
        listener: "this block just got stopped hard" is exactly what a sudden
        loss of speed means, whether that is landing or crashing into a
@@ -242,10 +293,21 @@ RT.data = (function () {
    * Colours are CSS custom-property names, read back through the palette so
    * all four colour profiles repaint the 3D world. Anything added here MUST
    * also appear in PALETTE_VARS (see game.js) or it silently comes out grey.
+   *
+   * `rubble` names the small material this one BREAKS INTO when it dies, so
+   * a killed building block leaves real physics debris on the ground instead
+   * of blinking out of existence — see game.js's spawnDebris(). Only ordinary
+   * building materials carry it. Deliberately absent from:
+   *   - glass (`I`), which shatters: nothing left to fall.
+   *   - the powder keg (`T`), whose death IS its explosion.
+   *   - the crown and guards, which are characters and targets, not masonry.
+   *   - the small chunks below, which ARE the rubble — no `rubble` on them is
+   *     what stops debris breaking into more debris forever.
+   *   - steel (`X`), which is static and never dies anyway.
    */
   const MAT = {
-    W:{ id:'W', name:'wood beam',         hp: 40,  css:'--wood',   family:'wood',  mergeable:true },
-    S:{ id:'S', name:'stone block',       hp: 90,  css:'--stone',  family:'stone', mergeable:true },
+    W:{ id:'W', name:'wood beam',         hp: 40,  css:'--wood',   family:'wood',  mergeable:true, rubble:'w' },
+    S:{ id:'S', name:'stone block',       hp: 90,  css:'--stone',  family:'stone', mergeable:true, rubble:'s' },
     I:{ id:'I', name:'glass pane',        hp: 12,  css:'--glass',  family:'glass', mergeable:true, glass:true },
     /* `shape` gives a material its own silhouette instead of the default box.
        Only ever set on non-mergeable materials — a run of those is always a
@@ -308,7 +370,7 @@ RT.data = (function () {
        keep their own hp, so a struck board still breaks on its own and frees
        its neighbours to tumble. Set on `B` alone: boards are the only
        material whose job is to span open air between supports. */
-    B:{ id:'B', name:'timber board',      hp: 24,  css:'--wood',   family:'wood',  mergeable:true, plank:true, weld:true },
+    B:{ id:'B', name:'timber board',      hp: 24,  css:'--wood',   family:'wood',  mergeable:true, plank:true, weld:true, rubble:'w' },
     w:{ id:'w', name:'small wood chunk',  hp: 14,  css:'--wood',   family:'wood',  small:true },
     s:{ id:'s', name:'small stone chunk', hp: 30,  css:'--stone',  family:'stone', small:true },
     i:{ id:'i', name:'small glass shard', hp: 5,   css:'--glass',  family:'glass', small:true, glass:true }

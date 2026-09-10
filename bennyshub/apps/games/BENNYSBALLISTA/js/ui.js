@@ -144,7 +144,7 @@ RT.ui = (function () {
    * kept in agreement (which is what the earlier results/out-of-bolts pair
    * was already starting to become).
    */
-  let menuScreen = 'root';   // 'root' | 'howto' | 'settings' — only meaningful while CAM.phase is 'MENU'
+  let menuScreen = 'root';   // 'root' | 'howto' | 'settings' | 'levels' — only meaningful while CAM.phase is 'MENU'
   /** Which screen the *next* menu open should land on. The header buttons
    *  set this instead of setting menuScreen directly, because opening the
    *  menu doesn't render it — tick()'s edge-detect does, one frame later,
@@ -364,6 +364,32 @@ RT.ui = (function () {
       };
     }
 
+    if (menuScreen === 'levels') {
+      const cleared = LV.LEVELS.filter((l, i) => G.save.stars[i]).length;
+      return {
+        title: 'Choose Level',
+        sub: `Jump straight to any of the ${LV.LEVELS.length} castles — locked or not.`,
+        note: 'Your score and stars are left exactly as they are, and this does not change '
+          + 'which level you resume at next time.',
+        /* Item labels and subs stay PLAIN TEXT — itemSpeech() reads both
+           aloud verbatim, so an HTML entity or tag here is spoken as
+           markup ("nbsp", "span class stars"). Glyphs belong in the
+           screen's own sub/note, which have a separate `speech` string. */
+        items: LV.LEVELS.map((l, i) => {
+          const stars = G.save.stars[i] || 0;
+          return {
+            label: `${i + 1}. ${l.name}`,
+            sub: i === G.levelIx ? 'Playing now'
+              : stars ? `${stars} ${stars === 1 ? 'star' : 'stars'}`
+              : 'Not cleared',
+            action: () => G.goToLevel(i)
+          };
+        }).concat([{ label: '← Back', sub: '', action: () => gotoMenuScreen('root') }]),
+        speech: `Choose level. ${LV.LEVELS.length} castles, ${cleared} cleared so far. `
+          + 'Press space to scan, return to jump to the highlighted castle.'
+      };
+    }
+
     // menuScreen === 'root'
     const lvl = level();
     const stars = G.save.stars[G.levelIx] || 0;
@@ -376,11 +402,12 @@ RT.ui = (function () {
       items: [
         { label: '▶ Resume', sub: 'Back to aiming', action: G.closeMenu },
         { label: '🔁 Restart Level', sub: lvl.name, action: G.retryLevel },
+        { label: '🏰 Choose Level', sub: `${LV.LEVELS.length} castles`, action: () => gotoMenuScreen('levels') },
         { label: '❓ How to Play', sub: '', action: () => gotoMenuScreen('howto') },
         { label: '⚙ Settings', sub: '', action: () => gotoMenuScreen('settings') },
         { label: '🏠 Exit Game', sub: 'Back to the hub', action: goToHub }
       ],
-      speech: 'Menu. Resume, Restart Level, How to Play, Settings, or Exit Game. '
+      speech: 'Menu. Resume, Restart Level, Choose Level, How to Play, Settings, or Exit Game. '
         + 'Press space to scan, return to choose.'
     };
   }

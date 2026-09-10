@@ -340,11 +340,53 @@ RT.levels = (function () {
    * corners, exactly as its author drew it; destroy any one board and only
    * that board dies, freeing whatever it was holding to fall.
    *
-   * The rule is deliberately narrow — same material, `weld:true` (only `B`
-   * today, see js/data.js), and genuinely face-to-face. Two blocks that meet
-   * along an edge or at a corner only, with no shared face area, are not
-   * bonded: nothing is load-bearing there.
+   * The rule is deliberately narrow — ONE side must be `weld:true` (only `B`
+   * today, see js/data.js), and the contact must be genuinely face-to-face.
+   * A board bonds to whatever it actually touches, whatever that is: the
+   * post under it, the stone beside it, a guard standing on it. Everything
+   * else in the castle is left to Bullet's contact solver exactly as before,
+   * so only the thin spanning pieces — the ones with no support under their
+   * middle, which is the whole reason `B` exists — get held rigid. Welding
+   * EVERY touching pair instead was tried and reverted: it passes the audit
+   * but fuses a castle into one lump that no longer tumbles when it breaks.
+   *
+   * Two blocks that meet along an edge or at a corner only, with no shared
+   * face area, are not bonded: nothing is load-bearing there. And a weld
+   * needs CONTACT — a board drawn with empty cells beneath it touches
+   * nothing, so nothing bonds to it and it still falls. That is a level
+   * data problem, not something this rule can reach.
    */
+  /**
+   * How hard one bond may be pushed before it lets go, for js/physics.js's
+   * addWeld() — 0 meaning "only ever ends when one of its blocks dies".
+   * Lives here, next to weldPairs(), because the game and the editor's
+   * stability test both build the same castle and a bond that behaves
+   * differently between them would make the test lie.
+   *
+   * Three cases, weakest first:
+   *
+   *   A PROP on a surface — the crown or a guard standing on something.
+   *   These are welded at all only so they don't slide or topple off a
+   *   narrow perch while the castle is merely standing. They must come free
+   *   the moment anything actually happens to them, or a guard rides its
+   *   board all the way down like it was nailed there, which is exactly what
+   *   the weld was never meant to buy.
+   *
+   *   A LATERAL bond — boards meeting end-on or face-on across a span. Holds
+   *   a frame together, breaks under a solid hit so the span can be knocked
+   *   loose. See CFG.LATERAL_WELD_BREAK for the measured window.
+   *
+   *   A STACKED bond holding something UP — a board resting on its post.
+   *   Unbreakable: this one is load-bearing, and destroying the post already
+   *   drops the weld with it (js/physics.js's removeWeldsFor).
+   */
+  function weldBreak(blockA, blockB, axis) {
+    const a = MAT[blockA.matId], b = MAT[blockB.matId];
+    const prop = (m) => m && (m.crown || m.guard);
+    if (prop(a) || prop(b)) return D.CFG.PROP_WELD_BREAK;
+    return axis === 'y' ? 0 : D.CFG.LATERAL_WELD_BREAK;
+  }
+
   const WELD_EPS = 1e-6;
   function weldPairs(blocks) {
     const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
@@ -354,27 +396,39 @@ RT.levels = (function () {
       z0: b.z - b.d / 2, z1: b.z + b.d / 2,
       weld: !!(MAT[b.matId] && MAT[b.matId].weld)
     }));
-    /* Face contact on one axis needs POSITIVE overlap on the other two — an
-       edge-on or corner-on meeting has zero area on at least one of them and
-       carries no load. */
-    function touching(A, B) {
+    /* Which axis the two blocks meet on — 'y' when one sits on top of the
+       other, 'x'/'z' when they meet side by side or front to back — or null
+       when they don't share a face at all. Face contact on one axis needs
+       POSITIVE overlap on the other two: an edge-on or corner-on meeting has
+       zero area on at least one of them and carries no load.
+
+       The axis is reported rather than a bare yes/no because a STACKED bond
+       and a LATERAL one want different strengths. A board resting on a post
+       is what stops a crown or a guard tipping off it, and should simply
+       hold. The lateral bonds are the ones that tie a whole frame together
+       across the castle, and holding those rigid is what makes a hit feel
+       like it lands on one immovable lump — so callers give those a breaking
+       threshold instead. */
+    function contactAxis(A, B) {
       if (Math.abs(A.x1 - B.x0) < WELD_EPS || Math.abs(B.x1 - A.x0) < WELD_EPS) {
-        return overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS;
+        return (overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS) ? 'x' : null;
       }
       if (Math.abs(A.y1 - B.y0) < WELD_EPS || Math.abs(B.y1 - A.y0) < WELD_EPS) {
-        return overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS;
+        return (overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.z0, A.z1, B.z0, B.z1) > WELD_EPS) ? 'y' : null;
       }
       if (Math.abs(A.z1 - B.z0) < WELD_EPS || Math.abs(B.z1 - A.z0) < WELD_EPS) {
-        return overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS;
+        return (overlap(A.x0, A.x1, B.x0, B.x1) > WELD_EPS && overlap(A.y0, A.y1, B.y0, B.y1) > WELD_EPS) ? 'z' : null;
       }
-      return false;
+      return null;
     }
+    /* `[i, j, axis]` — a caller that only wants the pair can still destructure
+       `[i, j]` and ignore the third slot. */
     const pairs = [];
     for (let i = 0; i < blocks.length; i++) {
-      if (!ext[i].weld) continue;
       for (let j = i + 1; j < blocks.length; j++) {
-        if (!ext[j].weld || blocks[j].matId !== blocks[i].matId) continue;
-        if (touching(ext[i], ext[j])) pairs.push([i, j]);
+        if (!ext[i].weld && !ext[j].weld) continue;
+        const axis = contactAxis(ext[i], ext[j]);
+        if (axis) pairs.push([i, j, axis]);
       }
     }
     return pairs;
@@ -606,11 +660,188 @@ RT.levels = (function () {
     '.....................'
   ]
 ] },
-    { name: 'The Long Colonnade', par: 2, bolts: 7, dist: 27, layers: [[
-      '....K....',
-      '.WWWWWWW.',
-      '.S.S.S.S.'
-    ]] },
+    { name: 'The Warehouse', par: 3, bolts: 7, dist: 27, ammo: ['stone', 'boulder', 'fire'], layers: [
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.S..........S.',
+    'SSS........SSS'
+  ],
+  [
+    '.....SSSS.....',
+    '....SS..SS....',
+    '....S....S....',
+    'SSSSSSSSSSSSSS',
+    '.W.Q........W.',
+    '.WBBBBBBBBBBW.',
+    '.W....WW....W.',
+    '.W....WW....W.',
+    'SWS...WW...SWS',
+    'SSS...WW...SSS'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '.S..........S.',
+    'SSS........SSS'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.........Q....',
+    '.BBBBBBBBBBBB.',
+    '.W....WW....W.',
+    '.W....WW....W.',
+    '.W....WW....W.',
+    '.W....WW....W.'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '............H.',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '..............',
+    '..............'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.B..........B.',
+    '..............',
+    '..............',
+    '.S..........S.',
+    'SSS........SSS'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    'SSSSSSSSSSSSSS',
+    '.W.H......K.W.',
+    '.WBBBBBBBBBBW.',
+    '.W....WW....W.',
+    '.W....WW....W.',
+    'SWS...WW...SWS',
+    'SSS...WW...SSS'
+  ],
+  [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.S..........S.',
+    'SSS........SSS'
+  ]
+] },
     { name: 'Glasshouse Keep', par: 2, bolts: 7, dist: 27, layers: [[
       '.K..K',
       '.W..W',
@@ -975,7 +1206,7 @@ RT.levels = (function () {
 
   return {
     CELL: CELL, PLANK_FRAC: PLANK_FRAC, LEVELS: LEVELS,
-    parseLevel: parseLevel, weldPairs: weldPairs, layerZ: layerZ, cellCentre: cellCentre,
+    parseLevel: parseLevel, weldPairs: weldPairs, weldBreak: weldBreak, layerZ: layerZ, cellCentre: cellCentre,
     cellThickness: cellThickness, rowBottoms: rowBottoms
   };
 })();

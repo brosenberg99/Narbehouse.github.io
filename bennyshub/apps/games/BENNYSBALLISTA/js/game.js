@@ -395,6 +395,93 @@ RT.game = (function () {
     mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
   }
 
+  /* ── Rubble ───────────────────────────────────────────────────────────────
+   * A destroyed building block breaks into real physics debris rather than
+   * blinking out. Most visible on a merged run: js/levels.js fuses a row of
+   * the same letter into ONE wide body, so the full-width stone beam over a
+   * gateway was a single block that vanished whole the moment its hp ran
+   * out. There are no welds INSIDE a merged body to break at — the merge
+   * happened at parse time — so the equivalent is to split it back along the
+   * cell boundaries it was drawn on, which is what this does.
+   *
+   * Debris lives in its own array, NOT in `blocks`. Everything that reads
+   * `blocks` means "the castle": auditLevels() settles it and fails on
+   * anything destroyed, targetableBlocks() offers it to Select-Target aim,
+   * destroyBlockRec() scores it. Rubble belongs in none of those — it must
+   * not be aimable, must not pay points, and must never make a level's own
+   * audit think the castle came apart. It is still a real Bullet body, so it
+   * falls, piles up, and is shoved around by the collapse around it.
+   */
+  let debris = [];
+
+  const _rubbleOff = new THREE.Vector3();
+  const jitter = (amount) => (Math.random() - 0.5) * 2 * amount;
+
+  /** Breaks `b` into chunks at its CURRENT transform — call before its body
+   *  and mesh are torn down, while there is still a velocity to inherit and
+   *  a place to spawn from. Silent for anything without a `rubble` material
+   *  (glass, kegs, crown, guards, rubble itself — see js/data.js's MAT). */
+  function spawnDebris(b) {
+    const rubbleId = b.mat.rubble;
+    /* Boot audits settle all sixteen castles; they destroy nothing, but if a
+       level ever did lose a piece there, spawning bodies mid-audit would
+       make it cost more and leave rubble sitting in the world behind the
+       next castle. Nothing watches the audit, so nothing needs to see it. */
+    if (!rubbleId || auditing || debris.length >= CFG.DEBRIS_MAX) return;
+
+    const mat = D.MAT[rubbleId];
+    const color = css(mat.css.replace('--', ''));
+    const size = CFG.DEBRIS_CHUNK;
+    const vel = P.velocity(b.body);      // read while the body is still alive
+
+    // One chunk per cell the dead block spanned. A plank is a fraction of a
+    // cell tall, so round its thin axis up to one rather than down to none.
+    const nx = Math.max(1, Math.round(b.half.x * 2));
+    const ny = Math.max(1, Math.round(b.half.y * 2));
+    const nz = Math.max(1, Math.round(b.half.z * 2));
+    const spots = [];
+    for (let ix = 0; ix < nx; ix++) {
+      for (let iy = 0; iy < ny; iy++) {
+        for (let iz = 0; iz < nz; iz++) {
+          spots.push([
+            -b.half.x + (ix + 0.5) * (b.half.x * 2 / nx),
+            -b.half.y + (iy + 0.5) * (b.half.y * 2 / ny),
+            -b.half.z + (iz + 0.5) * (b.half.z * 2 / nz)
+          ]);
+        }
+      }
+    }
+    // A single cell would otherwise "break" into one chunk, which just reads
+    // as the block shrinking.
+    if (spots.length === 1) spots.push([0, 0, 0]);
+
+    for (const [ox, oy, oz] of spots) {
+      if (debris.length >= CFG.DEBRIS_MAX) break;
+      // Offsets are in the dead block's own frame — rotate them by however it
+      // was lying at the moment it died, or a toppled beam sheds its rubble
+      // along the axis it was originally drawn on.
+      _rubbleOff.set(ox, oy, oz).applyQuaternion(b.mesh.quaternion).add(b.mesh.position);
+      const mesh = A.buildBlock(size, size, size, color, {});
+      mesh.position.copy(_rubbleOff);
+      scene.add(mesh);
+      const body = P.addBlock(_rubbleOff.x, _rubbleOff.y, _rubbleOff.z, size, size, size, size * size * size);
+      P.addVelocity(body,
+        vel.x + jitter(CFG.DEBRIS_SCATTER),
+        vel.y + Math.abs(jitter(CFG.DEBRIS_SCATTER)) * 0.5,
+        vel.z + jitter(CFG.DEBRIS_SCATTER));
+      debris.push({ mesh: mesh, body: body, mat: mat });
+    }
+  }
+
+  function clearDebris() {
+    for (const r of debris) {
+      scene.remove(r.mesh);
+      disposeBlockMesh(r.mesh);
+      P.destroyBlock(r.body);
+    }
+    debris = [];
+  }
+
   /* ── Audio ────────────────────────────────────────────────────────────────
    * Sound is never load-bearing: every call goes through these two helpers so
    * a missing or broken js/audio.js can only ever cost noise, never gameplay.
@@ -468,6 +555,10 @@ RT.game = (function () {
        in here), which is the chain-reaction spectacle, not a bug. */
     if (b.mat.explodes) applySplash(D.KEG_BLAST, b.mesh.position, b);
     wakeBlocksAbove(b);
+    /* Before the teardown below: the chunks are placed from this block's
+       live transform and inherit its velocity, both of which are gone once
+       the body is destroyed. */
+    spawnDebris(b);
     scene.remove(b.mesh);
     disposeBlockMesh(b.mesh);
     P.destroyBlock(b.body);
@@ -514,6 +605,7 @@ RT.game = (function () {
       P.destroyBlock(b.body);
     }
     blocks = [];
+    clearDebris();
   }
 
   /**
@@ -541,8 +633,12 @@ RT.game = (function () {
     /* Bond touching boards into one assembly — spawnBlock() appends in the
        order it's called, so a weldPairs() index IS the blocks[] index. Every
        body has to exist before any weld references it, hence a second pass
-       rather than welding inside the loop above. */
-    for (const [i, j] of LV.weldPairs(parsed.blocks)) P.addWeld(blocks[i].body, blocks[j].body);
+       rather than welding inside the loop above. How strong each bond is —
+       and which ones can break at all — is LV.weldBreak()'s call, shared
+       with the editor's stability test so the two can't disagree. */
+    for (const [i, j, axis] of LV.weldPairs(parsed.blocks)) {
+      P.addWeld(blocks[i].body, blocks[j].body, LV.weldBreak(parsed.blocks[i], parsed.blocks[j], axis));
+    }
 
     AIM_LOOKAT.z = -liveLevel.dist;
     if (world) W.recenterShadow(world, liveLevel.dist);
@@ -1084,6 +1180,11 @@ RT.game = (function () {
       onImpact: (b, drop) => { sfx('impact', b.mat, drop, panFor(b.mesh.position)); },
       onDestroy: destroyBlockRec
     });
+    /* Rubble isn't in `blocks` (see spawnDebris), so RT.settle.step's own
+       sync never sees it — but it is in the same Bullet world and has been
+       moved by that same step, so its meshes have to be caught up here or it
+       would fall on screen only when something else happened to redraw. */
+    for (const r of debris) P.sync(r.mesh, r.body);
     checkWin();
   }
 
@@ -1118,6 +1219,9 @@ RT.game = (function () {
       const color = css(b.mat.css.replace('--', ''));
       b.mesh.material = b.mat.crown ? A.glow(color) : A.paper(color);
     }
+    // Rubble already on the ground is part of the scene too — switching
+    // colour profile mid-collapse would otherwise leave it in the old palette.
+    for (const r of debris) r.mesh.material = A.paper(css(r.mat.css.replace('--', '')));
   }
 
   function init(opts) {
@@ -1567,6 +1671,14 @@ RT.game = (function () {
     loadLevel(levelIx);
     enterAim();
   }
+  /** Jump straight to any castle, ignoring progression — drives js/ui.js's
+   *  Choose Level screen. Deliberately does NOT write `save.level`: looking
+   *  at a castle shouldn't rewrite where the player had actually got to, and
+   *  `save.stars` still records anything genuinely cleared from here. */
+  function goToLevel(ix) {
+    loadLevel(ix);
+    enterAim();
+  }
   function enableEndlessAndContinue() {
     save.endlessBolts = true;
     persistSave();
@@ -1623,6 +1735,10 @@ RT.game = (function () {
         alive: b.alive, hp: b.hp, mat: b.mat.id,
         y: b.mesh.position.y, awake: b.alive ? P.isAwake(b.body) : null
       }));
+    },
+    debrisCount() { return debris.length; },
+    debrisStates() {
+      return debris.map((r) => ({ mat: r.mat.id, x: r.mesh.position.x, y: r.mesh.position.y, z: r.mesh.position.z }));
     },
     knock(index, vx, vy, vz) {
       const b = blocks[index];
@@ -1704,7 +1820,7 @@ RT.game = (function () {
     init, loadAttract, update,
     onThemeChanged, isFlat,
     availableAmmo, ammoRemaining, currentLevel, crownPositions, targetableBlocks, fire, traceShot, updateAimPreview,
-    confirmResults, retryLevel, enableEndlessAndContinue,
+    confirmResults, retryLevel, goToLevel, enableEndlessAndContinue,
     openMenu, closeMenu, setMinimapSize, setSteadyCamera, setEndlessBolts, steadyCameraOn,
     getTheme, setTheme, aimModeOn, setAimMode,
     get CAM() { return CAM; },
