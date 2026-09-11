@@ -1165,6 +1165,145 @@ RT.levels = (function () {
         '.....SSSSS.....',
         'SSSSSSSSSSSSSSS'            // keep floor
       ]
+    ] },
+    /* The post-and-lintel level, and the one where nothing has to die from
+     * being hit. Every level above this uses depth as a SCREEN — a front
+     * layer hides a back one, and knocking it down only changes what can be
+     * seen. This one uses depth as STRUCTURE. The middle three layers are one
+     * cloister drawn identically in each, so every column layer-merges into a
+     * single 1x1x3 body running front-to-back and each walk roof into one
+     * 3x0.15x3 deck spanning both across the castle and into it. It is also
+     * deliberately OPEN: three arches in the gatehouse, an arcade for a back
+     * range, and a colonnade between them, so the eye reads straight through
+     * six layers of castle rather than at a facade.
+     *
+     * The plan is a real cloister: gatehouse in front (layer 0), a two-layer
+     * back-range arcade behind (layers 4-5), and between them a colonnade at
+     * cols 0, 2, 4, 8, 10 and 12 — covered walks down each side (decks over
+     * cols 0-2 and 10-12, each bridging the open column between its own two
+     * posts) around an open hall at cols 4-8. Every roof is a genuine span
+     * with air under it, and every span is full, symmetric and supported at
+     * both ends, the discipline The Grand Citadel note above settles on.
+     *
+     * THE FOURTH DIMENSION IS THE WHOLE LEVEL. All three scoring targets
+     * stand on a span, high, in the open, with five or six units of clear air
+     * beneath them, and each is meant to be killed by taking away what it is
+     * standing on rather than by being hit. The fall does the work — see
+     * fallDmgMult in js/data.js, where a crown needs about 2.3 units of drop
+     * to die and a guard not much more:
+     *   - THE CROWN stands at row 2, col 6, on the middle of a single timber
+     *     balk crossing the hall at row 3. The balk is carried on the two
+     *     hall posts and nothing else, and cols 5-7 are open air for five
+     *     full rows to the ground beneath him. Kill the balk (40 hp of wood,
+     *     one merged body, two stone bolts or one fire bolt) and he
+     *     free-falls six units with nothing whatever to catch him — around
+     *     136 damage against 15 hp. Kill a hall post instead (cols 4 and 8;
+     *     the gate void is cols 4-8 precisely so both posts stand in the
+     *     sightline) and the balk, held at one end only, tips and sheds him.
+     *   - THE TWO GUARDS stand at row 1 on the walk decks, over the open bay
+     *     each deck bridges. A deck is 24 hp of board — one bolt — and when
+     *     it goes the guard drops six units onto the floor of the walk.
+     * All three stand clear above the gatehouse merlons AND above the back
+     * range, so the three figures are the whole roofline of the castle, read
+     * against open sky: big, high-contrast silhouettes rather than detail.
+     *
+     * And none of the three can be sniped with a flat bolt at all. That is
+     * not a sightline trick — nothing blocks any of them — it is ballistics,
+     * and it was measured rather than hoped for: at this castle's range a
+     * direct-fire root is already well on its way down before it arrives, so
+     * at row 1-2 height the flat family (stone, fire) reaches none of the
+     * three figures, nor either walk deck. What a flat bolt CAN reach is the
+     * gallery balk (411 aim solutions with the plain stone bolt) and both
+     * hall posts, so the crown — the win condition — is winnable on the
+     * starting ammunition, but only structurally: collapse something or score
+     * nothing. The guards are a lob bonus. That also makes the order matter,
+     * since killing the last crown ends the level (see checkWin in
+     * js/game.js): collect the two guards with the lob family first, then
+     * bring the balk down.
+     *
+     * An earlier draft stood the crown BETWEEN two posts with a beam directly
+     * overhead, meaning to drop the beam on his head. Measured in-browser,
+     * that never works and cannot: a beam that loses a support falls onto
+     * whatever is holding its ENDS up, which is the rest of the post, so it
+     * lands one row down and stops. What falls has to be what the target is
+     * standing on. Every span in this castle is drawn from that.
+     *
+     * THE GATE is the same idea one layer forward and in plain sight: a
+     * timber lintel spanning the gateway on two timber jambs, standing in a
+     * screen of 90 hp stone. A 40 hp jamb is the obvious fuse, and the keg in
+     * the gateway stands close enough to both jambs for its blast to be worth
+     * aiming at rather than around.
+     *
+     * The back range is drawn TWICE, as layers 4 and 5, so it merges into a
+     * two-deep arcade. As a solid single layer, 13 wide and 5 tall, it passed
+     * the standing audit and then toppled forward in play the first time a
+     * shot landed anywhere in the castle: one cell thick at that height is a
+     * domino, and auditLevels() can only ask whether a castle stands, never
+     * whether it survives being hit. Two layers deep and open is both steady
+     * and lighter to look through. */
+    { name: 'The Cloister', par: 4, bolts: 10, dist: 26, layers: [
+      [                             // gatehouse — three arches, not a wall
+        '.............',
+        '.............',
+        '.............',
+        'S.S.......S.S',           // merlons, over the piers and nowhere else
+        'SSSWWWWWWWSSS',           // stone lintels over the side arches, timber
+                                   // over the gateway
+        'S.SW.....WS.S',           // side arches at cols 1 and 11; gate void
+        'S.SW.....WS.S',           // cols 4-8, wide enough that both hall posts
+        'S.SW.....WS.S',           // stand in the sightline
+        'S.SW.....WS.S'
+      ], [                          // front walk — drawn the same in all three
+        '.............',           // middle layers, so the colonnade merges
+        '.............',           // front-to-back into one frame
+        'BBB.......BBB',           // walk roofs; the hall (cols 4-8) is open sky
+        'W.W.......W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W.T.W.W.W'            // the keg, framed by the gateway arch
+      ], [                          // middle walk — the whole roofline lives here
+        '.............',
+        '.H.........Q.',           // guards, each on a walk deck
+        'BBB...K...BBB',           // the crown, on the middle of the balk
+        '....WWWWW....',           // the gallery balk, layer 2 only, cols 4-8
+        'W.W.W...W.W.W',           // open air under all three, to the floor
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W'
+      ], [                          // back walk — the front walk again
+        '.............',
+        '.............',
+        'BBB.......BBB',
+        'W.W.......W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W',
+        'W.W.W...W.W.W'
+      ], [                          // back range, front half — an arcade, kept
+        '.............',           // lower than the roofline so the three
+        '.............',           // figures stand clear against the sky
+        '.............',
+        '.............',
+        'SSSSSSSSSSSSS',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S'
+      ], [                          // back range, back half — identical, so the
+        '.............',           // pair merges into one two-deep arcade
+        '.............',
+        '.............',
+        '.............',
+        'SSSSSSSSSSSSS',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S',
+        'S.S.S.S.S.S.S'
+      ]
     ] }
   ];
 

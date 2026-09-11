@@ -469,7 +469,7 @@ four colour profiles. It exports straight into `levels.js`'s format.
   regardless of how far out a castle sits — but `dist` still has to stay
   inside every relevant ammo's `maxRange(speed)`, or `auditAmmoOffers()`
   below will warn about it (loudly, in the console, though it won't block a
-  boot). As a rough guide, the 16 shipped levels sit between 24 and 29; a
+  boot). As a rough guide, the 17 shipped levels sit between 24 and 29; a
   level several layers deep that needs a lob to clear its front wall has
   noticeably less real reach than that number suggests, since the lob still
   has to clear the *same* absolute distance ceiling.
@@ -564,7 +564,7 @@ deliberately separate).
   a large, prominent indicator that always shows a plausible value is harder
   to notice than a missing one, and worse than either.
 - **Anything that destroys or settles blocks in bulk must be silent.**
-  `auditLevels()` stands sixteen castles up on every boot; without a guard
+  `auditLevels()` stands seventeen castles up on every boot; without a guard
   that is a burst of noise before the player has touched anything. It sets
   `game.js`'s `auditing` flag around itself, so calling it from the console
   is as quiet as booting is. If you add another bulk-simulation path, it

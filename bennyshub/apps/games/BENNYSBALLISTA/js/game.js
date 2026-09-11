@@ -20,7 +20,7 @@
  * Destruction audio is wired through this file into js/audio.js — see the
  * "Audio" block below `disposeBlockMesh()` for the two helpers everything
  * routes through, and note that `auditing` is what keeps the one remaining
- * boot audit (auditLevels()) silent while it settles all sixteen castles.
+ * boot audit (auditLevels()) silent while it settles all seventeen castles.
  *
  * A former second boot audit, auditReach() ("every crown is destroyable by
  * some single sampled shot"), was removed — it only ever tested a single
@@ -423,7 +423,7 @@ RT.game = (function () {
    *  (glass, kegs, crown, guards, rubble itself — see js/data.js's MAT). */
   function spawnDebris(b) {
     const rubbleId = b.mat.rubble;
-    /* Boot audits settle all sixteen castles; they destroy nothing, but if a
+    /* Boot audits settle all seventeen castles; they destroy nothing, but if a
        level ever did lose a piece there, spawning bodies mid-audit would
        make it cost more and leave rubble sitting in the world behind the
        next castle. Nothing watches the audit, so nothing needs to see it. */
@@ -666,7 +666,7 @@ RT.game = (function () {
    *  at each level goes through, not a parallel code path. */
   function auditLevels() {
     const wasAuditing = auditing;
-    auditing = true;              // settling sixteen castles is not a thing to hear
+    auditing = true;              // settling seventeen castles is not a thing to hear
     try {
       auditLevelsInner();
     } finally {
