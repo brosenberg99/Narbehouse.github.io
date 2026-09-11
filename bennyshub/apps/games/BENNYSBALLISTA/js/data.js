@@ -145,13 +145,62 @@ RT.data = (function () {
        loss of speed means, whether that is landing or crashing into a
        neighbour. Ported from the 2D version and re-tuned for 3D masses. */
     IMPACT_THRESHOLD  : 7.5,   // units/s of lost speed before damage starts
-    IMPACT_DMG_SCALE  : 5.0,
+    /* Raised 5.0 -> 20.0 on 2026-09-11, together with CRUSH_DMG_SCALE below
+       and a matching cut to the figures' fallDmgMult (see MAT.K), so that a
+       COLLAPSE actually wrecks masonry. It was not doing that. Measured
+       across six real collapse scenarios in five castles (a shot into the
+       Cloister balk, a Cloister hall post, a Bridge pillar, a Warehouse
+       frame, a Citadel pillar, a Siege Tower pillar, three trials each), the
+       old numbers broke an average of 2.3 stone blocks per collapse; these
+       break 8.0. Timber went 8.7 -> 12.7.
+
+       Why the SCALES and not IMPACT_THRESHOLD: damage is
+       `(drop - THRESHOLD) * SCALE`, and in a real castle collapse `drop`
+       lands between about 8 and 13, so the bracket is a small number and
+       multiplying it is the honest lever. Lowering the threshold instead
+       was measured and rejected — at 5.0 it turns near-stationary jostling
+       into damage, and a stone bolt into the Cloister's GATE JAMB killed the
+       crown standing on the gallery at the far end of the castle, in both
+       trials. A level stops being a puzzle when any hit anywhere wins it.
+       The threshold also has to stay well clear of an ordinary settle: the
+       worst legitimate settle peak across all seventeen castles is The
+       Watchtower at 1.73 units/s (everything else is under 0.6), and 7.5
+       keeps a 4.3x margin. Anything at or under about 4 starts eating into
+       that AND makes auditLevels() a coin toss.
+
+       What this deliberately does NOT change is how easily a crown or a
+       guard dies, because that was already right and because making figures
+       more fragile is what causes the far-end one-shot above. Their
+       fallDmgMult is cut by the same factor these scales rise by, so the
+       product — the only thing the damage formula actually uses — is
+       identical to what it was. Verified rather than asserted: every
+       designed kill route in the game (both Cloister routes, the Bridge,
+       the Siege Tower, the Grand Citadel) kills exactly the same crowns,
+       3/3 trials, before and after; and the rate at which a deliberately
+       unrelated shot kills a crown went DOWN, 4 of 12 runs to 2 of 12.
+       All seventeen castles still pass auditLevels(). */
+    IMPACT_DMG_SCALE  : 20.0,
     /* Crush damage: a hard-landing block (same drop check as IMPACT_DMG_SCALE
        above) also hurts whatever it's now resting directly on top of, using
        the same drop speed but its own scale — "getting crushed" reads as
        worse than "you personally hit something hard", and tuning one must not
-       force-tune the other. See js/game.js's applyCrush(). */
-    CRUSH_DMG_SCALE   : 8.0,
+       force-tune the other. See js/settle.js's applyCrush().
+
+       Raised 8.0 -> 32.0 with IMPACT_DMG_SCALE above, same 4x, same reason.
+       What it buys, in free-fall heights (a fall of h units arrives at
+       sqrt(28h), and the bracket is that minus 7.5):
+         2 units  nothing at all, at any scale — 7.48 is under the threshold.
+                  This is unchanged and worth keeping: it is what stops an
+                  ordinary one-row resettle chipping a castle to bits.
+         3 units  53 crush. A 90 hp stone block survives one, not two.
+         4 units  98 crush — a stone block breaks outright. It used to take
+                  24, i.e. four such falls, which no castle here ever
+                  delivers, which is why stone simply never broke.
+         6 units  175.
+       A 40 hp wood beam now also breaks ITSELF falling 4 units (62 self
+       damage, was 15), and a 24 hp board breaks itself falling 3. Timber
+       shattering when it comes down a long way is the point. */
+    CRUSH_DMG_SCALE   : 32.0,
     KNOCK_SCALE       : 1.3,   // how much of a bolt's velocity goes to what it hits (was 0.75 — debris flies harder)
 
     /* ── Seam hit: a shot lands where two parts meet ──────────────────────
@@ -342,7 +391,17 @@ RT.data = (function () {
        not just a slightly-more-possible one — the intent the whole time,
        per this file's own header design rule. Re-verified: auditLevels()
        still passes clean across every level. */
-    K:{ id:'K', name:'crown',             hp: 15,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 5.0 },
+    /* 5.0 -> 1.25 on 2026-09-11. NOT a decision about how fragile a crown is
+       - that is unchanged. IMPACT_DMG_SCALE/CRUSH_DMG_SCALE rose 4x so that
+       collapses break masonry (see their note in CFG above), and damage is
+       `bracket * SCALE * fallDmgMult`, so cutting this by the same 4x leaves
+       the product - the only thing the formula uses - exactly where the
+       paragraph below tuned it. Every number in that paragraph still holds,
+       including the ~2.3-unit lethal drop; re-verified 3/3 trials on every
+       designed kill route in the game after the change. If a playtest wants
+       the tyrant genuinely easier to squash, THIS is the knob (raise it) -
+       not the two scales, which also govern every wall in the game. */
+    K:{ id:'K', name:'crown',             hp: 15,  css:'--crown',  crown:true, shape:'crown', fallDmgMult: 1.25 },
     /* Guards: real, placed, destructible targets (not the decorative
        guardDecor/guardDecor2 standing beside the ballista, js/game.js) —
        reuse the same two baked models those already use. Same "a person, not
@@ -350,8 +409,13 @@ RT.data = (function () {
        to a stray fall since a guard isn't the win condition. Two letters
        (not one + a random-variant pick) so a level author can deliberately
        choose a pose per placement, same as any other material choice. */
-    Q:{ id:'Q', name:'guard (spear)',     hp: 18,  css:'--guard',  guard:true, shape:'guard-spear',   fallDmgMult: 4.0 },
-    H:{ id:'H', name:'guard (halberd)',   hp: 18,  css:'--guard',  guard:true, shape:'guard-halberd', fallDmgMult: 4.0 },
+    /* 4.0 -> 1.0, the same 4x cut as the crown above and for the same reason -
+       the scales rose 4x, so a guard takes exactly the damage from a fall
+       that he always did. Left explicit at 1.0 rather than deleted (it is
+       also the `|| 1` default) so the pairing with the crown stays visible:
+       these two numbers only mean anything relative to the two scales. */
+    Q:{ id:'Q', name:'guard (spear)',     hp: 18,  css:'--guard',  guard:true, shape:'guard-spear',   fallDmgMult: 1.0  },
+    H:{ id:'H', name:'guard (halberd)',   hp: 18,  css:'--guard',  guard:true, shape:'guard-halberd', fallDmgMult: 1.0  },
     X:{ id:'X', name:'steel girder',      hp: Infinity, css:'--steel', mergeable:true, static:true },
     /* `plank` is read only by js/levels.js's parser (matches the existing
        small/static/glass/explodes pattern) — it thins the block to

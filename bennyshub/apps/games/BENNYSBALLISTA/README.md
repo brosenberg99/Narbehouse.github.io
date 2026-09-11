@@ -210,6 +210,32 @@ from the physics world carries no collision event on its own, so without this
 a sleeping piece would float in place forever with nothing left underneath
 it, support or no support.
 
+Three things about that damage model are worth knowing before you draw a
+castle, because each one is easy to assume the other way round:
+
+- **What a fall costs.** Damage is `(speed lost - IMPACT_THRESHOLD) * SCALE`,
+  and a free fall of `h` units arrives at `sqrt(28h)`. So a drop of **2 units
+  or less does nothing at all** — 7.48 is under the 7.5 threshold — which is
+  what stops an ordinary one-row resettle chipping a castle to pieces. Three
+  units crushes for 53, four for 99, six for 175, against a 90 hp stone block
+  and a 40 hp wood beam. Retuned 2026-09-11 (`IMPACT_DMG_SCALE` 5 -> 20,
+  `CRUSH_DMG_SCALE` 8 -> 32) so that a collapse genuinely demolishes masonry;
+  the figures' `fallDmgMult` was cut by the same 4x in the same change, so how
+  easily a crown or guard dies is exactly what it was. See the long notes on
+  those constants in `js/data.js` for what was measured and what was rejected.
+- **A sideways hit does no damage.** There is no lateral damage transfer
+  anywhere in the model: `applyCrush()` requires XZ footprint overlap plus the
+  faller's bottom sitting at the victim's top, and explicitly rejects two
+  pieces merely standing side by side. Slamming a beam into its neighbour at
+  34 units/s costs the neighbour nothing directly — measured. It may knock it
+  over, and *that fall* is what hurts.
+- **Rubble never damages anything.** Debris is deliberately outside `blocks[]`
+  (see "Rubble" above), and both `RT.settle.step()` and `applyCrush()` only
+  ever iterate `blocks`, so a chunk landing on a crown's head does nothing at
+  all. It is real Bullet mass, so it can shove and topple things — and a piece
+  it topples takes its own landing damage normally — but the rubble itself is
+  inert as a weapon, and bolts pass straight through it.
+
 Gravity (`CFG.GRAVITY`) is set well above real-world for a 1-unit block on
 purpose — that's what makes a collapse read as chunky and toy-like rather
 than floaty. It's also the single number every ballistics/reachability
