@@ -1,0 +1,73 @@
+/* Benny's Sphere Splash - UI over the 3D canvas.
+   Scaling follows NARBE Racer (NARBEKART/css/nk.css): rem sizes off a root clamp tuned
+   for the hub window, a tablet and a small laptop. The focus marker and world plates
+   follow Fish Mystery (BENNYSFISHMYSTERY/index.html #scanFrame, .worldLabel). */
+:root {
+  --ink: #14161f; --paper: #fff8e8; --focus: #ffd400; --good: #3ddc84; --fair: #ffc233; --risky: #ff5470;
+  --home: #ff8a1f; --home2: #ffe14d; --away: #d6246e; --away2: #2b1b5a;
+  --ui: 1;   /* UI Size setting: 1 .. 2 */
+}
+html { font-size: calc(clamp(14px, min(1.22vw, 2.05vh), 22px) * var(--ui)); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0e6f86; color: var(--ink);
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
+#canvasWrap { position: fixed; inset: 0; z-index: 0; }
+#canvasWrap canvas { display: block; }
+
+#worldLayer { position: fixed; inset: 0; z-index: 13; pointer-events: none; }
+
+/* Number badge over every swimmer: the biggest, simplest shape on screen. Teams
+   differ in colour AND shape (round vs diamond), never colour alone. */
+.badge { position: absolute; left: 0; top: 0; min-width: 2.6rem; height: 2.6rem; padding: 0 .35rem; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.55rem;
+  border: .22rem solid var(--ink); box-shadow: 0 .25rem 0 rgba(0,0,0,.35); will-change: transform; }
+.badge.round { border-radius: 50%; }
+.badge.team-0 { --bg: var(--home2); color: var(--ink); }
+.badge.team-1 { --bg: var(--away); color: #fff; }
+.badge.round { background: var(--bg); }
+/* The diamond is a rotated square behind an unrotated number, so the digits stay upright. */
+.badge.diamond { border: none; box-shadow: none; isolation: isolate; }
+.badge.diamond::before { content: ''; position: absolute; inset: .2rem; background: var(--bg); border: .22rem solid var(--ink);
+  border-radius: .3rem; transform: rotate(45deg); z-index: -1; box-shadow: .18rem .18rem 0 rgba(0,0,0,.35); }
+
+/* Choice plates beside the carrier. */
+.plate { position: absolute; left: 0; top: 0; min-width: 9rem; padding: .55rem 1rem .6rem; border-radius: .9rem;
+  background: var(--paper); border: .25rem solid var(--ink); box-shadow: 0 .35rem 0 rgba(0,0,0,.3);
+  text-align: center; opacity: .8; transition: opacity .15s, background .15s; pointer-events: auto; will-change: transform; }
+.plate b { display: block; font-size: 1.7rem; line-height: 1.1; }
+.plate .sub { display: block; font-size: 1rem; opacity: .8; }
+.plate .odds { display: flex; align-items: center; gap: .5rem; margin-top: .35rem; font-size: 1rem; font-weight: 800; }
+.plate .odds i { flex: 1; height: .7rem; border-radius: .35rem; border: .15rem solid var(--ink);
+  background: linear-gradient(90deg, var(--bar, var(--fair)) calc(var(--p) * 100%), transparent 0); }
+.plate[data-odds="good-chance"] .odds i { --bar: var(--good); }
+.plate[data-odds="risky"] .odds i { --bar: var(--risky); }
+.plate[data-odds="good-chance"] .odds em::before { content: '▲ '; }
+.plate[data-odds="fair"] .odds em::before { content: '● '; }
+.plate[data-odds="risky"] .odds em::before { content: '▼ '; }
+.plate .odds em { font-style: normal; white-space: nowrap; }
+.plate.focused { opacity: 1; background: var(--focus); box-shadow: 0 0 0 .3rem #fff, 0 0 0 .6rem var(--ink), 0 .6rem 0 rgba(0,0,0,.35); }
+
+/* One focus marker for everything: four corner brackets that glide between targets. */
+#scanFrame { position: fixed; z-index: 14; display: none; pointer-events: none;
+  transition: left .16s ease, top .16s ease, width .16s ease, height .16s ease; }
+#scanFrame.on { display: block; }
+#scanFrame i { position: absolute; width: 1.6rem; height: 1.6rem; border: .4rem solid var(--focus);
+  filter: drop-shadow(0 0 0 var(--ink)) drop-shadow(2px 2px 0 rgba(0,0,0,.5)); }
+#scanFrame i:nth-child(1) { left: -.4rem; top: -.4rem; border-right: none; border-bottom: none; border-radius: .6rem 0 0 0; }
+#scanFrame i:nth-child(2) { right: -.4rem; top: -.4rem; border-left: none; border-bottom: none; border-radius: 0 .6rem 0 0; }
+#scanFrame i:nth-child(3) { left: -.4rem; bottom: -.4rem; border-right: none; border-top: none; border-radius: 0 0 0 .6rem; }
+#scanFrame i:nth-child(4) { right: -.4rem; bottom: -.4rem; border-left: none; border-top: none; border-radius: 0 0 .6rem 0; }
+@keyframes scanBreathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+#scanFrame.on i { animation: scanBreathe 1.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { #scanFrame { transition: none; } #scanFrame.on i { animation: none; } }
+
+/* On-screen Pause, bottom-left, as in Racer and Fish Mystery. */
+#pauseBtn { position: fixed; left: 18px; bottom: 18px; z-index: 30; min-width: max(76px, 4.9rem); min-height: max(76px, 4.9rem);
+  border-radius: 1.1rem; border: .3rem solid var(--ink); background: var(--paper); font: inherit; font-weight: 900; font-size: 1.2rem;
+  box-shadow: 0 .35rem 0 rgba(0,0,0,.3); cursor: pointer; }
+
+#perf { position: fixed; right: 12px; top: 12px; z-index: 40; padding: .3rem .6rem; border-radius: .5rem;
+  background: rgba(0,0,0,.55); color: #fff; font: 700 .9rem/1.2 ui-monospace, Consolas, monospace; }
+
+#loading { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; gap: 1rem;
+  align-items: center; justify-content: center; background: #0e6f86; color: #fff; font-size: 1.6rem; font-weight: 800; }
+#loading button { font: inherit; min-height: 64px; padding: 16px 32px; border-radius: 16px; }

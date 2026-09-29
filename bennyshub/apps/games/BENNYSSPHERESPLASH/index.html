@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Benny's Sphere Splash</title>
+<link rel="stylesheet" href="css/ss.css">
+</head>
+<body data-theme="ben">
+<div id="canvasWrap"></div>
+<div id="worldLayer"></div>
+<div id="scanFrame"><i></i><i></i><i></i><i></i></div>
+<button id="pauseBtn" type="button">❚❚ Pause</button>
+<div id="perf"></div>
+<div id="loading">Filling the sphere…</div>
+
+<!-- Hub shared modules first, in the hub's order. -->
+<script src="../../../shared/safe-audio.js" onerror="console.warn('safe-audio.js missing')"></script>
+<script src="../../../shared/voice-manager.js" onerror="console.warn('voice-manager.js missing')"></script>
+<script src="../../../shared/ios-audio-fix.js" onerror="console.warn('ios-audio-fix.js missing')"></script>
+<script src="../../../shared/scan-manager.js" onerror="console.warn('scan-manager.js missing')"></script>
+
+<script src="js/vendor/three.min.js"></script>
+<script src="js/vendor/three-addons.js"></script>
+<script>window.SS = window.SS || {};</script>
+<script src="js/model-data.js"></script>
+<script src="js/rig.js"></script>
+<script src="js/models.js"></script>
+<script src="js/world.js"></script>
+<script src="js/worldui.js"></script>
+<script src="js/spike.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
