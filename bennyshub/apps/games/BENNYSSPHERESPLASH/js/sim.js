@@ -429,6 +429,9 @@
     // the attacker cannot see which stance was picked, so it is judged the same way.
     const atk = attackOptionsForOdds(s);
     const w = A().softmaxWeights(atk.map(o => A().valueOf(s, { carrier: enc.carrier }, o)), A().ATTACK_TEMP);
+    // What the carrier will likely do, for the player - the same mix the odds assume.
+    dec.likely = {};
+    atk.forEach((a, k) => { dec.likely[a.kind] = (dec.likely[a.kind] || 0) + w[k]; });
     const human = humanDecides(s, defTeam, 'stance');
     const n = human ? 96 : 32;
     opts.forEach((o, i) => {

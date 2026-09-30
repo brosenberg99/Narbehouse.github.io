@@ -103,7 +103,8 @@ pool, so our team always attacks to the right; every move is eased, never cut.
 - **Pass is two-stage**: the brackets step through the teammates themselves, their badges
   carry the odds, a dashed lane runs to the lit one and every defender in the lane gets ✕.
 - **Tech** lists technique moves; a technique pass then goes to the teammate stage.
-- **Defend** (Attack and defense stops): Tackle · Block · tackle techniques.
+- **Defend** (Attack and defense stops): Tackle · Block · tackle techniques, under "#4 Duke
+  will likely pass", worded against each other (see the open questions).
 - Our team always attacks to the RIGHT; teams differ by badge shape (round / diamond) as
   well as colour.
 
@@ -155,10 +156,14 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
 - Decision count per Quick Game: ~52 with Attack and defense since the goal-mouth fix (was ~30),
   ~16 with Our ball only before it. **Attack and defense is now the default** (Bryan, after his first
   full game had no defensive choices); settings saved before that forget their old default.
-- **Defending choices read "Risky / Risky" most of the time**: winning the ball back is
-  rarely likely, so both stances land under the Fair line and the choice tells the player
-  little. Candidate fix: say what the carrier usually does ("Duke likes to dribble") and word
-  the odds against each other. Not done yet - Bryan to see it first.
+- **Defending choices no longer read "Risky / Risky".** The heading says what the carrier
+  will likely do ("#4 Duke will likely pass"; "may pass or dribble" under 55%). Each
+  plate says what it stops (Tackle: a dribble; Block: a pass or shot), and the odds words
+  compare the choices: Best bet ▲ / Close ● / Weaker ▼, or Even ● for all when they are
+  within 10 points. The bar still shows the real chance of winning the ball. In play the
+  likely move is at least 74% certain nine times in ten. Bryan asked for it short, for
+  switch play and speed.
+- Bryan to see it first.
 - **Formations matter; now the game shows it** (Bryan chose: show the shape, the analyst
   reacts, opponents change too). Beamers v Raiders (80 matches): Normal wins 4%, All-out
   Defense 30%, Left Side 0%; over all 30 pairings no formation dominates (1.19-1.67 points a

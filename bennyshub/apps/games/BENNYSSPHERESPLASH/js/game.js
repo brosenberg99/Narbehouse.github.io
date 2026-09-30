@@ -554,17 +554,36 @@ SS.game = (function () {
       anchor: swimmers[dec.carrier].head, speech: 'Tech moves.', onLeave: () => showLane(null) });
   }
 
+  /* Defending. Bryan's playtest: both stances read "Risky / Risky" - winning the ball back
+     is rarely likely, so the words told him nothing. Now the heading says what the
+     carrier will likely do, each plate says what it stops, and the odds words compare
+     the choices with each other (the bar still shows the real chance). */
+  const LIKELY_CLEAR = 0.55, ODDS_EVEN = 0.1;
+  function likelyMove(dec) {
+    const l = Object.entries(dec.likely || {}).sort((a, b) => b[1] - a[1]);
+    if (!l.length) return who(dec.carrier) + ' is coming through';
+    if (l[0][1] >= LIKELY_CLEAR || !l[1]) return who(dec.carrier) + ' will likely ' + l[0][0];
+    return who(dec.carrier) + ' may ' + l[0][0] + ' or ' + l[1][0];
+  }
+  function stanceWord(p, all) {
+    const best = Math.max(...all);
+    if (best - Math.min(...all) < ODDS_EVEN) return 'Even';
+    return p >= best - 1e-9 ? 'Best bet' : p >= best - ODDS_EVEN ? 'Close' : 'Weaker';
+  }
   function openStance(dec) {
+    const ps = dec.options.map(o => o.odds.p);
     const items = dec.options.map(o => {
       const t = o.tech ? D().TECHS[o.tech] : null;
       const label = t ? t.name : o.stance === 'tackle' ? 'Tackle' : 'Block';
-      const sub = t ? 'By #' + numberOf(o.by) + ' ' + who(o.by) : o.stance === 'tackle' ? 'Go for the ball' : 'Stand in the lanes';
-      return { label, sub, odds: o.odds, cls: t ? 'tech' : '', speech: label + '. ' + sub + '. ' + o.odds.word + ' to win it.', action: () => choose(o.id) };
+      const sub = t ? 'By #' + numberOf(o.by) + ' ' + who(o.by) : o.stance === 'tackle' ? 'Stops a dribble' : 'Stops a pass or shot';
+      const odds = { p: o.odds.p, word: stanceWord(o.odds.p, ps) };
+      return { label, sub, odds, cls: t ? 'tech' : '', speech: label + '. ' + sub + '. ' + odds.word + '.', action: () => choose(o.id) };
     });
     items.push(pauseItem());
     frameOn([dec.carrier, ...dec.defenders]);
-    SS.ui.openWorld({ title: 'Defend!', sub: 'Their #' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' is coming through', items,
-      anchor: swimmers[dec.carrier].head, speech: 'Defend! Their ' + who(dec.carrier) + ' is coming through. Tackle, or block?',
+    const likely = likelyMove(dec);
+    SS.ui.openWorld({ title: 'Defend!', sub: '#' + numberOf(dec.carrier) + ' ' + likely, items,
+      anchor: swimmers[dec.carrier].head, speech: 'Defend! ' + likely + '.',
       onOpen: () => dec.defenders.forEach(j => badges[j].blocker(true)), onLeave: () => showLane(null) });
   }
 

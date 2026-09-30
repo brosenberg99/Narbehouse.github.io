@@ -76,11 +76,11 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 .plate .odds i { flex: 1; min-width: 2.5rem; height: .75rem; border-radius: .4rem; border: .16rem solid var(--ink); background: #fff;
   background-image: linear-gradient(90deg, var(--bar, var(--fair)) calc(var(--p) * 100%), transparent 0); }
 .plate .odds em { font-style: normal; white-space: nowrap; }
-.plate[data-odds="good-chance"] .odds i { --bar: var(--good); }
-.plate[data-odds="risky"] .odds i { --bar: var(--risky); }
-.plate[data-odds="good-chance"] .odds em::before { content: '▲ '; }
-.plate[data-odds="fair"] .odds em::before { content: '● '; }
-.plate[data-odds="risky"] .odds em::before { content: '▼ '; }
+.plate[data-odds="good-chance"] .odds i, .plate[data-odds="best-bet"] .odds i { --bar: var(--good); }
+.plate[data-odds="risky"] .odds i, .plate[data-odds="weaker"] .odds i { --bar: var(--risky); }
+.plate[data-odds="good-chance"] .odds em::before, .plate[data-odds="best-bet"] .odds em::before { content: '▲ '; }
+.plate[data-odds="fair"] .odds em::before, .plate[data-odds="close"] .odds em::before, .plate[data-odds="even"] .odds em::before { content: '● '; }
+.plate[data-odds="risky"] .odds em::before, .plate[data-odds="weaker"] .odds em::before { content: '▼ '; }
 .plate.tech { background: #efe6ff; }
 .plate.back { min-width: 6rem; background: #e9eef2; }
 .plate.focused { background: linear-gradient(180deg, #ffe46b 0%, var(--focus2) 100%); transform: translateY(-3px) scale(1.05);
