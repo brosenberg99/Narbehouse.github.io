@@ -1,0 +1,4 @@
+{
+  "_what": "Which broadcast line ids have a recording, and the file for each (in audio/vo/). Anything not listed is read by the system voice. Written by the voice pipeline (plan section 6); empty until voices are recorded.",
+  "lines": {}
+}

@@ -72,11 +72,13 @@
       halfLength: opts.halfLength || RU.HALF_STANDARD,
       overtime: !!opts.overtime, golden: false,
       stops: opts.stops || 'ours', human: opts.human == null ? null : opts.human,
+      aiCoach: !!opts.aiCoach, coachNext: [0, 0],
       phase: 'kickoff', phaseT: 0, firstKick: 0, kickoffTeam: 0, score: [0, 0],
       teams: [0, 1].map(t => {
         const src = opts.teams[t];
         return { id: src.id, name: src.name, short: src.short || src.name, morale: src.morale == null ? 0.5 : src.morale,
-          formation: (opts.formations && opts.formations[t]) || src.formation || 'normal', marks: {} };
+          formation: (opts.formations && opts.formations[t]) || src.formation || 'normal', marks: {},
+          stint: { at: 0, shots: [0, 0], goals: [0, 0] } };
       }),
       players: [],
       ball: { owner: null, p: { x: 0, y: 0, z: 0 }, v: { x: 0, y: 0, z: 0 }, flight: null },
@@ -95,6 +97,7 @@
         st: COUNTERS(),
       });
     }));
+    s.coachNext = [RU.COACH_EVERY, RU.COACH_EVERY * 1.3];
     return new Match(s);
   }
 
@@ -187,6 +190,7 @@
     }
     // live
     if (s.clock >= s.periodLength) return endPeriod(s);
+    coachReview(s, false);
     if (s.ball.owner == null) looseBall(s);
     else checkEncounter(s) || checkShotChance(s);
   }
@@ -235,6 +239,7 @@
       pl.p.x += pl.v.x * TICK; pl.p.y += pl.v.y * TICK; pl.p.z += pl.v.z * TICK;
       const l = V().len(pl.p);
       if (l > lim) { V().copy(pl.p, V().scale(pl.p, lim / l)); }
+      keepOutOfGoals(pl.p, pl.v, pl.pos === 'GL' ? -A().dirOf(pl.team) : 0, lim);
       if (chasing) { pl.chaseT += TICK; if (pl.chaseT >= RU.CHASE_TIME) { pl.chaseT = 0; pl.rest = RU.CHASE_REST; } }
     });
     const b = s.ball;
@@ -245,6 +250,28 @@
       b.p.x += b.v.x * TICK; b.p.y += b.v.y * TICK; b.p.z += b.v.z * TICK;
       b.v.x *= 0.97; b.v.y *= 0.97; b.v.z *= 0.97;
       V().copy(b.p, A().clampToSphere(b.p, RU.R - 1.2));
+      // A loose ball never settles inside a goal's keep-out, or no fielder could reach it.
+      keepOutOfGoals(b.p, b.v, 0, RU.R - 1.2);
+    }
+  }
+
+  /** Push a point out of the keep-out round each goal, except the goal whose side is
+   *  `own` (+1 / -1: a keeper's own goal; 0 = none). Movement into the zone is cancelled,
+   *  so a swimmer slides along its edge instead of bouncing. */
+  function keepOutOfGoals(p, v, own, lim) {
+    const RU = R(), r = RU.GOAL_KEEP_OUT;
+    for (const side of [1, -1]) {
+      if (side === own) continue;
+      const cz = side * (RU.GOAL_Z + RU.GOAL_KEEP_BACK);
+      let dx = p.x, dy = p.y, dz = p.z - cz;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d >= r) continue;
+      if (d < 1e-4) { dx = 0; dy = 0; dz = -side; } else { dx /= d; dy /= d; dz /= d; }
+      p.x = dx * r; p.y = dy * r; p.z = cz + dz * r;
+      const vn = v.x * dx + v.y * dy + v.z * dz;
+      if (vn < 0) { v.x -= vn * dx; v.y -= vn * dy; v.z -= vn * dz; }
+      const l = V().len(p);
+      if (l > lim) V().copy(p, V().scale(p, lim / l));
     }
   }
 
@@ -636,6 +663,7 @@
       s.ball.owner = null; V().copy(s.ball.p, at);
       const r = stream(s.rng);
       V().copy(s.ball.v, V().add(push || { x: 0, y: 0, z: 0 }, { x: (r() - 0.5) * 3, y: (r() - 0.5) * 3, z: (r() - 0.5) * 3 }));
+      keepOutOfGoals(s.ball.p, s.ball.v, 0, RU.R - 1.2);
     };
     if (out.status && out.by != null) applyStatus(s, out.by, out.status);
     switch (out.result) {
@@ -688,6 +716,7 @@
     if (s.period === 1) {
       s.phase = 'break'; s.phaseT = 0; s.ball.owner = null;
       emit(s, 'halftime', { score: s.score.slice() });
+      coachReview(s, true);
       return;
     }
     if (s.overtime && s.score[0] === s.score[1] && s.period - 2 < RU.OVERTIME_CAP) {
@@ -713,12 +742,45 @@
     attackDecision(s, 'call', true);
     return true;
   };
-  M.setTactics = function (team, t) {
-    const tm = this.s.teams[team];
+  /** Who stands in the lane from a carrier to a point: what the scene marks with ✕.
+   *  Read-only, and it uses no random numbers, so looking never changes the match. */
+  M.laneBlockers = function (carrier, to) {
+    const s = this.s, c = s.players[carrier];
+    return blockersOn(s, c.p, to, c.team, null).map(b => b.j);
+  };
+  M.setTactics = function (team, t) { setTactics(this.s, team, t, 'player'); };
+  function setTactics(s, team, t, by) {
+    const tm = s.teams[team], was = tm.formation;
     if (t.formation && SS.DATA.FORMATIONS[t.formation]) tm.formation = t.formation;
     if (t.marks) tm.marks = Object.assign({}, t.marks);
-    emit(this.s, 'tactics', { team, formation: tm.formation });
+    if (tm.formation !== was || !tm.stint) tm.stint = { at: matchTime(s), shots: teamTotals(s, 'shots'), goals: s.score.slice() };
+    emit(s, 'tactics', { team, formation: tm.formation, was, by });
+  }
+  /** Game seconds since kickoff, across periods. */
+  function matchTime(s) { return (s.period - 1) * s.halfLength + s.clock; }
+  function teamTotals(s, key) { const o = [0, 0]; s.players.forEach(p => { o[p.team] += p.st[key] || 0; }); return o; }
+  /** How a team's current formation has gone since it was picked. */
+  M.stint = function (team) {
+    const s = this.s, st = s.teams[team].stint || { at: 0, shots: [0, 0], goals: [0, 0] }, sh = teamTotals(s, 'shots');
+    return { formation: s.teams[team].formation, secs: matchTime(s) - st.at,
+      shotsFor: sh[team] - st.shots[team], shotsAgainst: sh[1 - team] - st.shots[1 - team],
+      goalsFor: s.score[team] - st.goals[team], goalsAgainst: s.score[1 - team] - st.goals[1 - team] };
   };
+
+  /** The CPU coach's review (ai.coachPick): only for teams nobody is playing, only when
+   *  the match was created with aiCoach. It uses the match's own random stream, so a
+   *  replayed seed makes the same changes. */
+  function coachReview(s, halftime) {
+    if (!s.aiCoach) return;
+    const now = matchTime(s), total = s.halfLength * 2;
+    for (const team of [0, 1]) {
+      if (team === s.human) continue;
+      if (!halftime && now < s.coachNext[team]) continue;
+      s.coachNext[team] = now + R().COACH_EVERY * (0.8 + stream(s.rng)() * 0.5);
+      const f = A().coachPick(s, team, stream(s.rng), Math.min(1, now / total));
+      if (f) setTactics(s, team, { formation: f, marks: {} }, 'coach');
+    }
+  }
 
   SS.sim = { create, restore, roll, stream, hash };
 })(typeof window !== 'undefined' ? window : globalThis);

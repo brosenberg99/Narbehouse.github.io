@@ -44,6 +44,8 @@
     return Math.pow(Math.max(0, Math.min(1, 1 - (d - 4) / 24)), 1.5);
   }
 
+  const WANDER = 2.2, WANDER_PERIOD = 7;          // metres, seconds per loop
+  const WANDER_PHASE = { LF: 0, RF: 1.7, MF: 3.1, LD: 4.4, RD: 5.6, GL: 0 };
   function anchor(state, pl, attacking) {
     const f = D().FORMATIONS[state.teams[pl.team].formation] || D().FORMATIONS.normal;
     const a = (attacking ? f.att : f.def)[pl.pos], dir = dirOf(pl.team);
@@ -52,6 +54,14 @@
       // The shape slides toward the ball, so a team defends where the play is.
       const ball = state.ball.p;
       out.x += (ball.x - out.x) * 0.22; out.y += (ball.y - out.y) * 0.22; out.z += ball.z * 0.25;
+      // Nobody parks. Each fielder drifts round their spot on a slow loop of their own
+      // (Bryan's M2 playtest: off-ball swimmers sat still 61% of the time, and the quiet
+      // spells between passes looked dead). It follows the match clock, so it saves and
+      // replays exactly like everything else.
+      const k = WANDER_PHASE[pl.pos] + pl.team * 2.1, t = state.clock + state.period * 300;
+      const w = 2 * Math.PI / (WANDER_PERIOD + k * 0.4);
+      out.x += Math.sin(t * w + k) * WANDER; out.z += Math.cos(t * w + k) * WANDER;
+      out.y += Math.sin(t * w * 1.3 + k * 2) * WANDER * 0.6;
     }
     return clampToSphere(out, RU().R - 2);
   }
@@ -83,8 +93,13 @@
     }
 
     if (pl.pos === 'GL') {
-      // Keepers hold a small box in front of their own goal, tracking the ball.
+      // Keepers hold a small box in front of their own goal, tracking the ball - and come
+      // out to meet a carrier who reaches the goal's keep-out, since nobody else may get
+      // between them and the net (a challenge, instead of a pile-up in the goal).
       const g = ownGoal(pl.team), toBall = V.sub(ball.p, g), l = V.len(toBall);
+      if (carrier && !ours && V.dist(carrier.p, g) < R.GOAL_KEEP_OUT - R.GOAL_KEEP_BACK + 1.5) {
+        return { to: V.add(carrier.p, V.scale(V.norm(V.sub(g, carrier.p)), 1.2)), pace: 1.0 };
+      }
       return { to: V.add(g, V.scale(V.norm(toBall), Math.min(3, l * 0.2))), pace: 0.9 };
     }
 
@@ -205,6 +220,24 @@
   }
   function chooseKeeperPass(state, dec, rnd) { return chooseAttack(state, dec, rnd); }
 
+  /** The CPU coach: at a review (about once a minute, and at halftime) it may change its
+   *  formation - chasing the game when behind late on, shutting up shop when ahead late,
+   *  and otherwise now and then trying another shape. Returns a formation id, or null
+   *  to stay. Only formations the team may use are offered. */
+  const COACH_CHASE = ['centerAttack', 'doubleSides', 'counter'];
+  const COACH_HOLD = ['allOutDefense', 'counter'];
+  const COACH_TRY = ['normal', 'leftSide', 'rightSide', 'centerAttack', 'allOutDefense', 'counter', 'doubleSides'];
+  function coachPick(state, team, rnd, lateShare) {
+    const diff = state.score[team] - state.score[1 - team], cur = state.teams[team].formation;
+    let pool, p;
+    if (lateShare > 0.55 && diff < 0) { pool = COACH_CHASE; p = 0.75; }
+    else if (lateShare > 0.55 && diff > 0) { pool = COACH_HOLD; p = 0.6; }
+    else { pool = COACH_TRY; p = 0.35; }
+    if (rnd() > p) return null;
+    const opts = pool.filter(f => f !== cur && D().FORMATIONS[f]);
+    return opts.length ? opts[Math.floor(rnd() * opts.length)] : null;
+  }
+
   SS.ai = { V, dirOf, goalOf, ownGoal, threat, steer, pickChasers, stanceMix, valueOf, softmaxWeights,
-    chooseAttack, chooseStance, chooseKeeperPass, clampToSphere, ATTACK_TEMP };
+    chooseAttack, chooseStance, chooseKeeperPass, coachPick, clampToSphere, anchorOf: anchor, ATTACK_TEMP };
 })(typeof window !== 'undefined' ? window : globalThis);

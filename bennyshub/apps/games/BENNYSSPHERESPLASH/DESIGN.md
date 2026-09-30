@@ -11,9 +11,10 @@ The hub rulebook, `bennyshub/ACCESSIBILITY.md`, outranks this file.
 
 | Milestone | State |
 |---|---|
-| M0 tech spike (3D stack, swimmers, on-screen choices, carry-swim) | done — `js/spike.js`, replaced in M2 |
+| M0 tech spike (3D stack, swimmers, on-screen choices, carry-swim) | done (the spike itself retired in M2) |
 | M1 match rules engine | done — `js/data.js`, `modes.js`, `ai.js`, `sim.js`; `tools/check-sim.cjs` green |
-| M2 Quick Game, playable grey-box | next |
+| M2 Quick Game, playable grey-box | built, all checks green — **waiting on Bryan's playtest, voices off** |
+| M3 art and presentation | next, after the playtest |
 
 ## How a match works (`js/sim.js`)
 
@@ -53,6 +54,101 @@ The hub rulebook, `bennyshub/ACCESSIBILITY.md`, outranks this file.
 
 Quick Game's short halves cut these by about 60%.
 
+How many stops is too many is **tuned by feel in a live game, not by count** (Bryan,
+2026-09-29). These numbers are the baseline to compare against, not targets.
+
+## Controls: three input contexts (`js/ui.js`)
+
+Everything fires on **release**, and a press of any length short of the full pause hold is an
+ordinary press (a player may hold a switch for seconds without meaning to).
+
+| Context | What is on screen | Space | Enter | Hold Enter |
+|---|---|---|---|---|
+| card | a menu card (NARBE Racer's card engine) | next (hold = scan back) | choose | — |
+| world | a decision, laid out on the scene | next (hold = scan back) | choose | Pause (ring + ticks) |
+| live | the match playing | Huddle | Huddle | Pause (ring + ticks) |
+
+- Lists start with nothing lit (except Kickoff and the Huddle, where one Enter is the point)
+  and wrap through a blank step, so Auto Scan leaves a beat between laps.
+- The **Huddle**: Continue (lit) · Call it Now · Formation · (Coach: Skip to Full Time) ·
+  Settings · Pause Menu. Pause is also the last stop of every decision scan and an on-screen
+  button. Continue from Pause returns to exactly the choice and item that was lit.
+- Hold thresholds (scan back 3 s, ring 2 s, pause 5 s) live in `ui.js` and are never quoted
+  to the player.
+
+## A decision on the scene (`js/game.js`, `js/worldui.js`)
+
+- The camera cuts (eased) to a side view fitted round what the choice is about; the action
+  sits in the lower 60% so the choices above the carrier cover nobody.
+- **One cluster** beside the carrier, tail pointing at them: a heading ("Shot chance! 14 m
+  from goal") over plates - Pass · Shoot · Dribble · Tech · Keep Swimming - each with its odds
+  as a bar, a shape (▲ ● ▼) and a word. One element laid out by CSS, so plates cannot overlap.
+- **Pass is two-stage**: the brackets step through the teammates themselves, their badges
+  carry the odds, a dashed lane runs to the lit one and every defender in the lane gets ✕.
+- **Tech** lists technique moves; a technique pass then goes to the teammate stage.
+- **Defend** (Attack and defense stops): Tackle · Block · tackle techniques.
+- Our team always attacks to the RIGHT; teams differ by badge shape (round / diamond) as
+  well as colour.
+
+## Broadcast (`js/broadcast.js`)
+
+Three original characters - an announcer ("Stadium"), a play-by-play caller (Rip Tidewell)
+and an analyst (Coral Banks). The script is `content/voice-lines.json` (off the site; built into
+`js/voice-lines.generated.js` by `tools/build-voice-lines.cjs`). Every line is captioned with
+the speaker's name. Lines queue so a goal call, the score and the reaction are all heard;
+chatter is dropped rather than queued; per-speaker cooldowns stop droning. Commentary speaks
+only in live play and never over the interface. **Voice slot:** a line id listed in
+`audio/vo/index.json` plays that clip instead of the system voice - no game changes needed.
+Setting: Full broadcast / Big calls only / Captions only / Off.
+
+## Saves (`js/save.js`)
+
+`ss-settings` (this game's settings) and `ss-match` (the sim snapshot, saved at every
+decision, at halftime and every 5 s of play). Continue restores the exact moment. Hub access
+settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
+
+## Checks
+
+- `node tools/check-sim.cjs [--quick]` - the rules (M1).
+- `node tools/check-voice.cjs` - the voice slot contract; passes with no recordings.
+- `node tools/check-browser.cjs` - the real game in headless Chrome with real key events: cards
+  fit at 1920x1008 / 1368x840 / 1024x768, clock and swimmers frozen at every decision, plates on
+  screen and never overlapping, Huddle, hold-to-pause, Auto Scan with Enter alone, save and
+  resume, a whole Quick Game, and commentary never spoken over a choice.
+
+## Open questions for the playtest (tune by feel, not by count)
+
+- **Shot chances come very soon after kickoff.** The 14 m chance is ~4 m in front of the
+  kickoff spot, so most possessions start with a stop. Candidate fix: no shot chance in the
+  first few seconds of a possession, or a smaller SHOT_RANGE.
+- **A point-blank shot with nobody in the way can read "Risky"** because the keeper roll is
+  deliberately wide (M1's fix for technique dominance). May feel unfair in play.
+- Decision count per Quick Game: ~30 with Attack and defense (~13-14 of them defending),
+  ~16 with Our ball only. **Attack and defense is now the default** (Bryan, after his first
+  full game had no defensive choices); settings saved before that forget their old default.
+- **Defending choices read "Risky / Risky" most of the time**: winning the ball back is
+  rarely likely, so both stances land under the Fair line and the choice tells the player
+  little. Candidate fix: say what the carrier usually does ("Duke likes to dribble") and word
+  the odds against each other. Not done yet - Bryan to see it first.
+- **Formations matter; now the game shows it** (Bryan chose: show the shape, the analyst
+  reacts, opponents change too). Beamers v Raiders (80 matches): Normal wins 4%, All-out
+  Defense 30%, Left Side 0%; over all 30 pairings no formation dominates (1.19-1.67 points a
+  match, Normal 1.51), so the right one depends on the opponent.
+  - Picking a formation: play resumes framed on our team, with a ring at each fielder's new
+    spot, a dashed line to it, and the analyst saying what the shape does.
+  - The CPU coach (`ai.coachPick`, in the sim so it saves and replays) reviews about once a
+    minute and at halftime: chases the game when behind late, protects a lead, otherwise
+    sometimes tries a shape - ~4.5 changes a full match. The analyst announces each one;
+    the HUD shows both teams' formations.
+  - The analyst judges a formation once it has had 45 s: struggling (conceding shots or
+    goals), working (making them) or holding (no shots against for a minute).
+  - The Formation card shows how ours has gone ("Normal for 1:20 · 3 shots for, 1 against")
+    and what they play.
+  - Flat Line (unlocked at 25 wins) is the weakest - an unlock should never be a trap (M4/M5).
+- Sound: every M2 sound is now a clean tone. The noise-based crowd roar / "ooh" and the pass
+  swish came out as static over the commentary (Bryan's M2 note) and were removed; a real
+  crowd is M3's.
+
 ## Modes (`js/modes.js`)
 
 Quick Game / Simple Season / Full Season are **presets of individual toggles**; every
@@ -74,6 +170,19 @@ Tuning history worth keeping (each was a real failure the checks caught):
   technique bonuses are 60% of FFX's, and the shot-vs-keeper roll is deliberately wide.
 - Carriers circled the goal because they steered away from the keeper → they no longer
   do, and bend less the nearer the goal gets.
+- Swimmers piled up inside the goal (Bryan's M2 note) → a **keep-out ball round each goal**
+  (`GOAL_KEEP_OUT`, centred `GOAL_KEEP_BACK` behind the frame) that only that goal's keeper
+  may enter, and a loose ball is nudged out of it. First try stalled whole halves: a carrier
+  who had used the point-blank chance waited at the zone's edge, where no defender can get in
+  front of them. Re-arming the chance on every catch fixed that but doubled the stops →
+  instead **the keeper comes out to meet a carrier at the edge** (the goal-mouth encounters
+  M1 had, without the pile-up). Balance back to M1's (~6 goals, ~50 encounters, ~52 stops).
+  `check-sim` now also fails on any 45 s of live play with nothing happening.
+- Off-ball swimmers sat still 61% of the time and "spun in place" (Bryan's M2 playtest):
+  idle swimmers turned every frame to face a fast-moving ball (46-92 degrees a second). Now
+  every fielder drifts on a slow loop round their spot (`WANDER` in ai.js, clock-driven so
+  it replays exactly), and turning is rate-limited with a dead zone (`face()` in game.js):
+  fielders tread 11% of the time, treading turns average 16 degrees a second. Balance unchanged.
 
 ## Assets
 

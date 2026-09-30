@@ -16,11 +16,15 @@
     R: 20,                  // sphere radius, metres
     GOAL_Z: 17.8,           // goal centre on the z axis; team 0 attacks +z
     GOAL_SIZE: 3.6,         // triangle "radius" - a shot is on target if it reaches the plane
+    GOAL_KEEP_OUT: 5,       // nobody but that goal's keeper swims into this ball round a goal (a player piled
+    GOAL_KEEP_BACK: 1.5,    // ...into the net looks wrong). Centred this far BEHIND the goal, so it reaches
+                            // 3.5 m out in front, covers the whole frame, and pushes toward the pool, not the skin
     TICK: 0.1,              // simulation step, game seconds
     HALF_STANDARD: 300,     // two 5-minute halves, as in FFX
     HALF_SHORT: 120,        // Quick Game's short halves
     OVERTIME: 300,          // golden-goal periods (tournaments)
     OVERTIME_CAP: 12,       // safety valve; the tests assert it is never reached
+    COACH_EVERY: 60,        // a CPU coach reviews its formation about this often (game seconds), and at halftime
 
     ENGAGE_RADIUS: 2.3,     // an opponent this close to the carrier starts an encounter
     JOIN_RADIUS: 4.2,       // ...and every opponent this close joins it

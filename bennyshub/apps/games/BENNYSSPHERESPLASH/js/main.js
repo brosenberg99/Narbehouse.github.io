@@ -72,11 +72,25 @@ SS.main = (function () {
       await SS.models.load();
       SS.world.build(scene);
       SS.worldui.init(camera);
-      SS.spike.init({ scene, camera });
-      frames.push((dt, time) => { SS.world.update(dt, time); SS.spike.update(dt, time); SS.worldui.update(); });
+      SS.director.init(camera);
+      SS.hud.build();
+      SS.game.init({ scene, camera });
+      SS.ui.init();
+      frames.push((dt, time) => { SS.world.update(dt, time); SS.game.update(dt, time); SS.worldui.update(); perfHud(time); });
       document.getElementById('loading').style.display = 'none';
+      SS.ui.setScreen('title');
       start();
     } catch (err) { fail(err); }
+  }
+  /* Frame rate readout for testing: add ?perf to the address. */
+  const showPerf = /[?&]perf\b/.test(location.search);
+  let perfT = 0;
+  function perfHud(time) {
+    if (!showPerf || time - perfT < 0.5) return;
+    perfT = time;
+    const el = document.getElementById('perf'), p = perf();
+    el.classList.add('on');
+    el.textContent = `${p.fps} fps · ${p.calls} draws · ${(p.tris / 1000).toFixed(0)}k tris · ×${p.pixelRatio}`;
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot, 0);
   return { perf, get renderer() { return renderer; }, get scene() { return scene; }, get camera() { return camera; } };

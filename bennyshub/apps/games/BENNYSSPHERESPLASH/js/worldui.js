@@ -1,19 +1,21 @@
 /** Benny's Sphere Splash - UI pinned to the 3D world.
  *
- * Choices in a match are not a menu bar: they sit on the scene. A plate hangs beside
- * the swimmer it belongs to, a number badge floats over every player, and one
- * focus marker - Fish Mystery's corner brackets - slides between whatever is focused,
- * whether that is a swimmer in the water or a button on screen. One marker, one
- * meaning, everywhere.
+ * Choices in a match are not a menu bar: they sit on the scene. The choice cluster
+ * hangs beside the ball carrier with a tail pointing at them, a number badge floats
+ * over every player, and one focus marker - Fish Mystery's corner brackets - slides
+ * between whatever is focused, whether that is a swimmer in the water or a button
+ * on screen. One marker, one meaning, everywhere.
  *
- * Plates are DOM elements positioned each frame from a projected world point, so
- * they stay crisp, big and readable at any distance and never clip into geometry.
+ * Everything here is a DOM element positioned each frame from a projected world
+ * point, so it stays crisp, big and readable at any distance and never clips into
+ * geometry. The cluster is ONE element laid out by CSS, so its plates can never
+ * overlap each other, and it is clamped so it is always wholly on screen.
  */
 SS.worldui = (function () {
   'use strict';
 
-  const _v = new THREE.Vector3(), _box = new THREE.Box3();
-  let camera, layer, frame, badges = [], plates = [];
+  const _v = new THREE.Vector3(), _head = new THREE.Vector3();
+  let camera, layer, frame, badges = [], cluster = null;
 
   function init(cam) {
     camera = cam;
@@ -28,99 +30,103 @@ SS.worldui = (function () {
     return { x: (_v.x * 0.5 + 0.5) * window.innerWidth, y: (0.5 - _v.y * 0.5) * window.innerHeight };
   }
 
-  /** Screen rectangle around an object (Fish Mystery's focusScreenRect), clamped to the view. */
-  function rectOf(obj) {
-    _box.setFromObject(obj);
-    if (_box.isEmpty()) return null;
+  /** Screen rectangle round a set of world points (a swimmer's bones), padded and clamped. */
+  function rectOfPoints(pts, pad) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, seen = 0;
-    for (let i = 0; i < 8; i++) {
-      _v.set(i & 1 ? _box.max.x : _box.min.x, i & 2 ? _box.max.y : _box.min.y, i & 4 ? _box.max.z : _box.min.z).project(camera);
-      if (_v.z > 1) continue;
-      seen++;
-      x0 = Math.min(x0, _v.x); x1 = Math.max(x1, _v.x); y0 = Math.min(y0, _v.y); y1 = Math.max(y1, _v.y);
-    }
-    if (seen < 2) return null;
-    const W = window.innerWidth, H = window.innerHeight;
-    const l = Math.max(0, (x0 * 0.5 + 0.5) * W), r = Math.min(W, (x1 * 0.5 + 0.5) * W);
-    const t = Math.max(0, (0.5 - y1 * 0.5) * H), b = Math.min(H, (0.5 - y0 * 0.5) * H);
-    if (r - l < 8 || b - t < 8) return null;
-    return { x: l, y: t, w: r - l, h: b - t };
+    pts.forEach(p => { const s = toScreen(p); if (!s) return; seen++; x0 = Math.min(x0, s.x); x1 = Math.max(x1, s.x); y0 = Math.min(y0, s.y); y1 = Math.max(y1, s.y); });
+    if (!seen) return null;
+    const W = window.innerWidth, H = window.innerHeight, m = pad == null ? 18 : pad;
+    const minSize = 64;                                   // a target is never framed smaller than a finger
+    let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, w = Math.max(minSize, x1 - x0 + m * 2), h = Math.max(minSize, y1 - y0 + m * 2);
+    cx = Math.min(W - w / 2 - 6, Math.max(w / 2 + 6, cx)); cy = Math.min(H - h / 2 - 6, Math.max(h / 2 + 6, cy));
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
   }
 
   /* ── number badges over every swimmer ─────────────────────────────────── */
-  function addBadge(anchor, { number, team, shape, lift = 0.5 }) {
+  /** Teams differ in shape (round / diamond) as well as colour - never colour alone. */
+  function addBadge(anchor, { number, team, colour, ink, lift = 0.55 }) {
     const el = document.createElement('div');
-    el.className = 'badge ' + (shape || 'round') + ' team-' + team;
-    el.textContent = number;
+    el.className = 'badge team-' + team + ' ' + (team ? 'diamond' : 'round');
+    el.style.setProperty('--bg', colour);
+    el.style.color = ink || '#14161f';
+    el.innerHTML = '<span class="n"></span><span class="mk"></span>';
+    el.querySelector('.n').textContent = number;
     layer.appendChild(el);
-    badges.push({ el, anchor, lift });
-    return el;
+    const b = { el, anchor, lift, tap: null,
+      /** A pass candidate shows its odds on its badge as a shape AND a word. */
+      mark(word) {
+        el.classList.toggle('candidate', !!word);
+        el.dataset.odds = word ? word.toLowerCase().replace(/\s+/g, '-') : '';
+        el.querySelector('.mk').textContent = word ? ({ 'good-chance': '▲', fair: '●', risky: '▼' }[el.dataset.odds] || '') : '';
+      },
+      blocker(on) { el.classList.toggle('blocker', !!on); },
+      carrier(on) { el.classList.toggle('has-ball', !!on); },
+      onTap(fn) { b.tap = fn; el.style.pointerEvents = fn ? 'auto' : ''; },
+    };
+    SS.util.addTap(el, e => { if (b.tap) { e.stopPropagation(); b.tap(); } });
+    badges.push(b);
+    return b;
   }
+  function clearBadges() { badges.forEach(b => b.el.remove()); badges = []; }
 
-  /* ── choice plates, pinned beside a swimmer ───────────────────────────── */
-  /** `offset` is in screen pixels from the anchor's projected point: the cluster
-   *  fans out around the swimmer instead of stacking on top of them. */
-  function addPlate(anchor, { label, sub, odds, offset }) {
-    const el = document.createElement('div');
-    el.className = 'plate';
-    el.innerHTML = '<b></b><span class="sub"></span><span class="odds"><i></i><em></em></span>';
-    el.querySelector('b').textContent = label;
-    el.querySelector('.sub').textContent = sub || '';
-    if (odds) {
-      el.querySelector('.odds i').style.setProperty('--p', odds.p);
-      el.querySelector('.odds em').textContent = odds.word;
-      el.dataset.odds = odds.word.toLowerCase().replace(/\s+/g, '-');
-    } else el.querySelector('.odds').remove();
-    layer.appendChild(el);
-    const plate = { el, anchor, offset: offset || { x: 0, y: -90 } };
-    plates.push(plate);
-    return plate;
+  /* ── the choice cluster, beside the carrier ────────────────────────────── */
+  /** `el` is built by ui.js. It sits above the anchor's head, or below it when there
+   *  is no room above, with its tail pointing at the anchor. */
+  function setCluster(anchor, el) {
+    if (cluster && cluster.el !== el) cluster.el.remove();
+    cluster = el ? { anchor, el } : null;
+    if (el && el.parentNode !== layer) layer.appendChild(el);
   }
-  function clearPlates() { plates.forEach(p => p.el.remove()); plates = []; }
+  function placeCluster() {
+    if (!cluster) return;
+    const el = cluster.el, W = window.innerWidth, H = window.innerHeight, m = 10;
+    const s = toScreen(anchorPoint(cluster.anchor, 0.2));
+    const w = el.offsetWidth, h = el.offsetHeight, gap = Math.max(58, H * 0.07);
+    let ax = s ? s.x : W / 2, ay = s ? s.y : H / 2;
+    let below = ay - gap - h < m + H * 0.11;                 // keep clear of the score bug
+    let y = below ? ay + gap : ay - gap - h;
+    y = Math.min(H - h - m, Math.max(m, y));
+    const x = Math.min(W - w - m, Math.max(m, ax - w / 2));
+    el.classList.toggle('below', below);
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    el.style.setProperty('--tail', Math.min(w - 30, Math.max(30, ax - x)).toFixed(0) + 'px');
+  }
 
   /* ── focus: one bracket marker for world objects and DOM alike ─────────── */
-  let focus = null;              // { el } | { obj } | null
+  let focus = null;              // { el } | { pts: () => Vector3[] } | null
   function setFocus(target) {
     focus = target;
-    plates.forEach(p => p.el.classList.toggle('focused', !!target && target.el === p.el));
     frame.classList.toggle('on', !!target);
+    if (target) placeFrame();
   }
   function placeFrame() {
     if (!focus) return;
     let r = null;
     if (focus.el) {
-      const b = focus.el.getBoundingClientRect(); r = { x: b.left - 8, y: b.top - 8, w: b.width + 16, h: b.height + 16 };
-    } else if (focus.obj) r = rectOf(focus.obj);
+      const b = focus.el.getBoundingClientRect();
+      if (b.width && b.height) r = { x: b.left - 9, y: b.top - 9, w: b.width + 18, h: b.height + 18 };
+    } else if (focus.pts) r = rectOfPoints(focus.pts());
     if (!r) { frame.classList.remove('on'); return; }
     frame.classList.add('on');
-    Object.assign(frame.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+    Object.assign(frame.style, { left: r.x.toFixed(1) + 'px', top: r.y.toFixed(1) + 'px', width: r.w.toFixed(1) + 'px', height: r.h.toFixed(1) + 'px' });
   }
 
-  const _head = new THREE.Vector3();
   function anchorPoint(anchor, lift) {
+    if (anchor.isVector3) return _head.copy(anchor);
     anchor.getWorldPosition(_head); _head.y += lift; return _head;
   }
 
   /** Called once per frame after the camera moves. */
   function update() {
-    const W = window.innerWidth, H = window.innerHeight;
     badges.forEach(b => {
       const s = toScreen(anchorPoint(b.anchor, b.lift));
       b.el.style.display = s ? '' : 'none';
-      if (s) b.el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+      if (s) b.el.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -100%)`;
     });
-    plates.forEach(p => {
-      const s = toScreen(anchorPoint(p.anchor, 0.6));
-      if (!s) { p.el.style.display = 'none'; return; }
-      p.el.style.display = '';
-      // Keep the whole plate on screen: a choice you cannot see is not a choice.
-      const w = p.el.offsetWidth, h = p.el.offsetHeight, m = 12;
-      const x = Math.min(W - w / 2 - m, Math.max(w / 2 + m, s.x + p.offset.x));
-      const y = Math.min(H - h - m, Math.max(m, s.y + p.offset.y - h / 2));
-      p.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, 0)`;
-    });
+    placeCluster();
     placeFrame();
   }
 
-  return { init, addBadge, addPlate, clearPlates, setFocus, update, toScreen, rectOf, get plates() { return plates; } };
+  return { init, addBadge, clearBadges, setCluster, setFocus, update, toScreen, rectOfPoints,
+    get badges() { return badges; }, get cluster() { return cluster; } };
 })();

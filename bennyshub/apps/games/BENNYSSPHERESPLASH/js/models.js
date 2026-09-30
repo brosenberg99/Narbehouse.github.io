@@ -110,15 +110,27 @@ SS.models = (function () {
     const group = new THREE.Group();
     group.add(root);
     const mixer = new THREE.AnimationMixer(root);
-    let current = null;
+    let current = null, lock = 0;
     function play(name, fade = 0.25) {
       const clip = clips[name];
       if (!clip) return;
       const next = mixer.clipAction(clip);
       if (next === current) return;
-      next.reset().setEffectiveWeight(1).fadeIn(fade).play();
+      next.reset().setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(1).fadeIn(fade).play();
       if (current) current.fadeOut(fade);
       current = next;
+    }
+    /** A move played once (a throw, a tackle); `busy` stays true until it has mostly played. */
+    function once(name, fade = 0.12) {
+      const clip = clips[name];
+      if (!clip) return;
+      const next = mixer.clipAction(clip);
+      next.reset().setLoop(THREE.LoopOnce, 1);
+      next.clampWhenFinished = true;
+      next.setEffectiveWeight(1).fadeIn(fade).play();
+      if (current && current !== next) current.fadeOut(fade);
+      current = next;
+      lock = clip.duration * 0.85;
     }
     // Named bones, so the ball can sit in the hands and a badge over the head
     // whatever pose the body is in (a swimmer is mostly horizontal, not upright).
@@ -142,11 +154,19 @@ SS.models = (function () {
 
     function update(dt) {
       mixer.update(dt);
+      if (lock > 0) lock -= dt;
       if (carrying) holdBall();
     }
-    return { group, root, play, update, mixer, bones, frame, ballPoint,
-      head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR,
-      setCarry(on) { carrying = on; }, get carrying() { return carrying; } };
+    /** Free the GPU copies this swimmer owns (its painted geometry and materials). */
+    function dispose() {
+      mixer.stopAllAction();
+      root.traverse(n => {
+        if (n.isSkinnedMesh) { if (meshes.includes(n)) n.geometry.dispose(); if (n.material) n.material.dispose(); }
+      });
+    }
+    return { group, root, play, once, update, dispose, mixer, bones, frame, ballPoint,
+      head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
+      setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; } };
   }
 
   return { load, makeSwimmer, get clipNames() { return Object.keys(clips); } };

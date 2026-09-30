@@ -1,0 +1,683 @@
+/** Benny's Sphere Splash - the match, on screen: sim events -> 3D -> choices -> sim.
+ *
+ * js/sim.js is authoritative and this file only shows it. Each frame it steps the sim
+ * in its own fixed ticks (so a replayed seed plays the same match), draws every
+ * swimmer between the last two ticks, and turns what happened into sound, pops and
+ * commentary. When the sim stops for a decision, play freezes - the clock, and every
+ * swimmer where they are - and the choice is laid out on the scene (ui.openWorld):
+ *
+ *   attack:  Pass · Shoot · Dribble · Tech · Keep swimming, beside the carrier, each
+ *            with its odds in words. Pass is two-stage: the brackets then step
+ *            through the teammates themselves, a dashed lane runs to each, and every
+ *            defender standing in that lane is marked ✕.
+ *   defend:  (Attack and defense stops only) Tackle · Block · tackle techniques.
+ *
+ * The outcome is rolled the moment a choice is made, then acted out.
+ */
+SS.game = (function () {
+  'use strict';
+
+  const U = SS.util, D = () => SS.DATA, RU = () => SS.DATA.RULES;
+  const NUMBERS = { LF: 9, RF: 7, MF: 10, LD: 4, RD: 5, GL: 1 };
+  const SKINS = [0xf1c7a1, 0xc68b5f, 0x8d5a3b, 0xe0a987, 0x5e3a28, 0xf6d5b8];
+  const HAIR = [0x2a1b10, 0xe9c46a, 0x6b3a1e, 0x111111, 0xb5452b, 0x3a2a1c];
+  const SPEED = { slow: 0.65, normal: 1, fast: 1.6 };
+  const SAVE_EVERY = 5;               // seconds of live play between saves
+  const FIRST = n => String(n).split(' ')[0];
+
+  let scene, camera;
+  let m = null, setup = null;          // the sim match, and how it was set up
+  let phase = 'menu';                  // menu | kickoff | live | decision | huddle | halftime | fulltime
+  let frozen = false;                  // a card (Pause) is over live play
+  let acc = 0, sinceSave = 0;
+  let swimmers = [], badges = [], ball = null, lane = null, rings = [], ringLinks = null;
+  let preview = 0, previewPending = false;              // seconds of formation preview left
+  let talk = { at: -99, done: {} };                     // the analyst's formation reactions
+  const prevP = [], curP = [], prevBall = new THREE.Vector3(), curBall = new THREE.Vector3();
+  let kits = [null, null];
+  const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _m4 = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0);
+
+  const teamById = id => D().TEAMS.find(t => t.id === id);
+  const vec = p => new THREE.Vector3(p.x, p.y, p.z);
+  const S = () => m && m.s;
+  const numberOf = j => NUMBERS[S().players[j].pos] || j;
+  const who = j => { const p = S().players[j]; return p ? FIRST(p.name) : ''; };
+  const ours = j => S().players[j].team === 0;
+
+  /* ══ building a match on the scene ══════════════════════════════════════ */
+  function init(ctx) {
+    scene = ctx.scene; camera = ctx.camera;
+    ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff6c9 }));
+    ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 16), new THREE.MeshBasicMaterial({
+      color: 0xffe066, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })));
+    ball.add(new THREE.PointLight(0xffe7a0, 2, 4));
+    ball.visible = false;
+    scene.add(ball);
+    const laneMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.6, gapSize: 0.35, depthTest: false, transparent: true, opacity: 0.95 });
+    lane = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]), laneMat);
+    lane.renderOrder = 20; lane.visible = false; lane.frustumCulled = false;
+    scene.add(lane);
+    // The formation preview: a ring at each fielder's new spot, facing the camera.
+    const ringGeo = new THREE.RingGeometry(1.0, 1.45, 40);
+    for (let i = 0; i < 5; i++) {
+      const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, side: THREE.DoubleSide }));
+      r.renderOrder = 21; r.visible = false; scene.add(r); rings.push(r);
+    }
+    // ...and a line from each fielder to it, so the team is seen swimming into the shape.
+    ringLinks = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(5 * 6), 3)),
+      new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.5, gapSize: 0.3, transparent: true, opacity: 0, depthTest: false }));
+    ringLinks.renderOrder = 21; ringLinks.visible = false; ringLinks.frustumCulled = false; scene.add(ringLinks);
+    SS.save.settings.onChange(k => { if (m && (k === 'stops' || k === '*')) m.s.stops = SS.save.settings.get('stops'); });
+  }
+
+  function inkFor(hex) {
+    const c = new THREE.Color(hex);
+    return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) > 0.55 ? '#14161f' : '#ffffff';
+  }
+
+  function buildScene() {
+    teardownScene();
+    const s = S();
+    kits = [teamById(s.teams[0].id), teamById(s.teams[1].id)];
+    // Two teams in similar colours would read as one: the away side swaps to its accent.
+    s.players.forEach((pl, j) => {
+      const team = kits[pl.team], keeper = pl.pos === 'GL';
+      const h = (pl.name.charCodeAt(0) * 7 + pl.name.length * 3 + j) >>> 0;
+      const sw = SS.models.makeSwimmer({
+        body: h % 2 ? 'female' : 'male',
+        kit: keeper ? team.accent : team.kit, accent: keeper ? team.kit : team.accent,
+        skin: SKINS[h % SKINS.length], hair: HAIR[(h >> 2) % HAIR.length],
+      });
+      sw.play('tread'); sw.mixer.update((h % 17) / 10);
+      scene.add(sw.group);
+      swimmers.push(sw);
+      badges.push(SS.worldui.addBadge(sw.head, { number: NUMBERS[pl.pos], team: pl.team, colour: U.hex(team.kit), ink: inkFor(team.kit) }));
+      prevP[j] = vec(pl.p); curP[j] = vec(pl.p);
+    });
+    prevBall.copy(vec(s.ball.p)); curBall.copy(prevBall);
+    ball.visible = true;
+    SS.hud.setTeams(kits);
+    SS.hud.reset();
+  }
+  function teardownScene() {
+    swimmers.forEach(sw => { scene.remove(sw.group); sw.dispose(); });
+    swimmers = []; SS.worldui.clearBadges(); badges = [];
+    if (ball) ball.visible = false;
+    showLane(null);
+  }
+
+  /* ══ starting, saving, leaving ═════════════════════════════════════════ */
+  function startQuick(ids) {
+    let [a, b] = ids || [];
+    if (!a) {
+      const pool = U.shuffle(D().TEAMS.map(t => t.id));
+      a = pool[0]; b = pool[1];
+    }
+    setup = { mode: 'quick', teams: [a, b], seed: (Math.random() * 2 ** 31) >>> 0, half: RU().HALF_SHORT };
+    m = SS.sim.create({ teams: [teamById(a), teamById(b)], seed: setup.seed, halfLength: setup.half,
+      overtime: false, human: 0, stops: SS.save.settings.get('stops'), aiCoach: true });
+    m.advance(RU().TICK);                      // one tick: everyone takes their kickoff places
+    begin('kickoff');
+  }
+  function begin(kind) {
+    SS.broadcast.reset();
+    buildScene();
+    acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} };
+    rings.forEach(r => { r.visible = false; r.material.color.set(kits[0] ? kits[0].kit : 0xffffff); });
+    SS.director.setMode('wide', { cut: true });
+    if (kind === 'kickoff') { phase = 'kickoff'; SS.ui.setScreen('kickoff'); saveNow(); }
+  }
+  function kickoff() {
+    phase = 'live';
+    SS.ui.goLive();
+    SS.director.setMode('broadcast', { follow: () => ball.position });
+    const t = matchInfo().teams;
+    if (S().clock === 0 && S().period === 1) SS.broadcast.say('intro', { home: t[0].name, away: t[1].name }, 3);
+  }
+
+  function savedMatch() {
+    const sv = SS.save.loadMatch();
+    if (!sv) return null;
+    const a = teamById(sv.setup.teams[0]), b = teamById(sv.setup.teams[1]), sc = sv.snapshot.score;
+    if (!a || !b) return null;
+    const when = sv.context === 'halftime' ? 'halftime' : sv.snapshot.period > 2 ? 'overtime' : sv.snapshot.period === 2 ? '2nd half' : '1st half';
+    return Object.assign(sv, { summary: a.short + ' ' + sc[0] + ' – ' + sc[1] + ' ' + b.short + ' · ' + when });
+  }
+  function continueSaved() {
+    const sv = SS.save.loadMatch();
+    if (!sv) { SS.ui.setScreen('title'); return; }
+    setup = sv.setup;
+    m = SS.sim.restore(sv.snapshot);
+    m.s.stops = SS.save.settings.get('stops');
+    begin('resume');
+    if (sv.context === 'halftime') { phase = 'halftime'; SS.ui.setScreen('halftime'); return; }
+    if (m.pending) { SS.director.setMode('broadcast', { follow: () => ball.position, cut: true }); enterDecision(); return; }
+    phase = 'kickoff';
+    SS.ui.setScreen('kickoff', { resume: true });
+  }
+  function saveNow() {
+    if (!m || m.done || !setup) return;
+    SS.save.saveMatch({ setup, snapshot: m.snapshot(), context: phase === 'halftime' ? 'halftime' : 'play' });
+  }
+  function quitToMenu() {
+    saveNow();
+    endMatchView();
+    SS.ui.setScreen('title');
+  }
+  function endMatchView() {
+    phase = 'menu'; frozen = false; m = null;
+    SS.ui.closeWorld();
+    teardownScene();
+    SS.hud.visible(false); SS.hud.reset();
+    SS.broadcast.reset();
+    SS.director.setMode('menu');
+  }
+  function restartMatch() { startQuick(setup.teams.slice()); }
+  function resetProgress() { SS.save.resetAll(); }
+
+  /* ══ the frame ═════════════════════════════════════════════════════════ */
+  function update(dt) {
+    if (m) {
+      if (phase === 'live' && !frozen) stepSim(dt);
+      drawMatch(dt);
+      SS.hud.update(S(), phase !== 'live' || frozen, hudLabels);
+    }
+    SS.director.update(dt);
+  }
+  const hudLabels = {
+    get formation() { return (kits[0] ? kits[0].short : 'You') + ': ' + formationName(); },
+    get theirs() { const s = S(); return s && kits[1] ? kits[1].short + ': ' + (D().FORMATIONS[s.teams[1].formation] || D().FORMATIONS.normal).name : ''; },
+    get stops() { return ({ ours: 'Our ball only', both: 'Attack and defense', key: 'Key moments', coach: 'Coach' })[SS.save.settings.get('stops')]; },
+    numberOf: j => numberOf(j), kitOf: t => kits[t] ? kits[t].kit : 0xffffff,
+  };
+
+  function stepSim(dt) {
+    const TICK = RU().TICK;
+    acc += dt * (SPEED[SS.save.settings.get('speed')] || 1);
+    sinceSave += dt;
+    let n = 0;
+    while (acc >= TICK && phase === 'live' && n++ < 8) {
+      acc -= TICK;
+      const s = S();
+      s.players.forEach((pl, j) => prevP[j].copy(curP[j]));
+      prevBall.copy(curBall);
+      const evs = m.advance(TICK);
+      s.players.forEach((pl, j) => curP[j].set(pl.p.x, pl.p.y, pl.p.z));
+      curBall.set(s.ball.p.x, s.ball.p.y, s.ball.p.z);
+      evs.forEach(handle);
+      if (m.pending && phase === 'live') { enterDecision(); break; }
+    }
+    if (phase !== 'live') acc = 0;
+    if (sinceSave > SAVE_EVERY && phase === 'live') { sinceSave = 0; saveNow(); }
+    if (phase === 'live') formationTalk();
+  }
+
+  function drawMatch(dt) {
+    const s = S(), live = phase === 'live' && !frozen;
+    const a = live ? Math.min(1, acc / RU().TICK) : 1;
+    s.players.forEach((pl, j) => {
+      const sw = swimmers[j];
+      if (!sw) return;
+      _v.lerpVectors(prevP[j], curP[j], a);
+      sw.group.position.copy(_v);
+      face(sw, pl, dt, live);
+      if (!sw.busy) sw.play(live && sw.swimming ? 'swim' : 'tread');
+      sw.setCarry(s.ball.owner === j);
+      sw.update(live ? dt : dt * 0.6);
+      badges[j].carrier(s.ball.owner === j);
+    });
+    if (s.ball.owner != null && swimmers[s.ball.owner]) ball.position.copy(swimmers[s.ball.owner].ballPoint);
+    else ball.position.lerpVectors(prevBall, curBall, a);
+    if (lane.visible) lane.material.dashOffset -= dt * 1.2;
+    drawPreview(dt);
+  }
+
+  /* How a swimmer turns. Bryan saw treading swimmers "spinning in place": they turned to
+     face the ball every frame, and the ball moves fast, so everyone near it swivelled
+     (46-92 degrees a second on average), and a swimmer slowing down flipped between facing
+     its swim and facing the ball. Now:
+      - swimming (over TURN_SWIM m/s, or still over TURN_KEEP once swimming): face the swim;
+      - treading: keep facing where they are, and only turn to the ball once it is well off
+        to one side (TURN_DEADZONE) - then turn calmly, and stop once it is in front again;
+      - every turn is rate-limited, so nobody ever whips round. */
+  const TURN_SWIM = 1.0, TURN_KEEP = 0.5, TURN_DEADZONE = Math.PI / 3;
+  const TURN_RATE_SWIM = 3.5, TURN_RATE_TREAD = 1.2;     // radians per second
+  const _fwd = new THREE.Vector3(), _to = new THREE.Vector3(), _look = new THREE.Vector3();
+  function face(sw, pl, dt, live) {
+    const speed = Math.hypot(pl.v.x, pl.v.y, pl.v.z), p = sw.group.position;
+    sw.swimming = speed > (sw.swimming ? TURN_KEEP : TURN_SWIM);
+    let rate = TURN_RATE_TREAD;
+    if (sw.swimming) {
+      // A gentle pitch only: swimmers level off rather than diving nose-first.
+      _look.set(pl.v.x, Math.max(-0.5, Math.min(0.5, pl.v.y / Math.max(speed, 1e-3))) * Math.hypot(pl.v.x, pl.v.z), pl.v.z).add(p);
+      rate = TURN_RATE_SWIM;
+      sw.watching = false;
+    } else {
+      _to.subVectors(ball.position, p).setY(0);
+      if (_to.lengthSq() < 0.25) return;                 // the ball is right on top of them: nothing to turn to
+      _fwd.set(0, 0, 1).applyQuaternion(sw.group.quaternion).setY(0);
+      const off = _fwd.lengthSq() > 1e-6 ? _fwd.angleTo(_to) : Math.PI;
+      if (off > TURN_DEADZONE) sw.watching = true;         // the ball has gone well out of view: turn to it
+      else if (off < 0.2) sw.watching = false;            // facing it again: settle
+      if (!sw.watching) { levelOff(sw, dt); return; }
+      _look.copy(p).add(_to);
+    }
+    if (_look.distanceToSquared(p) < 1e-4) return;
+    // Matrix4.lookAt points -Z at its second argument; with the arguments swapped, +Z
+    // (the way a swimmer faces) points at the target, like Object3D.lookAt.
+    _m4.lookAt(_look, p, _up); _q.setFromRotationMatrix(_m4);
+    sw.group.quaternion.rotateTowards(_q, rate * (live ? dt : dt * 0.5));
+  }
+  /** A treading swimmer eases upright (any pitch left from swimming goes), keeping its heading. */
+  function levelOff(sw, dt) {
+    _fwd.set(0, 0, 1).applyQuaternion(sw.group.quaternion).setY(0);
+    if (_fwd.lengthSq() < 1e-6) return;
+    _look.copy(sw.group.position).add(_fwd);
+    _m4.lookAt(_look, sw.group.position, _up); _q.setFromRotationMatrix(_m4);
+    sw.group.quaternion.rotateTowards(_q, TURN_RATE_TREAD * dt);
+  }
+
+  /* ══ what happened ═════════════════════════════════════════════════════ */
+  const say = (f, slots, p) => SS.broadcast.say(f, slots, p);
+  function scoreWords() {
+    const s = S(), t = kits;
+    return t[0].short + ' ' + U.numWord(s.score[0]) + ', ' + t[1].short + ' ' + U.numWord(s.score[1]);
+  }
+  function handle(e) {
+    try { handleEvent(e); } catch (err) { console.error('event ' + e.type + ':', err); }
+  }
+  function handleEvent(e) {
+    const s = S(), team = j => kits[s.players[j].team].short;
+    switch (e.type) {
+      case 'kickoff': SS.audio.play('whistle', 0.5); say('kickoff', { team: kits[e.team].short }, 1); break;
+      case 'pass': if (swimmers[e.player]) swimmers[e.player].once('throw'); SS.audio.play('bloop', 0.35); break;
+      case 'shot':
+        if (swimmers[e.player]) swimmers[e.player].once('throw');
+        SS.audio.play('bloop', 0.6);
+        say('shot', { player: who(e.player) }, 2);
+        break;
+      case 'catch': say('pass', { player: who(e.from), target: who(e.player) }, 1); break;
+      case 'intercept':
+        SS.hud.pop('Intercepted!', ours(e.player) ? 'good' : 'bad', 2);
+        say('intercept', { player: who(e.player), team: team(e.player) }, 2);
+        if (Math.random() < 0.35) say('interceptColor', {}, 1);
+        break;
+      case 'loose':
+        if (e.result === 'blocked' && e.by != null) { SS.hud.pop('Blocked!', ours(e.by) ? 'good' : 'bad', 2); say('blocked', { player: who(e.by) }, 2); }
+        else if (e.result === 'short') say('short', {}, 1);
+        else say('loose', {}, 1);
+        break;
+      case 'dribble':
+        (e.hits || []).forEach(j => { if (swimmers[j]) swimmers[j].once(Math.random() < 0.5 ? 'tackleA' : 'tackleB'); });
+        if (e.result === 'kept') say('breakThrough', { player: who(e.player) }, 2);
+        else {
+          SS.audio.play('thud', 0.7);
+          if (swimmers[e.player]) swimmers[e.player].once('hitChest');
+          SS.hud.pop('Tackled!', ours(e.by) ? 'good' : 'bad', 2);
+          say('tackle', { player: who(e.by) }, 2);
+        }
+        break;
+      case 'tech': {
+        const t = D().TECHS[e.tech];
+        if (t) { SS.hud.pop(t.name + '!', 'tech', 2); say('tech', { player: who(e.player), tech: t.name }, 2); }
+        break;
+      }
+      case 'status': say('status', { player: who(e.player) }, 1); break;
+      case 'goal': {
+        SS.audio.play('horn', 0.6);
+        if (swimmers[e.player]) swimmers[e.player].once('cheer');
+        SS.hud.pop('GOAL!', 'goal', 3);
+        say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, '') }, 3);
+        say('goalScore', { score: scoreWords() }, 3);
+        say('goalColor', {}, 3);
+        break;
+      }
+      case 'save':
+        SS.hud.pop('Saved!', ours(e.player) ? 'good' : 'bad', 2);
+        say(e.caught ? 'saveCatch' : 'saveParry', { player: who(e.player) }, 2);
+        if (Math.random() < 0.3) say('saveColor', {}, 1);
+        break;
+      case 'halftime':
+        phase = 'halftime';
+        SS.audio.play('whistle', 0.6);
+        SS.hud.pop('Halftime', 'info', 3);
+        say('halftime', { score: scoreWords() }, 3);
+        saveNow();
+        SS.director.setMode('wide');
+        setTimeout(() => { if (phase === 'halftime' && m) SS.ui.setScreen('halftime'); }, 1400);
+        break;
+      case 'secondHalf': say('secondHalf', { score: scoreWords() }, 3); break;
+      case 'overtime': SS.hud.pop('Overtime', 'info', 3); say('overtime', {}, 3); break;
+      case 'tactics':
+        if (e.by === 'coach' && e.formation !== e.was) {
+          const f = D().FORMATIONS[e.formation];
+          SS.hud.pop(kits[e.team].short + ': ' + f.name, 'info', 2);
+          say('theirFormation', { team: kits[e.team].short, formation: f.name, what: f.blurb }, 3);
+        }
+        break;
+      case 'fulltime': {
+        phase = 'fulltime';
+        SS.audio.play('whistle', 0.7);
+        SS.hud.pop('Full Time', 'info', 3);
+        say('fulltime', { score: scoreWords() }, 3);
+        if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short }, 3);
+        SS.save.clearMatch();
+        SS.director.setMode('wide');
+        setTimeout(() => { if (phase === 'fulltime' && m) SS.ui.setScreen('results'); }, 1800);
+        break;
+      }
+    }
+  }
+
+  /* ══ decisions on the scene ═══════════════════════════════════════════ */
+  function enterDecision() {
+    phase = 'decision';
+    preview = 0;                          // a choice cuts the formation preview short
+    saveNow();
+    SS.audio.play('decision', 0.5);
+    const dec = m.pending;
+    if (dec.kind === 'stance') openStance(dec);
+    else if (dec.kind === 'keeper') openPass(dec, null, true);
+    else openTop(dec);
+  }
+
+  /** Bones to frame a swimmer by - the brackets fit the body whatever way up it is. */
+  function bodyPoints(j) {
+    const sw = swimmers[j];
+    return () => [sw.head, sw.pelvis, sw.handL, sw.handR, sw.chest].map(b => b.getWorldPosition(new THREE.Vector3()));
+  }
+  function pauseItem() { return { label: 'Pause', speech: 'Pause', el: U.$('pauseBtn'), action: () => SS.ui.openPause() }; }
+  function goalPoint(team) { const g = SS.ai.goalOf(team); return new THREE.Vector3(g.x, g.y, g.z); }
+
+  function frameOn(js, extra) {
+    const pts = js.map(j => curP[j].clone());
+    if (extra) pts.push(...extra);
+    SS.director.setMode('decision', { points: pts });
+  }
+
+  function showLane(from, to, blockers) {
+    badges.forEach(b => b.blocker(false));
+    if (!from) { lane.visible = false; return; }
+    lane.geometry.setFromPoints([from, to]);
+    lane.computeLineDistances();
+    lane.visible = true;
+    (blockers || []).forEach(j => badges[j] && badges[j].blocker(true));
+  }
+  const bestOf = list => list.slice().sort((a, b) => b.odds.p - a.odds.p)[0];
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+
+  function openTop(dec) {
+    const s = S(), c = s.players[dec.carrier], opts = dec.options;
+    const plain = opts.filter(o => !o.tech), techs = opts.filter(o => o.tech);
+    const passes = plain.filter(o => o.kind === 'pass'), shot = plain.find(o => o.kind === 'shoot');
+    const drib = plain.find(o => o.kind === 'dribble'), swim = plain.find(o => o.kind === 'swim');
+    const items = [];
+    if (passes.length) {
+      const b = bestOf(passes);
+      items.push({ label: 'Pass', sub: 'Best: #' + numberOf(b.target) + ' ' + who(b.target) + (b.info.open ? ' · open' : ''), odds: b.odds,
+        speech: 'Pass. ' + b.odds.word + (b.info.open ? '. ' + who(b.target) + ' is open.' : '.'),
+        lane: () => [curP[dec.carrier], curP[b.target], m.laneBlockers(dec.carrier, s.players[b.target].p)],
+        action: () => openPass(dec, null, false) });
+    }
+    if (shot) {
+      const i = shot.info;
+      items.push({ label: 'Shoot', sub: i.distance + ' m · ' + plural(i.blockers, 'blocker', 'blockers') + ' · keeper ' + i.keeper, odds: shot.odds,
+        speech: 'Shoot. ' + shot.odds.word + '. ' + plural(i.blockers, 'blocker', 'blockers') + ', keeper ' + i.keeper + '.',
+        lane: () => [curP[dec.carrier], goalPoint(c.team), m.laneBlockers(dec.carrier, SS.ai.goalOf(c.team))],
+        action: () => choose(shot.id) });
+    }
+    if (drib) {
+      const n = drib.info.tacklers;
+      items.push({ label: 'Dribble', sub: 'Past ' + plural(n, 'defender', 'defenders'), odds: drib.odds,
+        speech: 'Dribble. ' + drib.odds.word + '.',
+        lane: () => [curP[dec.carrier], curP[dec.carrier].clone().add(goalPoint(c.team).sub(curP[dec.carrier]).setLength(5)), dec.defenders],
+        action: () => choose(drib.id) });
+    }
+    if (techs.length) {
+      const names = [...new Set(techs.map(o => D().TECHS[o.tech].name))];
+      items.push({ label: 'Tech', sub: names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : ''), cls: 'tech',
+        speech: 'Tech moves. ' + names.join(', ') + '.', action: () => openTech(dec) });
+    }
+    if (swim) items.push({ label: 'Keep Swimming', sub: 'Look for a better chance', speech: 'Keep swimming.', action: () => choose(swim.id) });
+    items.push(pauseItem());
+
+    const head = {
+      encounter: ['#' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' is challenged', plural(dec.defenders.length, 'defender', 'defenders') + ' in the way'],
+      shot: ['Shot chance!', (shot ? shot.info.distance : '') + ' m from goal'],
+      point: ['Point blank!', 'Right in front of goal'],
+      call: ['Your call', '#' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' has the ball'],
+    }[dec.kind] || ['Your call', ''];
+    const speech = {
+      encounter: 'Your call. ' + who(dec.carrier) + ' is challenged by ' + plural(dec.defenders.length, 'defender', 'defenders') + '.',
+      shot: 'Shot chance for ' + who(dec.carrier) + ', ' + (shot ? shot.info.distance : '') + ' metres out.',
+      point: 'Point blank for ' + who(dec.carrier) + '!',
+      call: 'Your call. ' + who(dec.carrier) + ' has the ball.',
+    }[dec.kind] || 'Your call.';
+    // Frame what this choice is about: the carrier, who is in the way, the best pass,
+    // and the goal when a shot is on. Pass then frames every teammate.
+    const best = passes.length ? [bestOf(passes).target] : [];
+    frameOn([dec.carrier, ...dec.defenders, ...best], shot ? [goalPoint(c.team)] : null);
+    SS.ui.openWorld({ title: head[0], sub: head[1], items, speech, anchor: swimmers[dec.carrier].head,
+      onFocus: it => { const l = it && it.lane && it.lane(); showLane(l && l[0], l && l[1], l && l[2]); },
+      onLeave: () => showLane(null) });
+  }
+
+  function openPass(dec, tech, keeperBall) {
+    const s = S(), c = s.players[dec.carrier];
+    const opts = dec.options.filter(o => o.kind === 'pass' && (o.tech || null) === tech).sort((a, b) => b.odds.p - a.odds.p);
+    const items = opts.map(o => {
+      const t = s.players[o.target], i = o.info, pos = D().POSITION_NAMES[t.pos];
+      const state = i.open ? 'Open' : plural(i.blockers, 'defender', 'defenders') + ' in the way';
+      return { label: '#' + numberOf(o.target) + ' ' + who(o.target), focus: bodyPoints(o.target), opt: o,
+        speech: who(o.target) + ', ' + pos + ', ' + state + ', ' + o.odds.word + '.',
+        onFocus: () => SS.ui.worldHead('Pass to #' + numberOf(o.target) + ' ' + t.name, pos + ' · ' + state + ' · ' + o.odds.word),
+        lane: () => [curP[dec.carrier], curP[o.target], m.laneBlockers(dec.carrier, t.p)],
+        action: () => choose(o.id) };
+    });
+    if (!keeperBall) items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => tech ? openTech(dec) : openTop(dec) });
+    items.push(pauseItem());
+    const techName = tech ? D().TECHS[tech].name : null;
+    const title = keeperBall ? 'Your keeper has it' : (techName ? techName + ' to…' : 'Pass to…');
+    const sub = keeperBall ? 'Pick a teammate to throw to' : 'Pick a teammate';
+    frameOn([dec.carrier, ...opts.map(o => o.target)]);
+    SS.ui.openWorld({ title, sub, items, anchor: swimmers[dec.carrier].head,
+      speech: keeperBall ? 'Your keeper ' + who(dec.carrier) + ' has the ball. Pick a teammate.' : (techName ? techName + '. Pick a teammate.' : 'Pass. Pick a teammate.'),
+      onOpen: () => opts.forEach(o => { badges[o.target].mark(o.odds.word); badges[o.target].onTap(() => choose(o.id)); }),
+      onFocus: it => {
+        if (!it || !it.opt) SS.ui.worldHead(title, sub);
+        const l = it && it.lane && it.lane(); showLane(l && l[0], l && l[1], l && l[2]);
+      },
+      onLeave: () => { showLane(null); badges.forEach(b => { b.mark(null); b.onTap(null); }); } });
+  }
+
+  function openTech(dec) {
+    const s = S(), techs = dec.options.filter(o => o.tech);
+    const seen = new Set(), items = [];
+    techs.forEach(o => {
+      const key = o.kind + ':' + o.tech;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const t = D().TECHS[o.tech];
+      if (o.kind === 'pass') {
+        const b = bestOf(techs.filter(x => x.kind === 'pass' && x.tech === o.tech));
+        items.push({ label: t.name, sub: 'Pass · ' + t.hp + ' HP', odds: b.odds, cls: 'tech', speech: t.name + '. A pass. ' + b.odds.word + '.',
+          action: () => openPass(dec, o.tech, false) });
+      } else {
+        items.push({ label: t.name, sub: (o.kind === 'shoot' ? 'Shot' : 'Dribble') + ' · ' + t.hp + ' HP', odds: o.odds, cls: 'tech',
+          speech: t.name + '. ' + (o.kind === 'shoot' ? 'A shot' : 'A dribble') + '. ' + o.odds.word + '.', action: () => choose(o.id) });
+      }
+    });
+    items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => openTop(dec) });
+    items.push(pauseItem());
+    SS.ui.openWorld({ title: 'Tech moves', sub: who(dec.carrier) + ' has ' + Math.round(s.players[dec.carrier].hp) + ' HP', items,
+      anchor: swimmers[dec.carrier].head, speech: 'Tech moves.', onLeave: () => showLane(null) });
+  }
+
+  function openStance(dec) {
+    const items = dec.options.map(o => {
+      const t = o.tech ? D().TECHS[o.tech] : null;
+      const label = t ? t.name : o.stance === 'tackle' ? 'Tackle' : 'Block';
+      const sub = t ? 'By #' + numberOf(o.by) + ' ' + who(o.by) : o.stance === 'tackle' ? 'Go for the ball' : 'Stand in the lanes';
+      return { label, sub, odds: o.odds, cls: t ? 'tech' : '', speech: label + '. ' + sub + '. ' + o.odds.word + ' to win it.', action: () => choose(o.id) };
+    });
+    items.push(pauseItem());
+    frameOn([dec.carrier, ...dec.defenders]);
+    SS.ui.openWorld({ title: 'Defend!', sub: 'Their #' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' is coming through', items,
+      anchor: swimmers[dec.carrier].head, speech: 'Defend! Their ' + who(dec.carrier) + ' is coming through. Tackle, or block?',
+      onOpen: () => dec.defenders.forEach(j => badges[j].blocker(true)), onLeave: () => showLane(null) });
+  }
+
+  function choose(id) {
+    if (!m || !m.pending) return;
+    SS.ui.closeWorld();
+    showLane(null);
+    const evs = m.choose(id);
+    evs.forEach(handle);
+    if (m.pending) { enterDecision(); return; }
+    toLive();
+  }
+  function toLive() {
+    phase = 'live'; frozen = false;
+    SS.ui.goLive();
+    SS.director.setMode('broadcast', { follow: () => ball.position });
+    if (previewPending) startPreview();
+  }
+
+  /* ══ showing a formation change ════════════════════════════════════════
+     Bryan's M2 playtest: "not sure what effect the formations have". When the player
+     picks a new formation, play resumes with the camera pulled back, a ring at every
+     fielder's new spot, and the analyst saying what the shape does - so the team can be
+     seen swimming into it. */
+  const PREVIEW_SECS = 3.5;
+  function startPreview() {
+    previewPending = false;
+    preview = PREVIEW_SECS;
+    const f = D().FORMATIONS[formationId()], s = S(), attacking = weHaveBall();
+    // Frame our fielders where they are now AND where the new shape puts them.
+    const pts = [];
+    s.players.forEach((pl, j) => { if (pl.team === 0 && pl.pos !== 'GL') { pts.push(curP[j].clone()); const a = SS.ai.anchorOf(s, pl, attacking); pts.push(new THREE.Vector3(a.x, a.y, a.z)); } });
+    SS.director.setMode('decision', { points: pts });
+    say('ourFormation', { team: kits[0].short, formation: f.name, what: f.blurb }, 3);
+  }
+  function drawPreview(dt) {
+    if (preview <= 0) { rings.forEach(r => { r.visible = false; }); ringLinks.visible = false; return; }
+    preview -= dt;
+    const s = S(), attacking = s.ball.owner != null && s.players[s.ball.owner].team === 0;
+    const fade = Math.min(1, preview / 0.6, (PREVIEW_SECS - preview) / 0.3 + 0.2);
+    let k = 0;
+    const seg = ringLinks.geometry.attributes.position;
+    s.players.forEach((pl, j) => {
+      if (pl.team !== 0 || pl.pos === 'GL' || k >= rings.length) return;
+      const a = SS.ai.anchorOf(s, pl, attacking), r = rings[k];
+      r.position.set(a.x, a.y, a.z); r.lookAt(camera.position);
+      r.material.opacity = 0.9 * fade; r.visible = true;
+      const p = swimmers[j].group.position;
+      seg.setXYZ(k * 2, p.x, p.y, p.z); seg.setXYZ(k * 2 + 1, a.x, a.y, a.z);
+      k++;
+    });
+    seg.needsUpdate = true; ringLinks.computeLineDistances();
+    ringLinks.material.opacity = 0.8 * fade; ringLinks.visible = true;
+    if (preview <= 0 && SS.director.mode === 'decision' && phase === 'live') SS.director.setMode('broadcast', { follow: () => ball.position });
+  }
+
+  /** The analyst's word on how a formation is going: once per formation per team, after
+   *  it has had time to show something, and never more often than every 30 seconds. */
+  function formationTalk() {
+    const s = S(), now = (s.period - 1) * s.halfLength + s.clock;
+    if (now - talk.at < 30 || !m.stint) return;
+    for (const team of [0, 1]) {
+      const st = m.stint(team), key = team + ':' + st.formation + ':' + Math.round(now - st.secs);
+      if (talk.done[key] || st.secs < 45) continue;
+      const f = D().FORMATIONS[st.formation], slots = { team: kits[team].short, formation: f.name };
+      let fam = null;
+      if (st.goalsAgainst > st.goalsFor || st.shotsAgainst - st.shotsFor >= 2) fam = 'formationStruggling';
+      else if (st.goalsFor > st.goalsAgainst || st.shotsFor - st.shotsAgainst >= 2) fam = 'formationWorking';
+      else if (st.shotsAgainst === 0 && st.secs >= 60) fam = 'formationHolding';
+      if (!fam) continue;
+      talk.done[key] = true;
+      if (say(fam, slots, 2)) { talk.at = now; return; }
+    }
+  }
+
+  /* ══ the Huddle, Pause and friends ═════════════════════════════════════ */
+  function openHuddle() {
+    if (phase !== 'live' || frozen) return;
+    phase = 'huddle';
+    SS.ui.setScreen('huddle');
+  }
+  function resume() {
+    if (!m) return;
+    if (m.pending) { enterDecision(); return; }
+    if (phase === 'halftime') { SS.ui.setScreen('halftime'); return; }
+    if (phase === 'fulltime') { SS.ui.setScreen('results'); return; }
+    toLive();
+  }
+  function setFrozen(on) { frozen = !!on; }
+  function callNow() {
+    if (!m || !weHaveBall()) { resume(); return; }
+    phase = 'live';
+    if (m.callNow(0) && m.pending) enterDecision(); else toLive();
+  }
+  function startSecondHalf() { toLive(); }
+  function skipToEnd() {
+    let guard = 0;
+    while (!m.done && guard++ < 100000) {
+      if (m.pending) m.choose(m.pending.options[0].id);
+      m.advance(1);
+    }
+    S().players.forEach((pl, j) => { curP[j].set(pl.p.x, pl.p.y, pl.p.z); prevP[j].copy(curP[j]); });
+    handle({ type: 'fulltime', winner: m.s.result ? m.s.result.winner : null });
+  }
+
+  /* ══ tactics ═══════════════════════════════════════════════════════════ */
+  function formationId() { return m ? m.s.teams[0].formation : 'normal'; }
+  function formationName() { return (D().FORMATIONS[formationId()] || D().FORMATIONS.normal).name; }
+  function setFormation(id) {
+    // Mark: each defender follows the opponent across from them.
+    const marks = {};
+    if (id === 'mark') {
+      const s = S(), MIRROR = { LD: 'RF', RD: 'LF', MF: 'MF', LF: 'RD', RF: 'LD' };
+      s.players.forEach((pl, j) => {
+        if (pl.team !== 0 || !MIRROR[pl.pos]) return;
+        const k = s.players.findIndex(o => o.team === 1 && o.pos === MIRROR[pl.pos]);
+        if (k >= 0) marks[j] = k;
+      });
+    }
+    const was = formationId();
+    m.setTactics(0, { formation: id, marks });
+    if (id !== was) previewPending = true;
+  }
+  /** "Normal for 1:20 · 3 shots for, 1 against" - how our formation has gone so far. */
+  function formationRecord() {
+    if (!m || !m.stint) return '';
+    const st = m.stint(0);
+    return (D().FORMATIONS[st.formation] || {}).name + ' for ' + U.fmtClock(st.secs) + ' · ' +
+      plural(st.shotsFor, 'shot', 'shots') + ' for, ' + st.shotsAgainst + ' against';
+  }
+  function theirFormationName() { const s = S(); return s ? (D().FORMATIONS[s.teams[1].formation] || D().FORMATIONS.normal).name : ''; }
+  function formationsOpen() { return !setup || setup.mode === 'quick'; }
+  function totalWins() { return 0; }
+
+  /* ══ reading the match, for cards ═════════════════════════════════════ */
+  function weHaveBall() { const s = S(); return !!s && s.ball.owner != null && s.players[s.ball.owner].team === 0 && !s.pending; }
+  function matchInfo() {
+    const s = S();
+    const teams = [0, 1].map(t => { const k = kits[t] || teamById(s.teams[t].id); return { id: k.id, name: k.name, short: k.short, kit: k.kit }; });
+    const stats = [0, 1].map(t => {
+      const o = { goals: 0, shots: 0, onTarget: 0, completed: 0, tackles: 0, saves: 0 };
+      s.players.forEach(pl => { if (pl.team === t) Object.keys(o).forEach(k => { o[k] += pl.st[k] || 0; }); });
+      return o;
+    });
+    return { teams, score: s.score.slice(), stats, winner: s.result ? s.result.winner : null,
+      scoreSpeech: teams[0].short + ' ' + U.numWord(s.score[0]) + ', ' + teams[1].short + ' ' + U.numWord(s.score[1]) + '.' };
+  }
+  function inMatch() { return !!m && phase !== 'menu'; }
+
+  return {
+    init, update, startQuick, kickoff, savedMatch, continueSaved, saveNow, quitToMenu, restartMatch, resetProgress,
+    openHuddle, resume, setFrozen, callNow, startSecondHalf, skipToEnd,
+    formationId, formationName, setFormation, formationsOpen, formationRecord, theirFormationName, totalWins, weHaveBall, matchInfo, inMatch,
+    choose,
+    get phase() { return phase; }, get match() { return m; }, get swimmers() { return swimmers; }, get badges() { return badges; },
+  };
+})();

@@ -165,5 +165,56 @@ check('possession changes hands (>= 12 per match)', totals.possessions / n >= 12
   check('Quick Game uses short halves', half === RULES.HALF_SHORT && m.done, half + 's halves');
 }
 
+/* ── the CPU coach changes formation (Bryan's M2 playtest: "opponents change too") ── */
+{
+  let changes = 0, goals = 0, n = QUICK ? 12 : 40, humanTouched = 0, same = true;
+  for (let k = 0; k < n; k++) {
+    const opts = { teams: [TEAMS[k % 6], TEAMS[(k + 3) % 6]], seed: 1300 + k, human: 0, stops: 'coach', aiCoach: true };
+    const m = SS.sim.create(opts);
+    let g = 0, log = [];
+    while (!m.done && g++ < 200000) m.advance(1).forEach(e => { if (e.type === 'tactics') { changes++; log.push(e.formation); if (e.team === 0) humanTouched++; } });
+    goals += m.s.score[0] + m.s.score[1];
+    if (k < 3) {                           // the same seed makes the same changes
+      const m2 = SS.sim.create(opts), log2 = [];
+      let g2 = 0; while (!m2.done && g2++ < 200000) m2.advance(1).forEach(e => { if (e.type === 'tactics') log2.push(e.formation); });
+      if (log.join() !== log2.join()) same = false;
+    }
+  }
+  check('the CPU coach changes formation now and then (1-8 a match)', changes / n >= 1 && changes / n <= 8, (changes / n).toFixed(1) + ' a match');
+  check('the CPU coach never touches the player\'s team', humanTouched === 0, humanTouched + '');
+  check('the CPU coach replays exactly from a seed', same);
+  check('matches stay sane with the CPU coach (2-9 goals)', goals / n >= 2 && goals / n <= 9, (goals / n).toFixed(2));
+}
+
+/* ── nobody piles into a goal ────────────────────────────────────────────── */
+{
+  // Bryan, 2026-09-29: swimmers stacking up inside the goal looked wrong. Only that
+  // goal's keeper may be in its keep-out; a loose ball never rests there either.
+  let worst = 0, ballIn = 0, ticks = 0, longestQuiet = 0;
+  const inside = (p, side) => Math.hypot(p.x, p.y, p.z - side * (RULES.GOAL_Z + RULES.GOAL_KEEP_BACK));
+  for (let k = 0; k < (QUICK ? 6 : 20); k++) {
+    const m = SS.sim.create({ teams: [TEAMS[k % 6], TEAMS[(k + 1) % 6]], seed: 900 + k, human: null });
+    let guard = 0, quiet = 0;
+    while (!m.done && guard++ < 200000) {
+      const ev = m.advance(RULES.TICK); ticks++;
+      const s = m.s;
+      // A stall: live play running with nothing happening (it hid behind "the match
+      // still finishes" once - a carrier waited at the net for whole halves).
+      quiet = ev.some(e => !['status', 'stance', 'chose', 'tactics'].includes(e.type)) || s.phase !== 'live' ? 0 : quiet + RULES.TICK;
+      longestQuiet = Math.max(longestQuiet, quiet);
+      for (const side of [1, -1]) {
+        s.players.forEach(pl => {
+          const own = pl.pos === 'GL' && -SS.ai.dirOf(pl.team) === side;
+          if (!own) worst = Math.max(worst, RULES.GOAL_KEEP_OUT - inside(pl.p, side));
+        });
+        if (s.ball.owner == null && !s.ball.flight && s.phase === 'live' && inside(s.ball.p, side) < RULES.GOAL_KEEP_OUT - 0.05) ballIn++;
+      }
+    }
+  }
+  check('no fielder ever inside a goal\'s keep-out', worst < 0.05, 'deepest ' + Math.max(0, worst).toFixed(3) + ' m over ' + ticks + ' ticks');
+  check('a loose ball never rests inside a goal\'s keep-out', ballIn === 0, ballIn + ' ticks');
+  check('play never stalls (nothing happening for 45 s of live play)', longestQuiet < 45, 'longest quiet ' + longestQuiet.toFixed(0) + ' s');
+}
+
 console.log(fails ? `\n${fails} check(s) FAILED` : '\nAll checks passed');
 process.exit(fails ? 1 : 0);

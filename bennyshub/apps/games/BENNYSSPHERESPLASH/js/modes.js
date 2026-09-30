@@ -28,13 +28,13 @@
 
   const PRESETS = {
     quick: { name: 'Quick Game', rules: {
-      competition: 'exhibition', matchLength: 'short', stops: 'ours', gamePlan: 'auto', techniques: 'auto',
+      competition: 'exhibition', matchLength: 'short', stops: 'both', gamePlan: 'auto', techniques: 'auto',
       levels: false, contracts: false, scouting: false, training: false, injuries: false, unlocks: false, techCopy: false } },
     simple: { name: 'Simple Season', rules: {
-      competition: 'leagueThenCup', matchLength: 'standard', stops: 'ours', gamePlan: 'card', techniques: 'auto',
+      competition: 'leagueThenCup', matchLength: 'standard', stops: 'both', gamePlan: 'card', techniques: 'auto',
       levels: true, contracts: false, scouting: false, training: false, injuries: false, unlocks: true, techCopy: false } },
     full: { name: 'Full Season', rules: {
-      competition: 'cycles', matchLength: 'standard', stops: 'ours', gamePlan: 'manual', techniques: 'manual',
+      competition: 'cycles', matchLength: 'standard', stops: 'both', gamePlan: 'manual', techniques: 'manual',
       levels: true, contracts: true, scouting: true, training: true, injuries: false, unlocks: true, techCopy: true } },
   };
 
