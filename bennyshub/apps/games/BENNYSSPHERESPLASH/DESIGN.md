@@ -105,6 +105,17 @@ pool, so our team always attacks to the right; every move is eased, never cut.
   halfway, and eases back 1.1 s after the result (`director.js` mode `shot`, `game.js`
   shot moment). Steady keeps the broadcast camera, and keeps the wind-up and slow motion. The
   shooter and keeper never fade. All display: the sim has already decided the shot.
+- **The shot's moves (M3, `js/moves.js`).** No throw, dive or catch in the free clip library,
+  so they are built over the clips (rig.js IK + a body pivot at the pelvis), from pose
+  references in `Projects/Assets/SphereSplash/pose-refs`. Bryan chose: normal shots are a
+  water-polo **overhead throw**, technique shots a **volley kick**. The keeper starts in a
+  goalie's set position (hands at the chest), reaches the short way in front of the body, and
+  catches (clutch), punches, or is beaten at full stretch; a blocking defender reaches an arm.
+  Bryan's playtest fixes: the aim point is the goal, BEHIND the keeper (256 of 257 shots,
+  1.5 m), so the keeper reaches for where the ball crosses them (`cine.cross`); a save stops
+  the ball there; a goal bends round the keeper by at least 0.9 m (it flew through them);
+  a ball above the shoulders turns the whole body to it (the arms had crossed the face).
+  **Later (Bryan):** more animation tuning and polish, and variety in the technique moves.
 - **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
   the ball to the keeper), and custom animations for the shooter's shot, a defender's block
   and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame

@@ -74,7 +74,8 @@ SS.rig = (function () {
     const names = { pelvis: 'pelvis', chest: 'spine_03', neck: 'neck_01', head: 'Head',
       clavicleL: 'clavicle_l', clavicleR: 'clavicle_r',
       upperL: 'upperarm_l', lowerL: 'lowerarm_l', handL: 'hand_l',
-      upperR: 'upperarm_r', lowerR: 'lowerarm_r', handR: 'hand_r' };
+      upperR: 'upperarm_r', lowerR: 'lowerarm_r', handR: 'hand_r',
+      thighR: 'thigh_r', calfR: 'calf_r', footR: 'foot_r' };
     const out = {};
     for (const k in names) out[k] = find(root, names[k]);
     return out;

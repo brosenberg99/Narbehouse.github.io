@@ -108,7 +108,9 @@ SS.models = (function () {
       if (isBody) mesh.parent.add(outlineFor(mesh, o.outline || 0.018));
     });
     const group = new THREE.Group();
-    group.add(root);
+    // The body sits in a pivot so a move can lean or dive the whole swimmer (moves.js).
+    const tilt = new THREE.Group();
+    group.add(tilt); tilt.add(root);
     const mixer = new THREE.AnimationMixer(root);
     let current = null, lock = 0;
     function play(name, fade = 0.25) {
@@ -170,10 +172,34 @@ SS.models = (function () {
       group.visible = a > 0.02;
     }
 
+    /* A move (moves.js): a throw, a save, a block, re-posed over the clip every frame.
+       The lean pivots at the pelvis; with no move the body eases back to the clip's. */
+    let move = null;
+    root.updateMatrixWorld(true);
+    const pivot = bones.pelvis.getWorldPosition(new THREE.Vector3());   // rest pose, group space
+    const _tq = new THREE.Quaternion(), _tp = new THREE.Vector3(), _rest = new THREE.Quaternion();
+    function setTilt(q, shift) {
+      tilt.quaternion.copy(q);
+      _tp.copy(pivot).applyQuaternion(q);
+      tilt.position.copy(pivot).sub(_tp).add(shift);
+      tilt.updateMatrixWorld(true);
+    }
+    function settle(dt) {
+      if (tilt.position.lengthSq() < 1e-8 && tilt.quaternion.equals(_rest)) return;
+      const k = 1 - Math.exp(-dt * 6);
+      _tq.copy(tilt.quaternion).slerp(_rest, k);
+      tilt.quaternion.copy(_tq); tilt.position.multiplyScalar(1 - k);
+      if (tilt.position.lengthSq() < 1e-6 && 1 - Math.abs(tilt.quaternion.w) < 1e-6) { tilt.position.set(0, 0, 0); tilt.quaternion.identity(); }
+    }
+    function setMove(name, opts) { move = name ? { name, t: 0, opts: opts || {} } : null; }
+
     function update(dt) {
       mixer.update(dt);
       if (lock > 0) lock -= dt;
+      if (!move) settle(dt);
+      group.updateMatrixWorld(true);
       if (carrying) holdBall();
+      if (move) { move.t += dt; if (SS.moves.apply(api, move)) move = null; }
     }
     /** Free the GPU copies this swimmer owns (its painted geometry and materials). */
     function dispose() {
@@ -182,9 +208,11 @@ SS.models = (function () {
         if (n.isSkinnedMesh) { if (meshes.includes(n)) n.geometry.dispose(); if (n.material) n.material.dispose(); }
       });
     }
-    return { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
+    const api = { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
       head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
-      setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; } };
+      setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; },
+      setMove, setTilt, get move() { return move; }, faceTarget: null };
+    return api;
   }
 
   return { load, makeSwimmer, get clipNames() { return Object.keys(clips); } };

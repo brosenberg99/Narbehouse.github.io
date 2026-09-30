@@ -96,9 +96,10 @@ SS.director = (function () {
         _g.divideScalar(len);
         _side.copy(SIDE).setY(0).normalize();                  // toward our side of the pool
         if (f.stage === 0) {
-          // Over the shooter's shoulder, looking down the shot.
-          wantPos.copy(f.from).addScaledVector(_g, -4.5).addScaledVector(_side, 3.2); wantPos.y += 1.4;
-          wantAim.copy(f.from).addScaledVector(_g, Math.min(len, 6));
+          // Over the shooter's shoulder, looking down the shot: aimed between shooter and
+          // goal so both stay in the picture (aimed at the goal, a low shooter fell out of it).
+          wantPos.copy(f.from).addScaledVector(_g, -5).addScaledVector(_side, 3.6); wantPos.y += 1.6;
+          wantAim.copy(f.from).lerp(f.to, 0.4);
           rate = 2.6;
         } else {
           // At the goal mouth, from the shooter's side: the ball and the keeper.

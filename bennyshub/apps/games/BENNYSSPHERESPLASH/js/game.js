@@ -222,19 +222,36 @@ SS.game = (function () {
   function drawMatch(dt) {
     const s = S(), live = phase === 'live' && !frozen;
     const a = live ? Math.min(1, acc / RU().TICK) : 1;
+    drawA = a;
     s.players.forEach((pl, j) => {
       const sw = swimmers[j];
       if (!sw) return;
       _v.lerpVectors(prevP[j], curP[j], a);
       sw.group.position.copy(_v);
       face(sw, pl, dt, live);
-      if (!sw.busy) sw.play(live && sw.swimming ? 'swim' : 'tread');
+      const winding = sw.move && (sw.move.name === 'throw' || sw.move.name === 'kick');   // shots are made treading
+      if (!sw.busy) sw.play(live && sw.swimming && !winding ? 'swim' : 'tread');
       sw.setCarry(s.ball.owner === j || (!!cine && cine.hold > 0 && cine.shooter === j));
       sw.update(live ? dt : dt * 0.6);
       badges[j].carrier(s.ball.owner === j);
     });
     if (s.ball.owner != null && swimmers[s.ball.owner]) ball.position.copy(swimmers[s.ball.owner].ballPoint);
     else if (cine && cine.hold > 0 && swimmers[cine.shooter]) ball.position.copy(swimmers[cine.shooter].ballPoint);
+    else if (cine && cine.stopAt && cine.start && s.ball.flight) ball.position.lerpVectors(cine.start, cine.stopAt, cine.progress());
+    else if (cine && cine.stopAt && cine.done >= 0 && s.ball.owner == null) {
+      // A punched ball: the sim drops it loose at the aim point; ease it over from the fist.
+      if (!cine.after) cine.after = cine.stopAt.clone().sub(curBall);
+      ball.position.lerpVectors(prevBall, curBall, a).addScaledVector(cine.after, 1 - Math.min(1, (cine.t - cine.done) / 0.35));
+    }
+    else if (cine && cine.via && cine.start && s.ball.flight) {
+      const pr = cine.progress(), u = cine.viaU;
+      if (pr < u) ball.position.lerpVectors(cine.start, cine.via, pr / u);
+      else ball.position.lerpVectors(cine.via, cine.to, (pr - u) / Math.max(1e-3, 1 - u));
+    }
+    else if (cine && cine.offset && s.ball.flight) {
+      ball.position.lerpVectors(prevBall, curBall, a);
+      ball.position.addScaledVector(cine.offset, 1 - Math.min(1, s.ball.flight.t / s.ball.flight.dur));
+    }
     else ball.position.lerpVectors(prevBall, curBall, a);
     if (lane.visible) lane.material.dashOffset -= dt * 1.2;
     drawPreview(dt);
@@ -249,13 +266,61 @@ SS.game = (function () {
      the ball and the keeper as it arrives. All display: the sim decided the shot when it
      was taken, and nothing here changes what it decided (or the saved match). */
   const WINDUP = 0.6, SLOWMO = 0.4, SLOW_TAIL = 0.35, SHOT_HOLD = 1.1;
-  let cine = null;                    // { t, hold, shooter, keeper, from, to, done }
+  let cine = null;                    // { t, hold, shooter, keeper, from, to, done, cross, stopAt }
+  let drawA = 1;                      // this frame's blend between sim ticks
+  const _prog = new THREE.Vector3();
   const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady';
   function startShotMoment(e) {
     const s = S(), sh = s.players[e.player];
     cine = { t: 0, hold: WINDUP, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
-      from: curP[e.player].clone(), to: vec(e.to), done: -1, thrown: false };
+      from: curP[e.player].clone(), to: vec(e.to), done: -1, offset: null };
     if (shotCinematic()) SS.director.setMode('shot', { shot: shotFrame });
+    // The moves (moves.js): the shooter throws, the keeper or a blocker goes for it.
+    // How far along its path the ball is, smooth between sim ticks (slow motion ticks slowly).
+    const d = cine.to.clone().sub(cine.from), L2 = d.lengthSq() || 1;
+    const progress = () => {
+      if (!cine || cine.hold > 0) return 0;
+      if (!S() || !S().ball.flight) return 1;
+      _prog.lerpVectors(prevBall, curBall, drawA).sub(cine.from);
+      return THREE.MathUtils.clamp(_prog.dot(d) / L2, 0, 1);
+    };
+    cine.progress = progress;
+    const shooter = swimmers[e.player];
+    if (shooter) { shooter.setMove(e.tech ? 'kick' : 'throw', { to: cine.to }); shooter.faceTarget = cine.to; }
+    const keeper = swimmers[cine.keeper];
+    if (keeper && (e.result === 'goal' || e.result === 'catch' || e.result === 'parry')) {
+      // Where the ball crosses the keeper: the point of its path nearest their chest. The
+      // aim point is the goal, behind them (1.5 m on average), so that is never where they
+      // reach. A save stops the ball there, in the keeper's hands; a goal flies on past.
+      const kc = keeper.chest.getWorldPosition(new THREE.Vector3());
+      const u = THREE.MathUtils.clamp(kc.sub(cine.from).dot(d) / L2, 0.05, 1);
+      cine.cross = cine.from.clone().addScaledVector(d, u);
+      if (e.result !== 'goal') cine.stopAt = cine.cross;
+      else {
+        // A goal beats the keeper, so it must not fly through them (Bryan's catch: the ball
+        // passed through a keeper who barely moved). Its path bends to pass at least 0.9 m
+        // from their chest, on the side it was aimed, and the keeper reaches for it there.
+        const kc2 = keeper.chest.getWorldPosition(new THREE.Vector3());
+        const off = cine.cross.clone().sub(kc2), dn = d.clone().normalize();
+        off.addScaledVector(dn, -off.dot(dn));                     // across the path only
+        if (off.lengthSq() < 0.04) off.set(cine.to.x - kc2.x, 0, 0).addScaledVector(dn, -dn.x * (cine.to.x - kc2.x));
+        if (off.lengthSq() < 1e-4) off.set(1, 0, 0);
+        if (off.length() < 0.9) off.setLength(0.9);
+        cine.via = kc2.add(off); cine.viaU = u;
+        cine.cross = cine.via;
+      }
+      const reachAt = e.result === 'goal' ? u : 1;
+      keeper.setMove('keeper', { to: cine.cross, ball: ball.position, result: e.result, progress: () => Math.min(1, progress() / reachAt) });
+      keeper.faceTarget = cine.from;
+    }
+    if ((e.result === 'blocked' || e.result === 'intercepted') && e.by != null && swimmers[e.by]) {
+      swimmers[e.by].setMove('block', { to: cine.to, ball: ball.position, result: e.result, progress });
+    }
+  }
+  function endShotMoment() {
+    if (!cine) return;
+    [cine.shooter, cine.keeper].forEach(j => { if (swimmers[j]) swimmers[j].faceTarget = null; });
+    cine = null;
   }
   /** True while the wind-up holds the clock. Also ends the moment once it has played out. */
   function shotBeat(dt) {
@@ -263,13 +328,17 @@ SS.game = (function () {
     cine.t += dt;
     if (cine.hold > 0) {
       cine.hold -= dt;
-      if (cine.hold <= 0.3 && !cine.thrown && swimmers[cine.shooter]) { cine.thrown = true; swimmers[cine.shooter].once('throw'); }
       acc = 0;
-      return cine.hold > 0;
+      if (cine.hold > 0) return true;
+      // Released: the ball leaves from the shooter's hand, not the body's centre.
+      const sw = swimmers[cine.shooter];
+      cine.offset = sw ? sw.ballPoint.clone().sub(curBall) : null;
+      cine.start = sw ? sw.ballPoint.clone() : curBall.clone();
+      return false;
     }
     if (cine.done < 0 && !S().ball.flight) cine.done = cine.t;
     if (cine.done >= 0 && cine.t - cine.done > SHOT_HOLD) {
-      cine = null;
+      endShotMoment();
       if (SS.director.mode === 'shot') SS.director.setMode('broadcast', { follow: playFocus });
     }
     return false;
@@ -345,6 +414,17 @@ SS.game = (function () {
   const _fwd = new THREE.Vector3(), _to = new THREE.Vector3(), _look = new THREE.Vector3();
   function face(sw, pl, dt, live) {
     const speed = Math.hypot(pl.v.x, pl.v.y, pl.v.z), p = sw.group.position;
+    if (sw.faceTarget) {
+      // A shot's players square up to it: the shooter to the goal, the keeper to the shooter.
+      _to.subVectors(sw.faceTarget, p).setY(0);
+      if (_to.lengthSq() > 0.01) {
+        _look.copy(p).add(_to);
+        _m4.lookAt(_look, p, _up); _q.setFromRotationMatrix(_m4);
+        sw.group.quaternion.rotateTowards(_q, 6 * dt);
+      }
+      sw.swimming = false;
+      return;
+    }
     sw.swimming = speed > (sw.swimming ? TURN_KEEP : TURN_SWIM);
     let rate = TURN_RATE_TREAD;
     if (sw.swimming) {
@@ -472,7 +552,7 @@ SS.game = (function () {
   /* ══ decisions on the scene ═══════════════════════════════════════════ */
   function enterDecision() {
     phase = 'decision';
-    cine = null;
+    endShotMoment();
     preview = 0;                          // a choice cuts the formation preview short
     saveNow();
     SS.audio.play('decision', 0.5);
