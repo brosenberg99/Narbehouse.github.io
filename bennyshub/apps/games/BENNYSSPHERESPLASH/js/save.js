@@ -12,6 +12,7 @@ SS.save = (function () {
   const KEY_SETTINGS = 'ss-settings', KEY_MATCH = 'ss-match', VERSION = 1, SETTINGS_VERSION = 2;
   const DEFAULTS = {
     stops: 'both',          // Decision stops: ours | both | key | coach (Bryan: defend by default)
+    difficulty: 'normal',   // easy | normal | hard: how much stronger the player's team plays (RULES.DIFFICULTY)
     speed: 'normal',        // Play speed: slow | normal | fast
     commentary: 'full',     // full | calls | captions | off
     uiSize: 1,              // 1 .. 2

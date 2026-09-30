@@ -82,7 +82,7 @@
       }),
       players: [],
       ball: { owner: null, p: { x: 0, y: 0, z: 0 }, v: { x: 0, y: 0, z: 0 }, flight: null },
-      chasers: [[], []], enc: null, encCooldown: 0, flags: { range: false, close: false, point: false },
+      chasers: [[], []], enc: null, encCooldown: 0, flags: { point: false },
       holdT: 0, pending: null, seq: 0, events: [], done: false, result: null,
       log: { possessions: 0, decisions: [0, 0], human: 0, encounters: 0 },
     };
@@ -94,9 +94,10 @@
         hp: st.hp, maxHp: st.hp, techs: (src.techs || []).slice(),
         p: { x: 0, y: 0, z: 0 }, v: { x: 0, y: 0, z: 0 },
         sleep: 0, stun: 0, beaten: 0, rest: 0, chaseT: 0, poison: 0, wilt: null, wiltT: 0,
-        st: COUNTERS(),
+        st: COUNTERS(), mult: 1,
       });
     }));
+    setBoost(s, opts.boost);
     s.coachNext = [RU.COACH_EVERY, RU.COACH_EVERY * 1.3];
     return new Match(s);
   }
@@ -116,10 +117,20 @@
   /* ── player helpers ────────────────────────────────────────────────────── */
   function lowHp(pl) { return pl.hp < R().LOW_HP * pl.maxHp; }
   function refreshEff(pl) {
-    Object.assign(pl.eff, pl.base);
+    const k = pl.mult || 1;                          // Difficulty: see setBoost
+    for (const key in pl.base) pl.eff[key] = key === 'hp' ? pl.base[key] : pl.base[key] * k;
     if (pl.wilt) pl.eff[pl.wilt] = Math.floor(pl.eff[pl.wilt] * R().WILT);
     if (lowHp(pl)) { pl.eff.pa = Math.floor(pl.eff.pa / 2); pl.eff.sh = Math.floor(pl.eff.sh / 2); }
   }
+  /** Difficulty (Bryan, 2026-09-30). The Bayside Beamers, the player's underdogs, won ~3% of
+   *  Quick Games even choosing well. Every stat but HP of the team the player plays for is
+   *  multiplied by `boost` (RULES.DIFFICULTY); the other team and CPU-vs-CPU matches are
+   *  untouched. It can change mid-match, from Settings. */
+  function setBoost(s, boost) {
+    s.boost = boost || 1;
+    s.players.forEach(pl => { pl.mult = pl.team === s.human ? s.boost : 1; refreshEff(pl); });
+  }
+  M.setBoost = function (boost) { setBoost(this.s, boost); };
   function canUse(pl, id) {
     const t = T()[id];
     return t && pl.hp >= t.hp && !lowHp(pl) && (!t.keeperOnly || pl.pos === 'GL');
@@ -282,7 +293,7 @@
     s.encCooldown = Math.max(s.encCooldown, R().GRACE);
     if (team !== prev) {
       s.passChain = 0;
-      s.flags = { range: false, close: false, point: false };
+      s.flags = { point: false };
       s.log.possessions++;
       s.possession = team;
       emit(s, 'possession', { team, player: j, how });
@@ -346,7 +357,9 @@
   function checkShotChance(s) {
     const RU = R(), c = s.players[s.ball.owner];
     const d = V().dist(c.p, A().goalOf(c.team)), f = s.flags;
-    if (!f.range && d <= RU.SHOT_RANGE) { f.range = true; attackDecision(s, 'shot'); return true; }
+    // There is no longer a 14 m "shot chance" stop (Bryan, 2026-09-30). From there a shot
+    // almost never scored - 55% fell short, 99% read Risky - so it was a stop whose answer
+    // was always Keep Swimming, and one came ~1.5 s after every kickoff. Point-blank remains.
     if (!f.point && d <= RU.POINT_RANGE) { f.point = true; attackDecision(s, 'point'); return true; }
     // Pinned at the goal with nobody able to challenge (the keeper just dribbled past,
     // say): nowhere left to swim, so shoot or pass - never a wait.
@@ -366,7 +379,7 @@
       case 'ours': return kind !== 'stance';
       case 'both': return true;
       case 'key': {
-        if (kind === 'shot' || kind === 'point' || kind === 'call') return true;
+        if (kind === 'point' || kind === 'call') return true;
         // An encounter is "key" when it is a real chance to score - decided in
         // attackDecision once the Shoot odds are known (see keyEncounter).
         return false;
@@ -405,7 +418,7 @@
       add({ kind: 'dribble' });
       techsOf(c, 'dribble').forEach(t => add({ kind: 'dribble', tech: t }));
     }
-    if (kind === 'shot' || kind === 'call') add({ kind: 'swim' });
+    if (kind === 'call') add({ kind: 'swim' });
     let n = human ? SAMPLES_HUMAN : SAMPLES_AI;
     opts.forEach((o, i) => { o.odds = oddsFor(s, o, null, n, i); o.info = infoFor(s, o); });
     if (!human && kind === 'encounter' && keyEncounter(s, c.team, opts)) {

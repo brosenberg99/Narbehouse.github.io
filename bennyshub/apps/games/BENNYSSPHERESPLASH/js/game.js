@@ -67,7 +67,10 @@ SS.game = (function () {
     ringLinks = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(5 * 6), 3)),
       new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.5, gapSize: 0.3, transparent: true, opacity: 0, depthTest: false }));
     ringLinks.renderOrder = 21; ringLinks.visible = false; ringLinks.frustumCulled = false; scene.add(ringLinks);
-    SS.save.settings.onChange(k => { if (m && (k === 'stops' || k === '*')) m.s.stops = SS.save.settings.get('stops'); });
+    SS.save.settings.onChange(k => {
+      if (m && (k === 'stops' || k === '*')) m.s.stops = SS.save.settings.get('stops');
+      if (m && (k === 'difficulty' || k === '*')) m.setBoost(boostOf());
+    });
   }
 
   function inkFor(hex) {
@@ -107,6 +110,8 @@ SS.game = (function () {
   }
 
   /* ══ starting, saving, leaving ═════════════════════════════════════════ */
+  /** Difficulty: how much stronger the player's team plays (sim.js setBoost). */
+  const boostOf = () => RU().DIFFICULTY[SS.save.settings.get('difficulty')] || 1;
   function startQuick(ids) {
     let [a, b] = ids || [];
     if (!a) {
@@ -115,7 +120,7 @@ SS.game = (function () {
     }
     setup = { mode: 'quick', teams: [a, b], seed: (Math.random() * 2 ** 31) >>> 0, half: RU().HALF_SHORT };
     m = SS.sim.create({ teams: [teamById(a), teamById(b)], seed: setup.seed, halfLength: setup.half,
-      overtime: false, human: 0, stops: SS.save.settings.get('stops'), aiCoach: true });
+      overtime: false, human: 0, stops: SS.save.settings.get('stops'), aiCoach: true, boost: boostOf() });
     m.advance(RU().TICK);                      // one tick: everyone takes their kickoff places
     begin('kickoff');
   }
@@ -149,6 +154,7 @@ SS.game = (function () {
     setup = sv.setup;
     m = SS.sim.restore(sv.snapshot);
     m.s.stops = SS.save.settings.get('stops');
+    m.setBoost(boostOf());
     begin('resume');
     if (sv.context === 'halftime') { phase = 'halftime'; SS.ui.setScreen('halftime'); return; }
     if (m.pending) { SS.director.setMode('broadcast', { follow: playFocus, cut: true }); enterDecision(); return; }
@@ -484,13 +490,11 @@ SS.game = (function () {
 
     const head = {
       encounter: ['#' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' is challenged', plural(dec.defenders.length, 'defender', 'defenders') + ' in the way'],
-      shot: ['Shot chance!', (shot ? shot.info.distance : '') + ' m from goal'],
       point: ['Point blank!', 'Right in front of goal'],
       call: ['Your call', '#' + numberOf(dec.carrier) + ' ' + who(dec.carrier) + ' has the ball'],
     }[dec.kind] || ['Your call', ''];
     const speech = {
       encounter: 'Your call. ' + who(dec.carrier) + ' is challenged by ' + plural(dec.defenders.length, 'defender', 'defenders') + '.',
-      shot: 'Shot chance for ' + who(dec.carrier) + ', ' + (shot ? shot.info.distance : '') + ' metres out.',
       point: 'Point blank for ' + who(dec.carrier) + '!',
       call: 'Your call. ' + who(dec.carrier) + ' has the ball.',
     }[dec.kind] || 'Your call.';

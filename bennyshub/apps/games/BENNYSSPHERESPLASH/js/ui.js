@@ -197,7 +197,10 @@ SS.ui = (function () {
     el.querySelector('.head span').textContent = spec.sub || '';
     const row = el.querySelector('.row');
     spec.items.forEach((it, i) => {
-      if (it.focus || it.el) return;                     // a teammate, or the Pause button: not a plate
+      // A teammate, or the Pause button: not a plate. A plate item keeps its old element when
+      // the same choice comes back from Pause, so that alone must not skip it (Bryan found the
+      // plates gone after Pause > Continue: every item was skipped as if it were the button).
+      if (it.focus || (it.el && !it.plate)) return;
       const p = document.createElement('div');
       p.className = 'plate' + (it.cls ? ' ' + it.cls : '');
       p.innerHTML = '<b></b><span class="sub"></span><span class="odds"><i></i><em></em></span>';
@@ -210,7 +213,7 @@ SS.ui = (function () {
       } else p.querySelector('.odds').remove();
       U.addTap(p, () => { if (performance.now() - openedAt < GHOST_MS) return; index = i; showFocus(); activate(i); });
       p.addEventListener('mouseenter', () => { if (index === i) return; index = i; showFocus(); restartAuto(); });
-      it.el = p;
+      it.el = p; it.plate = true;
       row.appendChild(p);
     });
     SS.worldui.setCluster(spec.anchor, el);
@@ -412,6 +415,8 @@ SS.ui = (function () {
   const STOPS_SAY = { ours: 'Our ball only. You choose whenever we have the ball.', both: 'Attack and defense. You also choose how we defend.',
     key: 'Key moments. You choose only the big chances.', coach: 'Coach. Watch, and set tactics from the huddle.' };
   const SPEEDS = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
+  const DIFFS = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+  const DIFFS_SAY = { easy: 'Easy. Your team is much stronger.', normal: 'Normal. Your team gets a little help.', hard: 'Hard. A real challenge.' };
   const COMMENTARY = { full: 'Full broadcast', calls: 'Big calls only', captions: 'Captions only', off: 'Off' };
   const cycle = (list, v) => list[(list.indexOf(v) + 1) % list.length];
 
@@ -479,7 +484,7 @@ SS.ui = (function () {
       const info = G().matchInfo(), back2 = !!(o && o.resume);
       const vs = U.esc(info.teams[0].name) + ' <small>vs</small> ' + U.esc(info.teams[1].name);
       return { art: art(back2 ? '👋' : '🌊'), title: back2 ? 'Welcome Back' : vs,
-        sub: back2 ? scoreLine(info) : 'You play for the <b>' + U.esc(info.teams[0].name) + '</b>, attacking to the right. ' + U.esc(STOPS[setting('stops')]) + '.',
+        sub: back2 ? scoreLine(info) : 'You play for the <b>' + U.esc(info.teams[0].name) + '</b>, attacking to the right. ' + U.esc(STOPS[setting('stops')]) + '. ' + DIFFS[setting('difficulty')] + ' difficulty.',
         startIndex: 0,
         items: [
           { icon: back2 ? '▶️' : '🏁', label: back2 ? 'Resume Play' : 'Kick Off', primary: true, speech: back2 ? 'Resume play' : 'Kick off', action: () => G().kickoff() },
@@ -606,12 +611,14 @@ SS.ui = (function () {
       const tts = v ? v.getSettings().ttsEnabled : true;
       const voiceName = v && v.getVoiceDisplayName ? v.getVoiceDisplayName(v.getCurrentVoice()) : 'Default';
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
-      const stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
+      const diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
       const list = [
         { icon: '🗣️', label: 'Text to Speech', value: tts ? 'On' : 'Off', speech: 'Text to Speech, ' + (tts ? 'On' : 'Off'),
           action: () => { if (v) { v.toggleTTS(); refresh(); if (v.getSettings().ttsEnabled) U.speak('Text to speech on'); } } },
         { icon: '🎙️', label: 'Voice', value: voiceName, speech: 'Voice, ' + voiceName, action: () => { if (v) { v.cycleVoice(); refresh(); U.speak('Voice changed'); } } },
+        { icon: '🎚️', label: 'Difficulty', value: DIFFS[diff], speech: 'Difficulty. ' + DIFFS_SAY[diff],
+          action: () => { const n = cycle(Object.keys(DIFFS), diff); set('difficulty', n, 'Difficulty. ' + DIFFS_SAY[n]); } },
         { icon: '🛑', label: 'Decision Stops', value: STOPS[stops], speech: 'Decision stops. ' + STOPS_SAY[stops],
           action: () => { const n = cycle(Object.keys(STOPS), stops); set('stops', n, 'Decision stops. ' + STOPS_SAY[n]); } },
         { icon: '⏩', label: 'Play Speed', value: SPEEDS[play], speech: 'Play speed, ' + SPEEDS[play],

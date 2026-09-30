@@ -34,8 +34,9 @@
     ENCOUNTER_COOLDOWN: 10.0,
     GRACE: 8.0,             // a player who has just got the ball cannot be engaged straight away
 
-    SHOT_RANGE: 14,         // first "shot chance" as the carrier closes on goal
     SPEED_SLIP: 0.5,        // dribbling: EN bonus per point of SP over the tacklers
+    DIFFICULTY: { easy: 1.4, normal: 1.2, hard: 1.1 },   // the player's team's stats x this (sim.js setBoost). Beamers
+                            // (sensible choices, Quick Game) win ~80% / ~47% / ~25%; at x1 they won 0 of 60
     KEY_SHOT: 0.35,       // Key moments mode: an encounter stops for the player when Shoot is at least this likely (Fair)
     POINT_RANGE: 5,         // a last, point-blank chance (no "keep swimming" here)
     PASS_DECAY: 0.35,       // PA lost per metre of travel

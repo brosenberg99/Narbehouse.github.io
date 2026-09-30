@@ -85,9 +85,10 @@ check('goals per match between 6 and 16', goals >= 6 && goals <= 16, goals.toFix
 check('every match has decisions', totals.zeroDecision === 0, totals.zeroDecision + ' without');
 const wr = id => { const r = table[id]; return r.w / (r.w + r.d + r.l); };
 check('champions (Harbor Stars) win more than underdogs (Bayside Beamers)', wr('harbor') > wr('beamers') + 0.15, `${(wr('harbor') * 100).toFixed(0)}% vs ${(wr('beamers') * 100).toFixed(0)}%`);
-check('underdogs still win sometimes', table.beamers.w > 0, table.beamers.w + ' wins');
 check('pass completion 55-90%', totals.completed / totals.passes >= 0.55 && totals.completed / totals.passes <= 0.9, (100 * totals.completed / totals.passes).toFixed(0) + '%');
-check('encounters per match 10-60', totals.encounters / n >= 10 && totals.encounters / n <= 60, per('encounters'));
+// 10-70 since the 14 m shot-chance stop went (2026-09-30): carriers that used to pass or shoot
+// there swim on into a defender instead (~56 -> ~65). Stops per Quick Game did not change.
+check('encounters per match 10-70', totals.encounters / n >= 10 && totals.encounters / n <= 70, per('encounters'));
 check('possession changes hands (>= 12 per match)', totals.possessions / n >= 12, per('possessions'));
 
 /* ── 2. determinism and save/resume ───────────────────────────────────────── */
@@ -147,6 +148,34 @@ check('possession changes hands (>= 12 per match)', totals.possessions / n >= 12
     good += g[0] - g[1]; bad += b[0] - b[1];
   }
   check('picking good odds beats picking bad odds', good > bad + 5, `goal difference ${good} vs ${bad}`);
+}
+
+/* ── 4b. difficulty: the player's underdogs can win ─────────────────────────── */
+{
+  // Bryan, 2026-09-30: the Beamers won ~3% of Quick Games even choosing well. Difficulty
+  // boosts the player's team (RULES.DIFFICULTY). This replaces the AI-vs-AI "underdogs still
+  // win sometimes", which the player's team never plays and which sat at 1-2 wins in 200.
+  const half = RULES.HALF_SHORT, N = QUICK ? 24 : 60, beamers = TEAMS.find(t => t.id === 'beamers');
+  const others = TEAMS.filter(t => t.id !== 'beamers'), rate = {};
+  for (const level of ['easy', 'normal', 'hard']) {
+    let w = 0;
+    for (let k = 0; k < N; k++) {
+      const m = SS.sim.create({ teams: [beamers, others[k % others.length]], seed: 8800 + k * 31, halfLength: half, human: 0, stops: 'both', aiCoach: true, boost: RULES.DIFFICULTY[level] });
+      while (!m.done) m.pending ? m.choose(sensible(m.pending, m)) : m.advance(1);
+      if (m.s.score[0] > m.s.score[1]) w++;
+    }
+    rate[level] = w / N;
+  }
+  const pc = x => Math.round(100 * x) + '%';
+  check('difficulty: Easy > Normal > Hard for the Beamers', rate.easy > rate.normal && rate.normal > rate.hard, pc(rate.easy) + ' / ' + pc(rate.normal) + ' / ' + pc(rate.hard));
+  check('difficulty: on Normal the Beamers win 30-65% of Quick Games', rate.normal >= 0.3 && rate.normal <= 0.65, pc(rate.normal));
+  check('difficulty: on Hard the Beamers still win sometimes', rate.hard > 0.05, pc(rate.hard));
+  // Changing it mid-match takes effect at once, and only on the player's team.
+  const m = SS.sim.create({ teams: [beamers, TEAMS[1]], seed: 3, halfLength: half, human: 0, boost: RULES.DIFFICULTY.normal });
+  const sh0 = m.s.players[0].eff.sh, them0 = m.s.players[6].eff.sh;
+  m.setBoost(RULES.DIFFICULTY.easy);
+  check('difficulty changes mid-match, for our team only', m.s.players[0].eff.sh > sh0 && m.s.players[6].eff.sh === them0,
+    sh0.toFixed(1) + ' -> ' + m.s.players[0].eff.sh.toFixed(1));
 }
 
 /* ── 5. overtime always ends ──────────────────────────────────────────────── */

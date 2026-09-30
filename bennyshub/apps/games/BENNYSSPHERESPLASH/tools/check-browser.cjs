@@ -201,6 +201,20 @@ function findChrome() {
     check('holding Enter during a decision opens Pause', (await ui()).screen === 'pause');
     await press('Space'); await press('Enter'); u = await ui();
     check('Continue returns to the same choice, same item lit', u.ctx === 'world' && u.row === before.row, before.row + ' -> ' + u.row);
+    // ...with its plates drawn, not just its items in the list (Bryan: they vanished).
+    const platesNow = () => evaluate('(() => { const r = document.querySelector(".cluster .row"); return r ? [...r.querySelectorAll(".plate")].filter(p => p.getBoundingClientRect().width > 0).length : 0; })()');
+    const wantPlates = await evaluate('SS.ui.__dbg().rows.length') - 1;          // every item but Pause
+    let got = await platesNow();
+    check('after Pause > Continue every plate is back on screen', got > 0 && got === wantPlates, got + ' of ' + wantPlates);
+    // Pause > Settings > change one > Back > Continue: the same.
+    await keyDown('Enter'); await wait(5400); await keyUp('Enter'); await wait(300);
+    const toRow = async (label) => { for (let i = 0; i < 20; i++) { if ((await ui()).row.startsWith(label)) return; await press('Space'); } throw Error('never reached ' + label); };
+    await toRow('Settings'); await press('Enter');
+    await toRow('Difficulty'); await press('Enter');
+    await toRow('Back'); await press('Enter');
+    await toRow('Continue'); await press('Enter');
+    got = await platesNow();
+    check('after Pause > Settings > Back > Continue every plate is back', (await ui()).ctx === 'world' && got === wantPlates, got + ' of ' + wantPlates);
 
     /* ── save mid-play, reload, Continue: exactly the same moment ─────── */
     await evaluate('SS.game.choose(SS.game.match.pending.options[0].id); true');

@@ -35,8 +35,12 @@ The hub rulebook, `bennyshub/ACCESSIBILITY.md`, outranks this file.
   or parry. Every pass in a row makes the defense read the next one better.
 - **Dribble**: each tackler's AT comes off the carrier's EN; at zero the ball is lost.
   Speed over the tacklers helps (half the SP gap is added to EN).
-- **Shot chances** at 14 m (with "keep swimming") and 5 m (point blank) as well as in
-  encounters.
+- **Shot chances** at 5 m (point blank) as well as in encounters. (The 14 m chance with
+  "keep swimming" was removed 2026-09-30 - see Open questions.)
+- **Difficulty** (Settings: Easy / Normal / Hard, default Normal): every stat but HP of the
+  team the player plays for is multiplied by `RULES.DIFFICULTY` (x1.4 / x1.2 / x1.1,
+  `sim.js setBoost`). The other team and CPU-vs-CPU matches are untouched; it can change
+  mid-match.
 - **Outcomes are rolled once, the moment an option is chosen, then acted out.**
   Odds shown to the player are Monte Carlo on a *separate* random stream, so looking at
   odds never changes the match. The AI chooses from the same odds (`ai.valueOf`).
@@ -47,9 +51,9 @@ The hub rulebook, `bennyshub/ACCESSIBILITY.md`, outranks this file.
 
 | Setting | Stops for the player | Per full match (measured) |
 |---|---|---|
-| Our ball only | every encounter, shot chance and keeper throw when we have the ball | ~50 |
+| Our ball only | every encounter, point-blank chance and keeper throw when we have the ball | ~50 |
 | Attack and defense | the above, plus our defensive stance | more |
-| Key moments | shot chances, and encounters where Shoot is at least a Fair chance | ~34 |
+| Key moments | point-blank chances, and encounters where Shoot is at least a Fair chance | ~34 |
 | Coach | none; the AI plays our decisions by the same rules | 0 |
 
 Quick Game's short halves cut these by about 60%.
@@ -92,13 +96,18 @@ pool, so our team always attacks to the right; every move is eased, never cut.
   the carrier, and never anyone who is part of the choice on screen.
 - Big banners (GOAL!, Intercepted!) sit high on the screen, because the ball is now always
   in the middle.
+- **Distance settled:** Bryan (2026-09-30): the live-play camera distance is good; leave `TIGHT_HALF`.
+- **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
+  the ball to the keeper), and custom animations for the shooter's shot, a defender's block
+  and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame
+  limb overrides), with the 6-angle contact sheet for review. Not before M3.
 
 ## A decision on the scene (`js/game.js`, `js/worldui.js`)
 
 - The camera cuts (eased) to a side view fitted round what the choice is about; the action
   sits in the lower 60% so the choices above the carrier cover nobody.
-- **One cluster** beside the carrier, tail pointing at them: a heading ("Shot chance! 14 m
-  from goal") over plates - Pass · Shoot · Dribble · Tech · Keep Swimming - each with its odds
+- **One cluster** beside the carrier, tail pointing at them: a heading ("Point blank!
+  Right in front of goal") over plates - Pass · Shoot · Dribble · Tech · Keep Swimming - each with its odds
   as a bar, a shape (▲ ● ▼) and a word. One element laid out by CSS, so plates cannot overlap.
 - **Pass is two-stage**: the brackets step through the teammates themselves, their badges
   carry the odds, a dashed lane runs to the lit one and every defender in the lane gets ✕.
@@ -148,11 +157,22 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
   old pace; **Bryan played it and kept the new pace** ("the pace seems ok"), so its ranges
   are now 6-16 goals a full match and 40-130 stops (Our ball only).
 
-- **Shot chances come very soon after kickoff.** The 14 m chance is ~4 m in front of the
-  kickoff spot, so most possessions start with a stop. Candidate fix: no shot chance in the
-  first few seconds of a possession, or a smaller SHOT_RANGE.
-- **A point-blank shot with nobody in the way can read "Risky"** because the keeper roll is
-  deliberately wide (M1's fix for technique dominance). May feel unfair in play.
+- **The 14 m shot chance is gone (Bryan, 2026-09-30).** It came ~1.5 s after every kickoff
+  (the kickoff swimmer starts 18.4 m out), and from 14 m a shot almost never scores: SH ~18
+  loses 1.5 a metre, so 55% fell short and 99% read Risky in every tuning tried. A stop whose
+  answer was always Keep Swimming. Point-blank stays; the earliest one now comes ~4.3 s after
+  a kickoff, only when the kickoff swimmer reaches goal untouched (~5% of them). Stops per
+  Quick Game did not change (~44): carriers swim on into real encounters instead.
+- **Shot odds and keeper strength, assessed (2026-09-30).** The odds are right: they are the
+  same `resolveShot` played out 160 times. What made point-blank read Risky was the
+  **player's team**: the Beamers (SH 18, 15 at best) shoot at keepers with CA 16-21, so an open
+  point-blank shot scored 6-14% and the Beamers won ~3% of Quick Games even choosing well
+  (~23% at M1; the M2 playtest fixes and the goal-mouth fix tipped it). Loosening shots for
+  everyone (SHOT_DECAY 1.0 / 0.8, a keeper slower to react up close) doubled or tripled the
+  goals and helped the strong clubs most (Beamers 0-7%). **Bryan chose a Difficulty setting**
+  that boosts the player's team: Beamers win ~80% / ~40% / ~20% on Easy / Normal / Hard
+  (sensible choices, `check-sim` 4b). Open point-blank shots still mostly read Risky on Normal;
+  judge in play whether that feels wrong now the team can win.
 - Decision count per Quick Game: ~52 with Attack and defense since the goal-mouth fix (was ~30),
   ~16 with Our ball only before it. **Attack and defense is now the default** (Bryan, after his first
   full game had no defensive choices); settings saved before that forget their old default.
@@ -198,7 +218,8 @@ system reads its toggle through `SS.modes.rules(season)`, never the mode name.
 ~7 goals, ~19 shots, ~47 encounters, ~32 possession changes per match; 78% of passes
 complete. The two strong clubs (Harbor Stars, Mistwood Monarchs) win ~90%; the rest win
 16-36%; the Bayside Beamers (the player's underdogs) win about a quarter. Picking good odds
-clearly beats picking bad ones.
+clearly beats picking bad ones. *(M1 numbers. Since the goal-mouth fix, ~11 goals and ~65
+encounters a match, and CPU Beamers win ~1%; the player's Beamers rely on Difficulty.)*
 
 Tuning history worth keeping (each was a real failure the checks caught):
 - Encounters re-fired the moment a cooldown ended because chasers out-swam the carrier →
