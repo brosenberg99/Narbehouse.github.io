@@ -611,7 +611,7 @@ SS.ui = (function () {
       const tts = v ? v.getSettings().ttsEnabled : true;
       const voiceName = v && v.getVoiceDisplayName ? v.getVoiceDisplayName(v.getCurrentVoice()) : 'Default';
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
-      const diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
+      const shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
       const list = [
         { icon: '🗣️', label: 'Text to Speech', value: tts ? 'On' : 'Off', speech: 'Text to Speech, ' + (tts ? 'On' : 'Off'),
@@ -621,6 +621,9 @@ SS.ui = (function () {
           action: () => { const n = cycle(Object.keys(DIFFS), diff); set('difficulty', n, 'Difficulty. ' + DIFFS_SAY[n]); } },
         { icon: '🛑', label: 'Decision Stops', value: STOPS[stops], speech: 'Decision stops. ' + STOPS_SAY[stops],
           action: () => { const n = cycle(Object.keys(STOPS), stops); set('stops', n, 'Decision stops. ' + STOPS_SAY[n]); } },
+        { icon: '🎥', label: 'Shot Camera', value: shotCam === 'steady' ? 'Steady' : 'Cinematic',
+          speech: shotCam === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.',
+          action: () => { const n = shotCam === 'steady' ? 'cinematic' : 'steady'; set('shotCam', n, n === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.'); } },
         { icon: '⏩', label: 'Play Speed', value: SPEEDS[play], speech: 'Play speed, ' + SPEEDS[play],
           action: () => { const n = cycle(Object.keys(SPEEDS), play); set('speed', n, 'Play speed, ' + SPEEDS[n]); } },
         { icon: '📢', label: 'Commentary', value: COMMENTARY[com], speech: 'Commentary, ' + COMMENTARY[com],

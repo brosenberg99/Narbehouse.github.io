@@ -10,7 +10,10 @@
  *                is going; while a pass or shot is in the air it widens to keep where
  *                the ball is headed (the receiver, the goal) in the picture too;
  *   - decision:  pulled back just enough that everything the choice is about - the
- *                carrier, the teammates, the defenders, the goal - is on screen at once.
+ *                carrier, the teammates, the defenders, the goal - is on screen at once;
+ *   - shot:      (Shot Camera: Cinematic) in behind the shooter's shoulder, on the same
+ *                side of the pool, looking down the shot at the goal; as the ball gets
+ *                halfway it swings to the goal mouth, framing the ball and the keeper.
  *  Moves are eased, never cut, so the view never jumps under the player's eyes.
  */
 SS.director = (function () {
@@ -22,6 +25,8 @@ SS.director = (function () {
   const ACTION_SHARE = 0.6;                                   // decision frames: the action fills the lower 60% of the view
   const SIDE = new THREE.Vector3(-1, 0.32, 0).normalize();   // camera sits on -x: +z (our attack) is screen right
   let follow = null;                                          // () => { ball, to }: the ball, and where a pass or shot is headed (or null)
+  let shot = null;                                            // () => { from, to, ball, keeper, stage } while a shot plays (game.js shotFrame)
+  const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
   const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
   const vel = new THREE.Vector3(), lastBall = new THREE.Vector3(), lead = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -33,6 +38,7 @@ SS.director = (function () {
     mode = m;
     if (opts && opts.points) points = opts.points;
     if (opts && opts.follow) follow = opts.follow;
+    if (opts && opts.shot) shot = opts.shot;
     if (opts && opts.cut) first = true;
   }
 
@@ -80,6 +86,28 @@ SS.director = (function () {
         wantAim.copy(_c);
         wantPos.copy(_c).addScaledVector(SIDE, dist);
         rate = 3;
+        break;
+      }
+      case 'shot': {
+        const f = shot ? shot() : null;
+        if (!f) break;
+        _g.subVectors(f.to, f.from);
+        const len = Math.max(1, _g.length());
+        _g.divideScalar(len);
+        _side.copy(SIDE).setY(0).normalize();                  // toward our side of the pool
+        if (f.stage === 0) {
+          // Over the shooter's shoulder, looking down the shot.
+          wantPos.copy(f.from).addScaledVector(_g, -4.5).addScaledVector(_side, 3.2); wantPos.y += 1.4;
+          wantAim.copy(f.from).addScaledVector(_g, Math.min(len, 6));
+          rate = 2.6;
+        } else {
+          // At the goal mouth, from the shooter's side: the ball and the keeper.
+          _c.copy(f.ball).lerp(f.keeper, 0.5);
+          wantPos.copy(f.to).addScaledVector(_g, -6.5).addScaledVector(_side, 3.8); wantPos.y += 1.2;
+          wantAim.copy(_c);
+          rate = 3.2;
+        }
+        if (wantPos.length() > POOL_R - 1.5) wantPos.setLength(POOL_R - 1.5);   // stay inside the sphere
         break;
       }
       case 'decision': {

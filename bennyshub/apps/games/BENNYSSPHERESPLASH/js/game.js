@@ -199,10 +199,11 @@ SS.game = (function () {
 
   function stepSim(dt) {
     const TICK = RU().TICK;
-    acc += dt * (SPEED[SS.save.settings.get('speed')] || 1);
+    if (shotBeat(dt)) return;                          // the shooter's wind-up: the clock waits
+    acc += dt * (SPEED[SS.save.settings.get('speed')] || 1) * shotPace();
     sinceSave += dt;
     let n = 0;
-    while (acc >= TICK && phase === 'live' && n++ < 8) {
+    while (acc >= TICK && phase === 'live' && n++ < 8 && !(cine && cine.hold > 0)) {
       acc -= TICK;
       const s = S();
       s.players.forEach((pl, j) => prevP[j].copy(curP[j]));
@@ -228,15 +229,66 @@ SS.game = (function () {
       sw.group.position.copy(_v);
       face(sw, pl, dt, live);
       if (!sw.busy) sw.play(live && sw.swimming ? 'swim' : 'tread');
-      sw.setCarry(s.ball.owner === j);
+      sw.setCarry(s.ball.owner === j || (!!cine && cine.hold > 0 && cine.shooter === j));
       sw.update(live ? dt : dt * 0.6);
       badges[j].carrier(s.ball.owner === j);
     });
     if (s.ball.owner != null && swimmers[s.ball.owner]) ball.position.copy(swimmers[s.ball.owner].ballPoint);
+    else if (cine && cine.hold > 0 && swimmers[cine.shooter]) ball.position.copy(swimmers[cine.shooter].ballPoint);
     else ball.position.lerpVectors(prevBall, curBall, a);
     if (lane.visible) lane.material.dashOffset -= dt * 1.2;
     drawPreview(dt);
     fadeBlockers(dt);
+  }
+
+  /* ══ a shot, as a moment ═════════════════════════════════════════════
+     The shot is what a match turns on, and at full speed it is over in under half a
+     second (5 m at 13 m/s). So every shot, ours or theirs, gets a beat: the shooter winds
+     up while the clock waits, the ball flies in slow motion, and with Shot Camera on
+     Cinematic the camera comes in behind the shooter, looking at the goal, then swings to
+     the ball and the keeper as it arrives. All display: the sim decided the shot when it
+     was taken, and nothing here changes what it decided (or the saved match). */
+  const WINDUP = 0.6, SLOWMO = 0.4, SLOW_TAIL = 0.35, SHOT_HOLD = 1.1;
+  let cine = null;                    // { t, hold, shooter, keeper, from, to, done }
+  const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady';
+  function startShotMoment(e) {
+    const s = S(), sh = s.players[e.player];
+    cine = { t: 0, hold: WINDUP, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
+      from: curP[e.player].clone(), to: vec(e.to), done: -1, thrown: false };
+    if (shotCinematic()) SS.director.setMode('shot', { shot: shotFrame });
+  }
+  /** True while the wind-up holds the clock. Also ends the moment once it has played out. */
+  function shotBeat(dt) {
+    if (!cine) return false;
+    cine.t += dt;
+    if (cine.hold > 0) {
+      cine.hold -= dt;
+      if (cine.hold <= 0.3 && !cine.thrown && swimmers[cine.shooter]) { cine.thrown = true; swimmers[cine.shooter].once('throw'); }
+      acc = 0;
+      return cine.hold > 0;
+    }
+    if (cine.done < 0 && !S().ball.flight) cine.done = cine.t;
+    if (cine.done >= 0 && cine.t - cine.done > SHOT_HOLD) {
+      cine = null;
+      if (SS.director.mode === 'shot') SS.director.setMode('broadcast', { follow: playFocus });
+    }
+    return false;
+  }
+  /** Slow motion while the shot is in the air, easing back to full speed after it lands. */
+  function shotPace() {
+    if (!cine || cine.hold > 0) return 1;
+    if (cine.done < 0) return SLOWMO;
+    return SLOWMO + (1 - SLOWMO) * Math.min(1, (cine.t - cine.done) / SLOW_TAIL);
+  }
+  /** What the shot camera frames: stage 0 behind the shooter, stage 1 the ball and keeper. */
+  const _keeperAt = new THREE.Vector3(), _shotTo = new THREE.Vector3();
+  function shotFrame() {
+    if (!cine) return null;
+    const f = S() && S().ball.flight, prog = cine.hold > 0 ? 0 : f ? f.t / f.dur : 1;
+    const k = swimmers[cine.keeper];
+    _keeperAt.copy(k ? k.group.position : cine.to);
+    _shotTo.copy(cine.to);
+    return { from: cine.from, to: _shotTo, ball: ball.position, keeper: _keeperAt, stage: prog < 0.5 ? 0 : 1 };
   }
 
   /** What the live camera follows: the ball, and where a pass or shot in the air is headed. */
@@ -261,7 +313,8 @@ SS.game = (function () {
     const k = 1 - Math.exp(-dt * 8);
     swimmers.forEach((sw, j) => {
       if (!sw) return;
-      const el = badges[j].el, keep = el.classList.contains('candidate') || el.classList.contains('blocker');
+      const el = badges[j].el, keep = el.classList.contains('candidate') || el.classList.contains('blocker')
+        || (!!cine && (j === cine.shooter || j === cine.keeper));          // a shot's two players stay solid
       let want = 1;
       if (s.ball.owner !== j && !keep) {
         _off.copy(sw.group.position).sub(cam);
@@ -339,7 +392,7 @@ SS.game = (function () {
       case 'kickoff': SS.audio.play('whistle', 0.5); say('kickoff', { team: kits[e.team].short }, 1); break;
       case 'pass': if (swimmers[e.player]) swimmers[e.player].once('throw'); SS.audio.play('bloop', 0.35); break;
       case 'shot':
-        if (swimmers[e.player]) swimmers[e.player].once('throw');
+        startShotMoment(e);
         SS.audio.play('bloop', 0.6);
         say('shot', { player: who(e.player) }, 2);
         break;
@@ -419,6 +472,7 @@ SS.game = (function () {
   /* ══ decisions on the scene ═══════════════════════════════════════════ */
   function enterDecision() {
     phase = 'decision';
+    cine = null;
     preview = 0;                          // a choice cuts the formation preview short
     saveNow();
     SS.audio.play('decision', 0.5);
@@ -603,7 +657,7 @@ SS.game = (function () {
   function toLive() {
     phase = 'live'; frozen = false;
     SS.ui.goLive();
-    SS.director.setMode('broadcast', { follow: playFocus });
+    SS.director.setMode(cine && shotCinematic() ? 'shot' : 'broadcast', { follow: playFocus, shot: shotFrame });
     if (previewPending) startPreview();
   }
 
@@ -743,5 +797,6 @@ SS.game = (function () {
     formationId, formationName, setFormation, formationsOpen, formationRecord, theirFormationName, totalWins, weHaveBall, matchInfo, inMatch,
     choose,
     get phase() { return phase; }, get match() { return m; }, get swimmers() { return swimmers; }, get badges() { return badges; },
+    get shotMoment() { return cine; },
   };
 })();

@@ -97,6 +97,14 @@ pool, so our team always attacks to the right; every move is eased, never cut.
 - Big banners (GOAL!, Intercepted!) sit high on the screen, because the ball is now always
   in the middle.
 - **Distance settled:** Bryan (2026-09-30): the live-play camera distance is good; leave `TIGHT_HALF`.
+- **A shot is a moment (M3, Bryan: "dang near perfect").** Every shot, ours or theirs: the
+  clock waits 0.6 s while the shooter winds up (`WINDUP`), the ball flies at 40% speed
+  (`SLOWMO`, easing back over 0.35 s after it lands), and with **Shot Camera: Cinematic**
+  (Settings; default) the camera comes in over the shooter's shoulder on our side of the pool,
+  looking down the shot, then swings to the goal mouth framing ball and keeper once the ball is
+  halfway, and eases back 1.1 s after the result (`director.js` mode `shot`, `game.js`
+  shot moment). Steady keeps the broadcast camera, and keeps the wind-up and slow motion. The
+  shooter and keeper never fade. All display: the sim has already decided the shot.
 - **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
   the ball to the keeper), and custom animations for the shooter's shot, a defender's block
   and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame
