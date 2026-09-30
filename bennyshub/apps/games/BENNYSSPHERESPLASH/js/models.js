@@ -152,6 +152,24 @@ SS.models = (function () {
       SS.rig.twoBone(bones.upperR, bones.lowerR, bones.handR, handAt, elbowPole);
     }
 
+    /* See-through, for a swimmer in the camera's way: the body fades, the ink outline
+       goes (a ghost with a hard outline reads as a solid body), and at nothing the whole
+       swimmer is hidden. */
+    let opacity = 1;
+    function setOpacity(a) {
+      if (a === opacity) return;
+      opacity = a;
+      const solid = a >= 0.99;
+      root.traverse(n => {
+        if (!n.isSkinnedMesh) return;
+        if (!meshes.includes(n)) { n.visible = solid; return; }
+        if (n.material.transparent === solid) { n.material.transparent = !solid; n.material.needsUpdate = true; }
+        n.material.opacity = solid ? 1 : a;
+        n.material.depthWrite = solid;
+      });
+      group.visible = a > 0.02;
+    }
+
     function update(dt) {
       mixer.update(dt);
       if (lock > 0) lock -= dt;
@@ -164,7 +182,7 @@ SS.models = (function () {
         if (n.isSkinnedMesh) { if (meshes.includes(n)) n.geometry.dispose(); if (n.material) n.material.dispose(); }
       });
     }
-    return { group, root, play, once, update, dispose, mixer, bones, frame, ballPoint,
+    return { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
       head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
       setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; } };
   }

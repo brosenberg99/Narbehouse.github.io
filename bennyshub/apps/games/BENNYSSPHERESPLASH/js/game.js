@@ -130,7 +130,7 @@ SS.game = (function () {
   function kickoff() {
     phase = 'live';
     SS.ui.goLive();
-    SS.director.setMode('broadcast', { follow: () => ball.position });
+    SS.director.setMode('broadcast', { follow: playFocus });
     const t = matchInfo().teams;
     if (S().clock === 0 && S().period === 1) SS.broadcast.say('intro', { home: t[0].name, away: t[1].name }, 3);
   }
@@ -151,7 +151,7 @@ SS.game = (function () {
     m.s.stops = SS.save.settings.get('stops');
     begin('resume');
     if (sv.context === 'halftime') { phase = 'halftime'; SS.ui.setScreen('halftime'); return; }
-    if (m.pending) { SS.director.setMode('broadcast', { follow: () => ball.position, cut: true }); enterDecision(); return; }
+    if (m.pending) { SS.director.setMode('broadcast', { follow: playFocus, cut: true }); enterDecision(); return; }
     phase = 'kickoff';
     SS.ui.setScreen('kickoff', { resume: true });
   }
@@ -230,6 +230,47 @@ SS.game = (function () {
     else ball.position.lerpVectors(prevBall, curBall, a);
     if (lane.visible) lane.material.dashOffset -= dt * 1.2;
     drawPreview(dt);
+    fadeBlockers(dt);
+  }
+
+  /** What the live camera follows: the ball, and where a pass or shot in the air is headed. */
+  const _headed = new THREE.Vector3();
+  function playFocus() {
+    const f = S() && S().ball.flight;
+    return { ball: ball.position, to: f ? _headed.set(f.to.x, f.to.y, f.to.z) : null };
+  }
+
+  /* Nobody blocks the view. With the camera in close, a swimmer can drift up near the
+     lens and fill the screen (anyone at under half the ball's distance looks twice the
+     carrier's size), or sit between the camera and the ball. The first fades out
+     completely, the second to a ghost. The carrier never fades, nor does anyone who is
+     part of the choice on screen (a pass target, a defender marked ✕). */
+  const NEAR_FROM = 0.35, NEAR_TO = 0.65, BLOCK_R = 1.4;       // near fade, as shares of the ball's distance
+  const _ray = new THREE.Vector3(), _off = new THREE.Vector3();
+  function fadeBlockers(dt) {
+    const s = S(), cam = camera.position;
+    _ray.copy(ball.position).sub(cam);
+    const len = _ray.length();
+    _ray.divideScalar(len || 1);
+    const k = 1 - Math.exp(-dt * 8);
+    swimmers.forEach((sw, j) => {
+      if (!sw) return;
+      const el = badges[j].el, keep = el.classList.contains('candidate') || el.classList.contains('blocker');
+      let want = 1;
+      if (s.ball.owner !== j && !keep) {
+        _off.copy(sw.group.position).sub(cam);
+        want = THREE.MathUtils.smoothstep(_off.length(), Math.max(2, len * NEAR_FROM), Math.max(3.5, len * NEAR_TO));
+        const along = _off.dot(_ray);
+        if (along > 0 && along < len - 1.5) {
+          const miss = _off.addScaledVector(_ray, -along).length();
+          want = Math.min(want, 0.25 + 0.75 * THREE.MathUtils.smoothstep(miss, BLOCK_R * 0.5, BLOCK_R));
+        }
+      }
+      sw.fade = sw.fade == null ? want : sw.fade + (want - sw.fade) * k;
+      if (sw.fade > 0.99) sw.fade = 1;
+      sw.setOpacity(sw.fade);
+      el.style.opacity = keep || sw.fade === 1 ? '' : Math.max(0.15, sw.fade).toFixed(2);
+    });
   }
 
   /* How a swimmer turns. Bryan saw treading swimmers "spinning in place": they turned to
@@ -539,7 +580,7 @@ SS.game = (function () {
   function toLive() {
     phase = 'live'; frozen = false;
     SS.ui.goLive();
-    SS.director.setMode('broadcast', { follow: () => ball.position });
+    SS.director.setMode('broadcast', { follow: playFocus });
     if (previewPending) startPreview();
   }
 
@@ -577,7 +618,7 @@ SS.game = (function () {
     });
     seg.needsUpdate = true; ringLinks.computeLineDistances();
     ringLinks.material.opacity = 0.8 * fade; ringLinks.visible = true;
-    if (preview <= 0 && SS.director.mode === 'decision' && phase === 'live') SS.director.setMode('broadcast', { follow: () => ball.position });
+    if (preview <= 0 && SS.director.mode === 'decision' && phase === 'live') SS.director.setMode('broadcast', { follow: playFocus });
   }
 
   /** The analyst's word on how a formation is going: once per formation per team, after

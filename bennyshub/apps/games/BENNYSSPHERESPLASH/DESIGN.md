@@ -76,6 +76,23 @@ ordinary press (a player may hold a switch for seconds without meaning to).
 - Hold thresholds (scan back 3 s, ring 2 s, pause 5 s) live in `ui.js` and are never quoted
   to the player.
 
+## The camera (`js/director.js`)
+
+Bryan (after M2): like Ballista and most sports games, **follow the ball, in tight during
+play, and zoom out to the players who matter during a choice.** Always the same side of the
+pool, so our team always attacks to the right; every move is eased, never cut.
+
+- **Live play:** about 12 m of pool across the screen round the ball (`TIGHT_HALF`, tune by
+  feel), looking half a second ahead of where the ball is going.
+- **A pass or shot in the air:** widens fast to keep where it is headed (the receiver, the
+  goal) in the picture, then closes back in slowly once it is caught.
+- **A decision:** pulled back round the carrier, defenders, pass options and goal (below).
+- **Nobody blocks the view** (`fadeBlockers` in `game.js`): a swimmer much nearer the lens
+  than the ball fades out, and one between the camera and the ball turns see-through. Never
+  the carrier, and never anyone who is part of the choice on screen.
+- Big banners (GOAL!, Intercepted!) sit high on the screen, because the ball is now always
+  in the middle.
+
 ## A decision on the scene (`js/game.js`, `js/worldui.js`)
 
 - The camera cuts (eased) to a side view fitted round what the choice is about; the action
@@ -118,13 +135,25 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
 
 ## Open questions for the playtest (tune by feel, not by count)
 
+- **The dead time at the goal is gone; the pace has doubled.** Bryan saw "long periods of no
+  activity ... near the goal". A carrier who got the ball at the goal (point-blank already
+  used by a teammate) sat pinned against the goal's keep-out, keeper pressed against them,
+  until the catch's 8 s GRACE ran out: ~16 times a Quick Game, 6.7 s median, and half of
+  all carrying time. Now (`sim.js`): at the keep-out there is no grace, so the keeper
+  challenges at once, and a carrier with nobody able to challenge gets Shoot / Pass. Zero
+  stalls in 30 Quick Games. But that dead time had been holding scores down: a Quick Game
+  (Attack and defense) went from ~2.2 goals and ~31 stops to ~5 goals and ~52 stops. A
+  shorter GRACE does not change the scoring (tried 2-8 s). `check-sim` still expects the
+  old pace; **Bryan played it and kept the new pace** ("the pace seems ok"), so its ranges
+  are now 6-16 goals a full match and 40-130 stops (Our ball only).
+
 - **Shot chances come very soon after kickoff.** The 14 m chance is ~4 m in front of the
   kickoff spot, so most possessions start with a stop. Candidate fix: no shot chance in the
   first few seconds of a possession, or a smaller SHOT_RANGE.
 - **A point-blank shot with nobody in the way can read "Risky"** because the keeper roll is
   deliberately wide (M1's fix for technique dominance). May feel unfair in play.
-- Decision count per Quick Game: ~30 with Attack and defense (~13-14 of them defending),
-  ~16 with Our ball only. **Attack and defense is now the default** (Bryan, after his first
+- Decision count per Quick Game: ~52 with Attack and defense since the goal-mouth fix (was ~30),
+  ~16 with Our ball only before it. **Attack and defense is now the default** (Bryan, after his first
   full game had no defensive choices); settings saved before that forget their old default.
 - **Defending choices read "Risky / Risky" most of the time**: winning the ball back is
   rarely likely, so both stances land under the Fair line and the choice tells the player

@@ -79,7 +79,9 @@ console.log(`\nper match: goals ${per('goals')}, shots ${per('shots')} (on targe
 console.log(`           encounters ${per('encounters')}, decisions ${per('decisions')}, possessions ${per('possessions')}, tackles won ${per('tackles')}, dribbles kept ${per('kept')}, techniques ${per('techs')}`);
 console.log('');
 const goals = totals.goals / n;
-check('goals per match between 2 and 7', goals >= 2 && goals <= 7, goals.toFixed(2));
+// Ranges set 2026-09-29 for the pace Bryan kept after the goal-mouth stall fix (~12 goals
+// a full match, ~5 a Quick Game). The old 2-7 counted half the match as dead time.
+check('goals per match between 6 and 16', goals >= 6 && goals <= 16, goals.toFixed(2));
 check('every match has decisions', totals.zeroDecision === 0, totals.zeroDecision + ' without');
 const wr = id => { const r = table[id]; return r.w / (r.w + r.d + r.l); };
 check('champions (Harbor Stars) win more than underdogs (Bayside Beamers)', wr('harbor') > wr('beamers') + 0.15, `${(wr('harbor') * 100).toFixed(0)}% vs ${(wr('beamers') * 100).toFixed(0)}%`);
@@ -132,7 +134,7 @@ check('possession changes hands (>= 12 per match)', totals.possessions / n >= 12
   let safe = 0;
   for (let k = 0; k < 4; k++) play({ home: TEAMS[0], away: TEAMS[2], seed: 500 + k, human: 0, stops: 'ours', chooser: d => { safe++; return bestOdds(d); } });
   check('always taking the safest option cannot stall a match (< 120 stops)', safe / 4 < 120, (safe / 4).toFixed(1));
-  check('Our ball only: a playable number of stops (8-60 per full match)', count.ours / 4 >= 8 && count.ours / 4 <= 60, perMatch);
+  check('Our ball only: a playable number of stops (40-130 per full match)', count.ours / 4 >= 40 && count.ours / 4 <= 130, perMatch);
 }
 
 /* ── 4. choosing well beats choosing badly ────────────────────────────────── */
@@ -183,7 +185,7 @@ check('possession changes hands (>= 12 per match)', totals.possessions / n >= 12
   check('the CPU coach changes formation now and then (1-8 a match)', changes / n >= 1 && changes / n <= 8, (changes / n).toFixed(1) + ' a match');
   check('the CPU coach never touches the player\'s team', humanTouched === 0, humanTouched + '');
   check('the CPU coach replays exactly from a seed', same);
-  check('matches stay sane with the CPU coach (2-9 goals)', goals / n >= 2 && goals / n <= 9, (goals / n).toFixed(2));
+  check('matches stay sane with the CPU coach (6-16 goals)', goals / n >= 6 && goals / n <= 16, (goals / n).toFixed(2));
 }
 
 /* ── nobody piles into a goal ────────────────────────────────────────────── */

@@ -5,7 +5,10 @@
  *  shot is framed from that side; only the distance and aim change:
  *   - menu:      a slow orbit of the whole sphere;
  *   - wide:      the whole pool (kickoff, halftime);
- *   - broadcast: live play, following the ball;
+ *   - broadcast: live play, in tight on the ball (Bryan: "follow the ball ... focus more
+ *                tightly on the ball during plays"), looking a little ahead of where it
+ *                is going; while a pass or shot is in the air it widens to keep where
+ *                the ball is headed (the receiver, the goal) in the picture too;
  *   - decision:  pulled back just enough that everything the choice is about - the
  *                carrier, the teammates, the defenders, the goal - is on screen at once.
  *  Moves are eased, never cut, so the view never jumps under the player's eyes.
@@ -18,10 +21,15 @@ SS.director = (function () {
   const _c = new THREE.Vector3();
   const ACTION_SHARE = 0.6;                                   // decision frames: the action fills the lower 60% of the view
   const SIDE = new THREE.Vector3(-1, 0.32, 0).normalize();   // camera sits on -x: +z (our attack) is screen right
-  let follow = null;                                          // () => Vector3, the ball
+  let follow = null;                                          // () => { ball, to }: the ball, and where a pass or shot is headed (or null)
+  // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
+  const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
+  const vel = new THREE.Vector3(), lastBall = new THREE.Vector3(), lead = new THREE.Vector3(), _d = new THREE.Vector3();
+  let dist = 0;                                               // live play's eased distance; 0 = start from where the camera is
 
   function init(cam) { camera = cam; }
   function setMode(m, opts) {
+    if (m === 'broadcast' && mode !== 'broadcast') dist = 0;
     mode = m;
     if (opts && opts.points) points = opts.points;
     if (opts && opts.follow) follow = opts.follow;
@@ -47,9 +55,31 @@ SS.director = (function () {
         wantAim.set(0, 0, 0); wantPos.copy(SIDE).multiplyScalar(fitDistance(21)); rate = 1.6;
         break;
       case 'broadcast': {
-        const b = follow ? follow() : _c.set(0, 0, 0);
-        wantAim.set(b.x * 0.5, b.y * 0.6, b.z * 0.92);
-        wantPos.copy(wantAim).addScaledVector(SIDE, 21);
+        const f = follow ? follow() : null, b = f ? f.ball : _c.set(0, 0, 0), to = f && f.to;
+        // The ball's speed, smoothed, so the frame can look ahead of it. A jump (a kickoff
+        // reset, a restored save) is not a speed.
+        if (dt > 0) { _d.copy(b).sub(lastBall).divideScalar(dt); if (_d.length() > 30) _d.set(0, 0, 0); vel.lerp(_d, 1 - Math.exp(-dt * 3)); }
+        lastBall.copy(b);
+        const v = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), h = v * camera.aspect;
+        let halfW = TIGHT_HALF, halfH = 2.5, depth = 0;
+        if (to) {
+          // In the air: frame the ball and where it is going.
+          _c.copy(b).add(to).multiplyScalar(0.5);
+          halfW = Math.max(TIGHT_HALF, Math.abs(to.z - b.z) / 2 + 3);
+          halfH = Math.abs(to.y - b.y) / 2 + 2.5;
+          depth = Math.abs(to.x - b.x);
+          lead.multiplyScalar(1 - Math.min(1, dt * 4));
+        } else {
+          lead.copy(vel).multiplyScalar(LEAD_SECS).clampLength(0, LEAD_MAX);
+          _c.copy(b).add(lead);
+        }
+        const want = Math.max(halfW / h, halfH / v) + depth * 0.35;
+        // Widen quickly (a pass is under two seconds in the air), close in slowly.
+        if (!dist) dist = first ? want : pos.distanceTo(aim);
+        dist += (want - dist) * (1 - Math.exp(-dt * (want > dist ? 3.5 : 1)));
+        wantAim.copy(_c);
+        wantPos.copy(_c).addScaledVector(SIDE, dist);
+        rate = 3;
         break;
       }
       case 'decision': {

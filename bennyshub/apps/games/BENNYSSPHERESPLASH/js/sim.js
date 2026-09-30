@@ -314,8 +314,13 @@
   /* ── encounters and shot chances ──────────────────────────────────────── */
   function checkEncounter(s) {
     const RU = R();
-    if (s.encCooldown > 0) return false;
     const c = s.players[s.ball.owner], cj = s.ball.owner;
+    // No grace at the goal. Bryan saw "long periods of no activity ... near the goal":
+    // a carrier who got the ball there (point-blank already spent this possession) swam
+    // into the goal's keep-out and sat pinned, the keeper pressed against them, until
+    // the catch's GRACE or a dodge's cooldown ran out - 6.7 s median, up to 10 s, about
+    // 16 times a Quick Game. The challenge that ended it now comes at once.
+    if (s.encCooldown > 0 && !atKeepOut(c)) return false;
     const able = s.players.map((pl, j) => ({ pl, j, d: V().dist(pl.p, c.p) }))
       .filter(o => o.pl.team !== c.team && o.pl.sleep <= 0 && o.pl.beaten <= 0 && o.pl.stun <= 0);
     // Only a defender in your path starts an encounter - one chasing from behind has
@@ -343,7 +348,15 @@
     const d = V().dist(c.p, A().goalOf(c.team)), f = s.flags;
     if (!f.range && d <= RU.SHOT_RANGE) { f.range = true; attackDecision(s, 'shot'); return true; }
     if (!f.point && d <= RU.POINT_RANGE) { f.point = true; attackDecision(s, 'point'); return true; }
+    // Pinned at the goal with nobody able to challenge (the keeper just dribbled past,
+    // say): nowhere left to swim, so shoot or pass - never a wait.
+    if (atKeepOut(c)) { f.point = true; attackDecision(s, 'point'); return true; }
     return false;
+  }
+  /** Touching the keep-out round the goal this carrier attacks. */
+  function atKeepOut(c) {
+    const RU = R();
+    return V().dist(c.p, { x: 0, y: 0, z: A().dirOf(c.team) * (RU.GOAL_Z + RU.GOAL_KEEP_BACK) }) < RU.GOAL_KEEP_OUT + 0.3;
   }
 
   function humanDecides(s, team, kind) {
