@@ -72,12 +72,24 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 .plate b { display: block; font: 900 1.55rem/1.1 var(--head); }
 .plate .sub { display: block; font: 700 .9rem/1.2 var(--body); color: var(--ink2); margin-top: .1rem; }
 .plate .sub:empty { display: none; }
-.plate .odds { display: flex; align-items: center; gap: .45rem; margin-top: .35rem; font: 800 1rem/1 var(--body); }
-.plate .odds i { flex: 1; min-width: 2.5rem; height: .75rem; border-radius: .4rem; border: .16rem solid var(--ink); background: #fff;
-  background-image: linear-gradient(90deg, var(--bar, var(--fair)) calc(var(--p) * 100%), transparent 0); }
-.plate .odds em { font-style: normal; white-space: nowrap; }
-.plate[data-odds="good-chance"] .odds i, .plate[data-odds="best-bet"] .odds i { --bar: var(--good); }
-.plate[data-odds="risky"] .odds i, .plate[data-odds="weaker"] .odds i { --bar: var(--risky); }
+/* The odds bar is the card's big visual (Bryan's playtest: the bar read best, make it
+   bigger): the full plate width and tall, with the word under it. */
+.plate { position: relative; }
+.plate .odds { display: flex; flex-direction: column; align-items: stretch; gap: .3rem; margin-top: .45rem; font: 900 1.15rem/1 var(--body); }
+.plate .odds i { display: block; width: 100%; height: 1.5rem; border-radius: .6rem; border: .22rem solid var(--ink); background: #fff;
+  background-image: linear-gradient(90deg, var(--tone, var(--fair)) calc(var(--p) * 100%), transparent 0); }
+/* The word sits on a pill of the bar's colour (Bryan: colour-code the words too). Dark ink on
+   the colour reads far better than coloured letters on the cream card, and the ▲●▼ shape stays. */
+.plate .odds em { align-self: center; font-style: normal; white-space: nowrap; color: var(--ink); background: var(--tone, var(--fair));
+  padding: .2rem .65rem .25rem; border-radius: 99rem; border: .18rem solid var(--ink); }
+/* The Best bet card also wears a star tab on its top edge and a green ring, so the pick
+   stands out by shape as well as colour even while the highlight is elsewhere. */
+.plate[data-odds="best-bet"] { box-shadow: 0 0 0 .3rem var(--good), 0 .35rem 0 rgba(0,0,0,.3); }
+.plate[data-odds="best-bet"]::before { content: '★'; position: absolute; top: -1.05rem; left: 50%; transform: translateX(-50%);
+  width: 2rem; height: 2rem; border-radius: 50%; background: var(--good); color: #fff; border: .2rem solid var(--ink);
+  font: 900 1.2rem/1.6rem var(--head); text-align: center; }
+.plate[data-odds="good-chance"], .plate[data-odds="best-bet"] { --tone: var(--good); }
+.plate[data-odds="risky"], .plate[data-odds="weaker"] { --tone: var(--risky); }
 .plate[data-odds="good-chance"] .odds em::before, .plate[data-odds="best-bet"] .odds em::before { content: '▲ '; }
 .plate[data-odds="fair"] .odds em::before, .plate[data-odds="close"] .odds em::before, .plate[data-odds="even"] .odds em::before { content: '● '; }
 .plate[data-odds="risky"] .odds em::before, .plate[data-odds="weaker"] .odds em::before { content: '▼ '; }
@@ -86,6 +98,8 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 .plate.focused { background: linear-gradient(180deg, #ffe46b 0%, var(--focus2) 100%); transform: translateY(-3px) scale(1.05);
   box-shadow: 0 0 0 .25rem #fff, 0 0 0 .55rem var(--ink), 0 .8rem 0 rgba(0,0,0,.35), 0 0 2.2rem .7rem rgba(255,212,0,.7); }
 .plate.focused .sub { color: var(--ink); }
+/* A white ring keeps the amber Fair pill from melting into the yellow highlight. */
+.plate.focused .odds em { box-shadow: 0 0 0 .2rem #fff; }
 
 /* One focus marker for everything: four corner brackets that glide between targets. */
 #scanFrame { position: fixed; z-index: 45; display: none; pointer-events: none;

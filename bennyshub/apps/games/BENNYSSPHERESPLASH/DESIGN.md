@@ -163,7 +163,12 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
   within 10 points. The bar still shows the real chance of winning the ball. In play the
   likely move is at least 74% certain nine times in ten. Bryan asked for it short, for
   switch play and speed.
-- Bryan to see it first.
+- Bryan played it (2026-09-30): the words help; he asked for more to see, for low vision.
+  Every plate's odds bar is now full width and twice as tall, the word sits on a pill of
+  the bar's colour (green / amber / red, dark ink, ▲●▼ kept; a white ring on the highlighted
+  plate so amber does not melt into the yellow), and the Best bet plate wears a green star
+  tab and ring. Attack plates have no star: their words are absolute, so two can both be
+  Good chance.
 - **Formations matter; now the game shows it** (Bryan chose: show the shape, the analyst
   reacts, opponents change too). Beamers v Raiders (80 matches): Normal wins 4%, All-out
   Defense 30%, Left Side 0%; over all 30 pairings no formation dominates (1.19-1.67 points a

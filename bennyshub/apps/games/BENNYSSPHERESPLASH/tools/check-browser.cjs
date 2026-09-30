@@ -51,7 +51,7 @@ function findChrome() {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sphere-splash-chrome-'));
   const exe = findChrome();
   if (!exe) { console.error('No Chrome or Edge found. Pass the path: node tools/check-browser.cjs <chrome.exe>'); process.exit(2); }
-  const chrome = spawn(exe, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
+  const chrome = spawn(exe, ['--headless=new', '--mute-audio', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
     '--remote-debugging-port=0', '--user-data-dir=' + profile, '--window-size=1368,840', '--autoplay-policy=no-user-gesture-required',
     '--enable-unsafe-swiftshader', 'about:blank'], { windowsHide: true, stdio: 'ignore' });
   const portFile = path.join(profile, 'DevToolsActivePort');
@@ -94,6 +94,9 @@ function findChrome() {
 
   try {
     await call('Runtime.enable'); await call('Page.enable');
+    // Silent while it runs: --mute-audio covers game sound, and the system voice speaks at volume 0
+    // (same timing, so the speech checks still hold).
+    await call('Page.addScriptToEvaluateOnNewDocument', { source: '(() => { const s = window.speechSynthesis; if (!s) return; const f = s.speak.bind(s); s.speak = u => { u.volume = 0; return f(u); }; })()' });
     await size(1368, 840);
     await load();
     await evaluate('localStorage.clear(); SS.save.resetAll(); true');
