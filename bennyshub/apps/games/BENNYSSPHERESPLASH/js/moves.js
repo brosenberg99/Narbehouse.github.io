@@ -10,7 +10,8 @@
  *    shoulder height while the other swings down and back;
  *  - dive: the body one straight line from feet to fingertips, pointed at the ball;
  *  - catch: ball clutched to the chest, forearms round it, elbows in;
- *  - punch: one fist through the ball, up and out, the other arm low for balance.
+ *  - punch: one fist through the ball, up and out, the other arm low for balance;
+ *  - celebrate: arms up in a V, a twirl, two fist pumps.
  * A move only shows what the sim already decided; it never changes an outcome.
  */
 SS.moves = (function () {
@@ -213,9 +214,43 @@ SS.moves = (function () {
     return t >= THROW.end;
   }
 
-  const MOVES = { throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove };
+  /* ── celebrate: the scorer, facing the camera (game.js turns them to it) ─────
+     Big and simple, to read from across the pool: both arms shoot up into a V, fists
+     high, chest out (a small lean back); the whole body twirls once round, rising in
+     the water; then two fist pumps (fists down beside the head and back up) and the V
+     held to the end. The legs keep the tread clip's kick. */
+  const CELEBRATE = { spin: [0.25, 1.05], pumps: [1.25, 2.65], end: 3.4 };
+  const _spinQ = new THREE.Quaternion(), _leanQ = new THREE.Quaternion(), _rise = V(), X = new THREE.Vector3(1, 0, 0);
+  function celebrateMove(sw, mv) {
+    const t = mv.t, f = sw.frame, C = CELEBRATE;
+    const w = ramp(t, 0, 0.3) * (1 - ramp(t, C.end - 0.45, C.end));
+    // The body: a twirl about its own upright axis, rising ~0.4 m, leaning back a little.
+    _spinQ.setFromAxisAngle(UP, Math.PI * 2 * ease((t - C.spin[0]) / (C.spin[1] - C.spin[0])));
+    _leanQ.setFromAxisAngle(X, -0.2 * w);
+    _spinQ.multiply(_leanQ);
+    _rise.set(0, 0.4 * ramp(t, 0.15, 0.7) * w, 0);
+    sw.setTilt(_spinQ, _rise);
+    SS.rig.bodyFrame(sw.bones, f);
+    const up = f.forward;
+    // Two pumps: 0 = arms straight up in the V, 1 = fists down beside the head.
+    const pp = (t - C.pumps[0]) / (C.pumps[1] - C.pumps[0]);
+    const pump = pp > 0 && pp < 1 ? 0.5 - 0.5 * Math.cos(pp * Math.PI * 4) : 0;
+    const armsUp = ramp(t, 0.05, 0.3);
+    ['L', 'R'].forEach(side => {
+      shoulder(sw, side, _s);
+      _side.copy(f.right).multiplyScalar(side === 'R' ? 1 : -1);
+      _hand.copy(_s).addScaledVector(up, 0.5).addScaledVector(_side, 0.28).addScaledVector(f.belly, 0.06);       // the V
+      _t.copy(_s).addScaledVector(up, 0.18).addScaledVector(_side, 0.3).addScaledVector(f.belly, 0.16);         // fist by the head
+      _hand.lerp(_t, pump);
+      _pole.copy(_s).addScaledVector(_side, 0.45).addScaledVector(f.belly, -0.1).addScaledVector(up, -0.1);
+      reach(sw, side, _hand, _pole, w * armsUp);
+    });
+    return t >= C.end;
+  }
+
+  const MOVES = { throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove, celebrate: celebrateMove };
   /** Pose a swimmer for its move this frame (after the clip and the carry). True = finished. */
   function apply(sw, mv) { const fn = MOVES[mv.name]; return fn ? fn(sw, mv) : true; }
 
-  return { apply, THROW };
+  return { apply, THROW, CELEBRATE };
 })();

@@ -84,7 +84,8 @@ ordinary press (a player may hold a switch for seconds without meaning to).
 
 Bryan (after M2): like Ballista and most sports games, **follow the ball, in tight during
 play, and zoom out to the players who matter during a choice.** Always the same side of the
-pool, so our team always attacks to the right; every move is eased, never cut.
+pool, so our team always attacks to the right; every move is eased, never cut (the one
+exception: the cut to the wide view after a goal, below).
 
 - **Live play:** about 12 m of pool across the screen round the ball (`TIGHT_HALF`, tune by
   feel), looking half a second ahead of where the ball is going.
@@ -116,6 +117,20 @@ pool, so our team always attacks to the right; every move is eased, never cut.
   the ball there; a goal bends round the keeper by at least 0.9 m (it flew through them);
   a ball above the shoulders turns the whole body to it (the arms had crossed the face).
   **Later (Bryan):** more animation tuning and polish, and variety in the technique moves.
+- **A goal is a moment (M3).** The shot moment flows into it. A banner sweeps right across
+  the screen in the scorers' kit (edged in ink and their accent), GOAL! in giant white type
+  with an ink stroke (reads on any kit), and under it the scorer and the new score
+  (`hud.goalBanner`, 3.4 s). The net bursts (`world.goalBurst`): ~140 bubbles out of where
+  the ball went in, a ring of the team colour across the mouth, the net lit in their colour
+  (one flash that fades, never a flicker), the frame shudders, the crowd jumps. 0.7 s after
+  the ball goes in, with Shot Camera on Cinematic, the camera leaves the goal mouth for the
+  scorer (`director.js` mode `goal`, 5.2 m pushing in to 3.6 m, the scorer low in the frame
+  so the banner never covers the arms). The scorer turns to the camera and celebrates
+  (`moves.js` celebrate: arms up in a V, a twirl, two fist pumps) while nearby teammates
+  cheer. The sim's own pause after a goal is 3 s; the kickoff waits until the celebration
+  has played out (`GOAL_MOMENT`, 4.5 s from the goal; the clock is stopped then anyway).
+  Then the one cut in the game, to the wide view, so nobody is seen jumping back to their
+  kickoff places; the camera eases back in at the kickoff.
 - **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
   the ball to the keeper), and custom animations for the shooter's shot, a defender's block
   and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame

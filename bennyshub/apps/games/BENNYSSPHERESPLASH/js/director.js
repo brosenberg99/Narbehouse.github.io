@@ -13,8 +13,11 @@
  *                carrier, the teammates, the defenders, the goal - is on screen at once;
  *   - shot:      (Shot Camera: Cinematic) in behind the shooter's shoulder, on the same
  *                side of the pool, looking down the shot at the goal; as the ball gets
- *                halfway it swings to the goal mouth, framing the ball and the keeper.
- *  Moves are eased, never cut, so the view never jumps under the player's eyes.
+ *                halfway it swings to the goal mouth, framing the ball and the keeper;
+ *   - goal:      (after a goal, Shot Camera on Cinematic) in close on the scorer
+ *                celebrating, from our side as ever, pushing slowly in.
+ *  Moves are eased, never cut, so the view never jumps under the player's eyes. The
+ *  one cut is after a goal, to the wide view, while everyone resets for the kickoff.
  */
 SS.director = (function () {
   'use strict';
@@ -26,6 +29,7 @@ SS.director = (function () {
   const SIDE = new THREE.Vector3(-1, 0.32, 0).normalize();   // camera sits on -x: +z (our attack) is screen right
   let follow = null;                                          // () => { ball, to }: the ball, and where a pass or shot is headed (or null)
   let shot = null;                                            // () => { from, to, ball, keeper, stage } while a shot plays (game.js shotFrame)
+  let star = null, starT = 0;                                 // () => the scorer's chest (world), after a goal
   const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
   const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
@@ -39,6 +43,7 @@ SS.director = (function () {
     if (opts && opts.points) points = opts.points;
     if (opts && opts.follow) follow = opts.follow;
     if (opts && opts.shot) shot = opts.shot;
+    if (opts && opts.star) { star = opts.star; starT = 0; }
     if (opts && opts.cut) first = true;
   }
 
@@ -109,6 +114,20 @@ SS.director = (function () {
           rate = 3.2;
         }
         if (wantPos.length() > POOL_R - 1.5) wantPos.setLength(POOL_R - 1.5);   // stay inside the sphere
+        break;
+      }
+      case 'goal': {
+        const p = star ? star() : null;
+        if (!p) break;
+        starT += dt;
+        // From 5.2 m to 3.6 m over three seconds. The scorer sits low in the frame (chest
+        // ~65% of the way down), so the goal banner across the top never covers the V of
+        // the arms.
+        const d = 3.6 + 1.6 * Math.exp(-starT * 0.8), v = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+        wantAim.copy(p); wantAim.y += 0.3 * v * d;
+        wantPos.copy(p).addScaledVector(SIDE, d); wantPos.y += 0.3 * v * d;
+        if (wantPos.length() > POOL_R - 1.5) wantPos.setLength(POOL_R - 1.5);
+        rate = 2.4;
         break;
       }
       case 'decision': {

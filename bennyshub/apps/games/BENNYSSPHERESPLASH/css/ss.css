@@ -246,6 +246,27 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 .pop.k-bad { color: #ffb0bf; font-size: 4.2rem; }
 .pop.k-tech { color: #d9c2ff; font-size: 3.8rem; }
 .pop.k-info { font-size: 4.6rem; }
+/* The goal banner: a band across the whole screen in the scorers' kit, edged in ink and
+   their accent, so it reads as THEIR goal at a glance; GOAL! is white with a heavy ink
+   stroke, which reads on any kit colour. */
+.goalbanner { position: absolute; left: 0; right: 0; top: 8%; display: none; pointer-events: none; text-align: center; }
+.goalbanner.on { display: block; }
+.goalbanner .band { position: relative; padding: .4rem 0 .9rem; background: var(--kit);
+  border-top: .55rem solid var(--ink); border-bottom: .55rem solid var(--ink);
+  box-shadow: 0 -.55rem 0 var(--accent), 0 .55rem 0 var(--accent), 0 1.1rem 1.4rem rgba(0,0,0,.35); transform: skewY(-3deg); }
+.goalbanner .word { display: inline-block; font: italic 900 8rem/1 var(--head); color: #fff; letter-spacing: .02em;
+  -webkit-text-stroke: .7rem var(--ink); paint-order: stroke fill; text-shadow: 0 .6rem 0 var(--ink); transform: skewY(3deg); }
+.goalbanner .line { display: inline-flex; gap: .8rem; margin-top: 1.1rem; padding: .45rem 1.3rem .5rem; border: 4px solid var(--ink); border-radius: 1rem;
+  background: var(--paper); color: var(--ink); font: 900 2rem/1.1 var(--body); box-shadow: 0 .35rem 0 rgba(0,0,0,.3); }
+.goalbanner .sc { padding-left: .8rem; border-left: 4px solid var(--ink); }
+.goalbanner.on .band { animation: bandIn .35s cubic-bezier(.2,.9,.3,1) both; }
+.goalbanner.on .word { animation: goalSlam .55s .12s cubic-bezier(.2,1.6,.4,1) both; }
+.goalbanner.on .line { animation: lineUp .4s .35s ease-out both; }
+.goalbanner.out { animation: bannerOut .45s ease-in forwards; }
+@keyframes bandIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes goalSlam { from { transform: skewY(3deg) scale(2.2); opacity: 0; } to { transform: skewY(3deg) scale(1); opacity: 1; } }
+@keyframes lineUp { from { transform: translateY(1.2rem); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bannerOut { to { transform: translateX(105%); } }
 .ring { position: absolute; right: 2.2rem; bottom: 9rem; width: 7.4rem; height: 7.4rem; display: none; border-radius: 50%;
   background: radial-gradient(circle, rgba(20,22,31,.8) 0 56%, transparent 57%); }
 .ring.on { display: block; }
@@ -286,5 +307,6 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 
 @media (prefers-reduced-motion: reduce) {
   #scanFrame { transition: none; } #scanFrame.on i { animation: none; }
-  .card.enter, .pop.on { animation: none; }
+  .card.enter, .pop.on, .goalbanner.on .band, .goalbanner.on .word, .goalbanner.on .line { animation: none; }
+  .goalbanner.out { animation: none; opacity: 0; }
 }

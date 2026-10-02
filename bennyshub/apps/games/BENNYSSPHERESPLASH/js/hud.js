@@ -4,7 +4,9 @@
  *  and STOPPED while play is frozen). Top left: formation and decision-stop setting.
  *  Top right: the ball carrier - name, number, an HP bar, and status in words.
  *  Centre: big stroked pops for the moments that matter (GOAL!, SAVED!), one at a
- *  time, highest priority first. Right: the pause-hold ring. Bottom centre: captions
+ *  time, highest priority first; a goal gets the banner instead - a band right across
+ *  the screen in the scorers' kit, GOAL! in giant type, the scorer and the new score
+ *  under it. Right: the pause-hold ring. Bottom centre: captions
  *  (broadcast.js writes those). Layout and sizing follow NARBE Racer's hud.js.
  */
 SS.hud = (function () {
@@ -12,7 +14,7 @@ SS.hud = (function () {
 
   const U = SS.util;
   const RING_R = 48, RING_LEN = 2 * Math.PI * RING_R;
-  let root, el = {}, shown = false, popQ = [], popTimer = null, last = {};
+  let root, el = {}, shown = false, popQ = [], popTimer = null, last = {}, bannerTimer = null;
 
   function build() {
     root = U.$('hud');
@@ -26,6 +28,7 @@ SS.hud = (function () {
       '<div class="carrier"><div class="who"><span class="num"></span><span class="nm"></span></div>' +
         '<div class="hp"><i></i><span></span></div><div class="st"></div></div>' +
       '<div class="pop"></div>' +
+      '<div class="goalbanner"><div class="band"><b class="word">GOAL!</b></div><div class="line"><span class="who"></span><span class="sc"></span></div></div>' +
       '<div class="ring"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="' + RING_R + '"></circle>' +
         '<circle class="fill" cx="60" cy="60" r="' + RING_R + '" stroke-dasharray="' + RING_LEN.toFixed(1) +
         '" stroke-dashoffset="' + RING_LEN.toFixed(1) + '"></circle></svg><span class="lbl">Keep<br>holding</span></div>';
@@ -34,7 +37,8 @@ SS.hud = (function () {
       g0: q('.g0'), g1: q('.g1'), time: q('.time'), half: q('.half'), stopped: q('.stopped'),
       form: q('.info .form'), theirs: q('.info .theirs'), stops: q('.info .stops'), carrier: q('.carrier'), num: q('.carrier .num'),
       nm: q('.carrier .nm'), hpBar: q('.hp i'), hpTx: q('.hp span'), st: q('.carrier .st'),
-      pop: q('.pop'), ring: q('.ring'), ringFill: q('.ring .fill') };
+      pop: q('.pop'), ring: q('.ring'), ringFill: q('.ring .fill'),
+      banner: q('.goalbanner'), bWho: q('.goalbanner .who'), bSc: q('.goalbanner .sc') };
   }
 
   function setTeams(teams) {
@@ -102,6 +106,22 @@ SS.hud = (function () {
   }
   function clearPops() { popQ = []; clearTimeout(popTimer); popTimer = null; if (el.pop) el.pop.classList.remove('on'); }
 
+  /** The goal banner: { kit, accent (hex numbers), who: '#9 Duke', score: 'BEA 2 – 1 GUL' }. */
+  const BANNER_SECS = 3.4;
+  function goalBanner(o) {
+    clearPops();
+    el.banner.style.setProperty('--kit', U.hex(o.kit));
+    el.banner.style.setProperty('--accent', U.hex(o.accent));
+    el.bWho.textContent = o.who; el.bSc.textContent = o.score;
+    el.banner.classList.remove('on', 'out'); void el.banner.offsetWidth; el.banner.classList.add('on');
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => {
+      el.banner.classList.add('out');
+      bannerTimer = setTimeout(hideBanner, 450);
+    }, (BANNER_SECS - 0.45) * 1000);
+  }
+  function hideBanner() { clearTimeout(bannerTimer); bannerTimer = null; if (el.banner) el.banner.classList.remove('on', 'out'); }
+
   /** The pause hold: 0 hides the ring, 0..1 fills it. */
   function ring(f) {
     if (last.ring === f) return;
@@ -110,7 +130,7 @@ SS.hud = (function () {
     el.ringFill.setAttribute('stroke-dashoffset', (RING_LEN * (1 - Math.min(1, f))).toFixed(1));
   }
 
-  function reset() { last = {}; clearPops(); ring(0); }
+  function reset() { last = {}; clearPops(); hideBanner(); ring(0); }
 
-  return { build, setTeams, visible, update, pop, clearPops, ring, reset };
+  return { build, setTeams, visible, update, pop, clearPops, goalBanner, hideBanner, ring, reset };
 })();

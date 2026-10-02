@@ -202,6 +202,9 @@ SS.models = (function () {
       if (move) { move.t += dt; if (SS.moves.apply(api, move)) move = null; }
     }
     /** Free the GPU copies this swimmer owns (its painted geometry and materials). */
+    /** How much of the water's light pattern plays over this swimmer (1 = all). Up close
+        it washes a kit out (a dark green went pale mint), so a close-up turns it down. */
+    function setCaustic(k) { meshes.forEach(n => { if (n.material.userData.caustic) n.material.userData.caustic.value = k; }); }
     function dispose() {
       mixer.stopAllAction();
       root.traverse(n => {
@@ -211,7 +214,7 @@ SS.models = (function () {
     const api = { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
       head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
       setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; },
-      setMove, setTilt, get move() { return move; }, faceTarget: null };
+      setMove, setTilt, setCaustic, get move() { return move; }, faceTarget: null };
     return api;
   }
 

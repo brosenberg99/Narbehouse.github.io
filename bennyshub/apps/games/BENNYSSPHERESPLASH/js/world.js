@@ -7,18 +7,20 @@
  *  - caustics: a light pattern computed in the shader of everything that opts in via
  *    addCaustics(material), so swimmers glitter as they cross the light;
  *  - light shafts (additive cones), rising bubbles (Points) and teal depth fog.
+ * goalBurst() is the net's part of a goal: bubbles burst out of it, a ring of the
+ * scorers' colour spreads across the mouth, the net lights up and the crowd jumps.
  */
 SS.world = (function () {
   'use strict';
 
   const R = 20;                         // sphere radius in metres; the whole pool
   const GOAL_Z = R - 2.2;               // goals hang just inside the skin at the poles
-  const uniforms = { uTime: { value: 0 }, uCaustic: { value: 0.32 } };
-  let scene, shafts = [], bubbles, crowd;
+  const uniforms = { uTime: { value: 0 }, uCaustic: { value: 0.32 }, uCheer: { value: 0 } };
+  let scene, shafts = [], bubbles, crowd, bubbleTex, goals = [], bursts = [], cheer = 0;
 
   /* ── caustics, injected into any lit material ─────────────────────────── */
   const CAUSTIC_GLSL = `
-    uniform float uTime; uniform float uCaustic; varying vec3 vCWorld;
+    uniform float uTime; uniform float uCaustic; uniform float uCausticSelf; varying vec3 vCWorld;
     float causticAt(vec3 p) {
       vec2 q = p.xz * 0.55 + vec2(p.y * 0.21, -p.y * 0.17);
       float a = sin(q.x + uTime * 0.9) + sin(q.y * 1.3 - uTime * 0.7) + sin((q.x + q.y) * 0.7 + uTime * 1.1);
@@ -26,14 +28,16 @@ SS.world = (function () {
       float c = 1.0 - abs(a * 0.33 + b * 0.25);
       return pow(clamp(c, 0.0, 1.0), 6.0);
     }`;
+  /** mat.userData.caustic.value scales the light on this material alone (1 = as everything else). */
   function addCaustics(mat) {
+    mat.userData.caustic = { value: 1 };
     mat.onBeforeCompile = shader => {
-      shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uCaustic = uniforms.uCaustic;
+      shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uCaustic = uniforms.uCaustic; shader.uniforms.uCausticSelf = mat.userData.caustic;
       shader.vertexShader = 'varying vec3 vCWorld;\n' + shader.vertexShader.replace(
         '#include <project_vertex>', '#include <project_vertex>\n  vCWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       shader.fragmentShader = CAUSTIC_GLSL + '\n' + shader.fragmentShader.replace(
         '#include <opaque_fragment>',
-        'outgoingLight += vec3(0.75, 0.95, 1.0) * causticAt(vCWorld) * uCaustic;\n#include <opaque_fragment>');
+        'outgoingLight += vec3(0.75, 0.95, 1.0) * causticAt(vCWorld) * uCaustic * uCausticSelf;\n#include <opaque_fragment>');
     };
   }
 
@@ -82,7 +86,76 @@ SS.world = (function () {
       color: colour, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
     g.add(net);
     g.position.z = z;
+    goals.push({ group: g, net, z, colour: new THREE.Color(colour), flash: 0, shake: 0 });
     return g;
+  }
+
+  /* ── a goal: the net bursts ───────────────────────────────────────────────
+     One flash, never a flicker: the net lights up in the scorers' colour and fades over
+     a second and a half. ~140 bubbles (white and the team colour) fly out of where the
+     ball went in, slow down in the water and rise; a ring spreads across the goal mouth;
+     the frame shudders; the crowd jumps for four seconds. */
+  const BURST_N = 140, BURST_LIFE = 2.4, RING_LIFE = 0.8;
+  function goalBurst(at, colour) {
+    const gl = goals.reduce((a, b) => Math.abs(b.z - at.z) < Math.abs(a.z - at.z) ? b : a, goals[0]);
+    const team = new THREE.Color(colour), into = Math.sign(gl.z) || 1;   // the pool is the other way: -into
+    gl.flash = 1; gl.shake = 1; gl.net.material.color.copy(team);
+    const pos = new Float32Array(BURST_N * 3), col = new Float32Array(BURST_N * 3), vel = [];
+    const white = new THREE.Color(0xffffff), c = new THREE.Color();
+    for (let i = 0; i < BURST_N; i++) {
+      pos[i * 3] = at.x; pos[i * 3 + 1] = at.y; pos[i * 3 + 2] = at.z;
+      // Out of the net into the pool: a wide cone, mostly away from the goal.
+      const a = Math.random() * Math.PI * 2, spread = Math.random() * 1.15, sp = 4 + Math.random() * 7;
+      vel.push(new THREE.Vector3(Math.cos(a) * Math.sin(spread), Math.sin(a) * Math.sin(spread) + 0.25, -into * Math.cos(spread)).multiplyScalar(sp));
+      c.copy(i % 3 ? white : team).toArray(col, i * 3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.5, map: bubbleTex, vertexColors: true, transparent: true,
+      opacity: 1, depthWrite: false, sizeAttenuation: true }));
+    pts.frustumCulled = false; pts.renderOrder = 15;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.15, 48), new THREE.MeshBasicMaterial({ color: team, transparent: true,
+      opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+    ring.position.set(at.x, at.y, at.z - into * 0.3); ring.renderOrder = 15;
+    scene.add(pts, ring);
+    bursts.push({ t: 0, pts, vel, ring });
+    cheer = 4;
+  }
+  function updateGoals(dt) {
+    goals.forEach(g => {
+      if (g.flash > 0) {
+        g.flash = Math.max(0, g.flash - dt / 1.5);
+        g.net.material.opacity = 0.22 + 0.6 * g.flash;
+        if (!g.flash) g.net.material.color.copy(g.colour);
+      }
+      if (g.shake > 0) {
+        g.shake = Math.max(0, g.shake - dt / 0.9);
+        const k = g.shake * g.shake * 0.18;
+        g.group.position.set(Math.sin(g.shake * 47) * k, Math.sin(g.shake * 61) * k, g.z);
+      }
+    });
+    for (let b = bursts.length - 1; b >= 0; b--) {
+      const br = bursts[b];
+      br.t += dt;
+      const a = br.pts.geometry.attributes.position.array, drag = Math.exp(-dt * 2.6);
+      br.vel.forEach((v, i) => {
+        v.multiplyScalar(drag); v.y += dt * 1.6;                       // the water slows them; then they rise
+        a[i * 3] += v.x * dt; a[i * 3 + 1] += v.y * dt; a[i * 3 + 2] += v.z * dt;
+      });
+      br.pts.geometry.attributes.position.needsUpdate = true;
+      br.pts.material.opacity = 1 - Math.max(0, (br.t - BURST_LIFE * 0.5) / (BURST_LIFE * 0.5));
+      const r = Math.min(1, br.t / RING_LIFE);
+      br.ring.scale.setScalar(1 + r * 2.6);          // out to the goal's own size br.ring.material.opacity = 0.9 * (1 - r);
+      br.ring.visible = r < 1;
+      if (br.t >= BURST_LIFE) {
+        scene.remove(br.pts, br.ring);
+        br.pts.geometry.dispose(); br.pts.material.dispose(); br.ring.geometry.dispose(); br.ring.material.dispose();
+        bursts.splice(b, 1);
+      }
+    }
+    if (cheer > 0) cheer = Math.max(0, cheer - dt);
+    uniforms.uCheer.value = Math.min(1, cheer / 1.2);
   }
 
   /* ── light shafts from the surface above ──────────────────────────────── */
@@ -105,7 +178,7 @@ SS.world = (function () {
     const c = document.createElement('canvas'); c.width = c.height = 64;
     const g = c.getContext('2d'); g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 6;
     g.beginPath(); g.arc(32, 32, 24, 0, Math.PI * 2); g.stroke();
-    const tex = new THREE.CanvasTexture(c);
+    const tex = bubbleTex = new THREE.CanvasTexture(c);
     return new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.28, map: tex, transparent: true,
       opacity: 0.65, depthWrite: false, sizeAttenuation: true }));
   }
@@ -194,6 +267,7 @@ SS.world = (function () {
 
   function update(dt, t) {
     uniforms.uTime.value = t;
+    updateGoals(dt);
     shafts.forEach(s => { s.rotation.z = Math.sin(t * 0.2 + s.userData.phase) * 0.12; s.material.opacity = 0.06 + Math.sin(t * 0.5 + s.userData.phase) * 0.02; });
     if (bubbles) {
       const a = bubbles.geometry.attributes.position.array;
@@ -205,5 +279,5 @@ SS.world = (function () {
     }
   }
 
-  return { build, update, addCaustics, R, GOAL_Z };
+  return { build, update, addCaustics, goalBurst, R, GOAL_Z };
 })();
