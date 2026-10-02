@@ -219,7 +219,7 @@ SS.moves = (function () {
      high, chest out (a small lean back); the whole body twirls once round, rising in
      the water; then two fist pumps (fists down beside the head and back up) and the V
      held to the end. The legs keep the tread clip's kick. */
-  const CELEBRATE = { spin: [0.25, 1.05], pumps: [1.25, 2.65], end: 3.4 };
+  const CELEBRATE = { spin: [0.2, 0.85], pumps: [1.0, 1.9], end: 2.5 };   // Bryan: a bit shorter (was 3.4 s)
   const _spinQ = new THREE.Quaternion(), _leanQ = new THREE.Quaternion(), _rise = V(), X = new THREE.Vector3(1, 0, 0);
   function celebrateMove(sw, mv) {
     const t = mv.t, f = sw.frame, C = CELEBRATE;
@@ -228,7 +228,7 @@ SS.moves = (function () {
     _spinQ.setFromAxisAngle(UP, Math.PI * 2 * ease((t - C.spin[0]) / (C.spin[1] - C.spin[0])));
     _leanQ.setFromAxisAngle(X, -0.2 * w);
     _spinQ.multiply(_leanQ);
-    _rise.set(0, 0.4 * ramp(t, 0.15, 0.7) * w, 0);
+    _rise.set(0, 0.4 * ramp(t, 0.15, 0.6) * w, 0);
     sw.setTilt(_spinQ, _rise);
     SS.rig.bodyFrame(sw.bones, f);
     const up = f.forward;

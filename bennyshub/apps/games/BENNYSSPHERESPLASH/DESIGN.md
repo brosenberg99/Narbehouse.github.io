@@ -128,7 +128,8 @@ exception: the cut to the wide view after a goal, below).
   so the banner never covers the arms). The scorer turns to the camera and celebrates
   (`moves.js` celebrate: arms up in a V, a twirl, two fist pumps) while nearby teammates
   cheer. The sim's own pause after a goal is 3 s; the kickoff waits until the celebration
-  has played out (`GOAL_MOMENT`, 4.5 s from the goal; the clock is stopped then anyway).
+  has played out (`GOAL_MOMENT`, 3.6 s from the goal - Bryan had it shortened from 4.5 s;
+  the clock is stopped then anyway).
   Then the one cut in the game, to the wide view, so nobody is seen jumping back to their
   kickoff places; the camera eases back in at the kickoff.
 - **The goal again: the replay (M3).** `js/replay.js` records the SCREEN, not the match:

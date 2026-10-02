@@ -381,7 +381,7 @@ SS.game = (function () {
      kickoff waits until the celebration has played out (display only: the clock is
      stopped after a goal anyway). Then one cut, to the wide view, so nobody is seen
      jumping back to their kickoff places. */
-  const GOAL_CAM_AT = 0.7, CELEBRATE_AT = 0.9, GOAL_MOMENT = CELEBRATE_AT + 3.6;
+  const GOAL_CAM_AT = 0.7, CELEBRATE_AT = 0.9, GOAL_MOMENT = CELEBRATE_AT + SS.moves.CELEBRATE.end + 0.2;
   let gm = null;                      // { t, scorer, team, net, started, cheers }
   const _star = new THREE.Vector3();
   function startGoalMoment(e) {
