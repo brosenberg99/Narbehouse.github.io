@@ -16,6 +16,32 @@ SS.models = (function () {
   const ACCENT = new Set(['spine_03', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r']);
   const INK = 0x14161f;
 
+  /* Body styles. Proportions are sculpted into the bind-pose geometry once, so the bones
+     and clips are untouched and every move, IK reach and ball hold still lines up.
+     head/hand/foot scale about that joint; limb and torso push the surface out along its
+     normal, in metres. outlinePx is the ink line's thickness on screen at any distance,
+     never thinner than outlineMin metres up close. caustic is how much of the water's
+     light pattern plays over the body.
+     chunky (Bryan's pick, 2026-10-02, of four side by side): the only one where every
+     swimmer stands out from the water by a clear margin, and big cartoon shapes read for
+     a low-vision player. classic is the original body, kept for before/after captures. */
+  const STYLES = {
+    chunky:  { head: 1.35, hand: 1.6, foot: 1.5, limb: 0.025, torso: 0.03, outlinePx: 2.5, outlineMin: 0.03,  caustic: 0.4 },
+    classic: { head: 1,    hand: 1,   foot: 1,   limb: 0,     torso: 0,    outlinePx: 0,   outlineMin: 0.018, caustic: 1 },
+  };
+  let style = STYLES.chunky;
+  const FINGER = /^(index|middle|ring|pinky|thumb)_/;
+  // Which sculpt part a bone belongs to, and the joint that part scales about.
+  function partOf(name) {
+    if (name === 'Head') return ['head', 'Head'];
+    const side = name.slice(-2);
+    if (name.startsWith('hand_') || FINGER.test(name)) return ['hand', 'hand' + side];
+    if (/^(foot|ball|ball_leaf)_/.test(name)) return ['foot', 'foot' + side];
+    if (/^(upperarm|lowerarm|thigh|calf)_/.test(name)) return ['limb', null];
+    if (/^(pelvis|spine_0\d|clavicle_)/.test(name)) return ['torso', null];
+    return [null, null];
+  }
+
   let bodies = null, clips = {}, gradient = null;
 
   function bufferFrom(b64) {
@@ -73,15 +99,60 @@ SS.models = (function () {
     geometry.setAttribute('color', new THREE.BufferAttribute(out, 3));
   }
 
+  /* Reshape one skinned mesh in bind space: each vertex moves by its skin weights, so a
+     wrist or neck blends smoothly between a scaled part and the unscaled one next to it. */
+  function sculpt(mesh, st) {
+    if (st.head === 1 && st.hand === 1 && st.foot === 1 && !st.limb && !st.torso) return;
+    const g = mesh.geometry, skel = mesh.skeleton;
+    const pos = g.attributes.position, nrm = g.attributes.normal, idx = g.attributes.skinIndex, wt = g.attributes.skinWeight;
+    const byName = {};
+    skel.bones.forEach((b, i) => { byName[b.name] = i; });
+    // A joint's bind-space centre is the inverse of its inverse-bind matrix.
+    const centreOf = name => new THREE.Vector3().setFromMatrixPosition(skel.boneInverses[byName[name]].clone().invert());
+    const parts = skel.bones.map(b => {
+      const [kind, joint] = partOf(b.name);
+      if (kind === 'limb' || kind === 'torso') return { push: st[kind] };
+      if (kind) return { scale: st[kind] - 1, centre: centreOf(joint) };
+      return null;
+    });
+    const toBind = mesh.bindMatrix, fromBind = mesh.bindMatrixInverse;
+    const nToBind = new THREE.Matrix3().getNormalMatrix(toBind);
+    const get = ['getX', 'getY', 'getZ', 'getW'];
+    const p = new THREE.Vector3(), n = new THREE.Vector3(), d = new THREE.Vector3(), q = new THREE.Vector3();
+    for (let v = 0; v < pos.count; v++) {
+      p.fromBufferAttribute(pos, v).applyMatrix4(toBind);
+      n.fromBufferAttribute(nrm, v).applyMatrix3(nToBind).normalize();
+      q.copy(p);
+      for (let k = 0; k < 4; k++) {
+        const w = wt[get[k]](v), part = parts[idx[get[k]](v)];
+        if (!w || !part) continue;
+        if (part.push) q.addScaledVector(n, part.push * w);
+        else if (part.scale) q.add(d.copy(p).sub(part.centre).multiplyScalar(part.scale * w));
+      }
+      q.applyMatrix4(fromBind);
+      pos.setXYZ(v, q.x, q.y, q.z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // The outline's on-screen thickness needs the view height in CSS pixels.
+  const viewH = { value: window.innerHeight };
+  window.addEventListener('resize', () => { viewH.value = window.innerHeight; });
+
   // Inverted hull, skinned: a second copy of the body on the same skeleton, pushed
   // out along its normals in bind pose and drawn back-faces-only in ink. The offset
-  // is applied before skinning, so the outline follows every bend of the body.
-  function outlineFor(mesh, width) {
+  // is applied before skinning, so the outline follows every bend of the body. It
+  // grows with distance (projectionMatrix[1][1] is 1/tan of half the field of view),
+  // so a far swimmer keeps the same ink line as a near one.
+  function outlineFor(mesh, st) {
     const mat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
     mat.onBeforeCompile = shader => {
-      shader.uniforms.uOutline = { value: width };
-      shader.vertexShader = 'uniform float uOutline;\n' + shader.vertexShader.replace(
-        '#include <begin_vertex>', '#include <begin_vertex>\n  transformed += normal * uOutline;');
+      shader.uniforms.uOutlineMin = { value: st.outlineMin }; shader.uniforms.uOutlinePx = { value: st.outlinePx };
+      shader.uniforms.uViewH = viewH;
+      shader.vertexShader = 'uniform float uOutlineMin, uOutlinePx, uViewH;\n' + shader.vertexShader.replace(
+        '#include <begin_vertex>', `#include <begin_vertex>
+  float oDist = distance(cameraPosition, (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+  transformed += normal * max(uOutlineMin, uOutlinePx * oDist * 2.0 / (projectionMatrix[1][1] * uViewH));`);
     };
     const hull = new THREE.SkinnedMesh(mesh.geometry, mat);
     hull.bind(mesh.skeleton, mesh.bindMatrix);
@@ -91,21 +162,25 @@ SS.models = (function () {
   }
 
   /**
-   * One swimmer. `o` = { body:'male'|'female', kit, accent, skin, hair, outline }.
+   * One swimmer. `o` = { body:'male'|'female', kit, accent, skin, hair, style }.
+   * `style` is a STYLES name or object; without one, the style set by setStyle().
    * Returns { group, play(name, fade), update(dt) }. `group` faces +Z.
    */
   function makeSwimmer(o) {
+    const st = typeof o.style === 'object' ? o.style : STYLES[o.style] || style;
     const root = THREE.SkeletonUtils.clone(bodies[o.body || 'male']);
     const meshes = [];
     root.traverse(n => { if (n.isSkinnedMesh) meshes.push(n); });
     meshes.forEach(mesh => {
-      mesh.geometry = mesh.geometry.clone();         // each swimmer owns its colours
+      mesh.geometry = mesh.geometry.clone();         // each swimmer owns its colours and shape
       const isBody = mesh.geometry.attributes.position.count > 3000;
+      sculpt(mesh, st);
       if (isBody) paint(mesh.geometry, mesh.skeleton.bones, o);
       else paintSolid(mesh.geometry, mesh.material.name === 'MI_Eyes' ? INK : (o.hair || 0x3a2a1c));
       mesh.material = toonMaterial();
+      mesh.material.userData.caustic.value = st.caustic;
       mesh.frustumCulled = false;                    // skinned bounds are the bind pose, not the pose
-      if (isBody) mesh.parent.add(outlineFor(mesh, o.outline || 0.018));
+      if (isBody) mesh.parent.add(outlineFor(mesh, st));
     });
     const group = new THREE.Group();
     // The body sits in a pivot so a move can lean or dive the whole swimmer (moves.js).
@@ -201,10 +276,11 @@ SS.models = (function () {
       if (carrying) holdBall();
       if (move) { move.t += dt; if (SS.moves.apply(api, move)) move = null; }
     }
+    /** How much of the water's light pattern plays over this swimmer (1 = the style's
+        usual amount). Up close it washes a kit out (a dark green went pale mint), so a
+        close-up turns it down. */
+    function setCaustic(k) { meshes.forEach(n => { if (n.material.userData.caustic) n.material.userData.caustic.value = k * st.caustic; }); }
     /** Free the GPU copies this swimmer owns (its painted geometry and materials). */
-    /** How much of the water's light pattern plays over this swimmer (1 = all). Up close
-        it washes a kit out (a dark green went pale mint), so a close-up turns it down. */
-    function setCaustic(k) { meshes.forEach(n => { if (n.material.userData.caustic) n.material.userData.caustic.value = k; }); }
     function dispose() {
       mixer.stopAllAction();
       root.traverse(n => {
@@ -218,5 +294,8 @@ SS.models = (function () {
     return api;
   }
 
-  return { load, makeSwimmer, get clipNames() { return Object.keys(clips); } };
+  /** The style every new swimmer gets (for captures; the next buildScene uses it). */
+  function setStyle(name) { style = STYLES[name] || STYLES.chunky; }
+
+  return { load, makeSwimmer, setStyle, STYLES, get clipNames() { return Object.keys(clips); } };
 })();

@@ -324,7 +324,13 @@ Tuning history worth keeping (each was a real failure the checks caught):
 
 Swimmers: Quaternius Universal Base Characters + Universal Animation Library (CC0),
 bundled by `tools/build/prep-models.mjs` into `js/model-data.js` (base64 GLB, textures
-stripped, toon colours painted by bone). Custom motion is layered on the clips in
+stripped, toon colours painted by bone). The "chunky" body style (`STYLES` in
+`js/models.js`, Bryan's pick of four in M3) sculpts the bind pose once at load: head
+x1.35, hands x1.6, feet x1.5, thicker limbs and chest, so no bone or clip changes. The
+ink outline holds 2.5 px on screen at any distance (it was ~1 px at match distance).
+Characters are judged against a written checklist (team colour difference measured from
+rendered frames, outline thickness, squint test) kept with the review sheets in
+`Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in
 `js/rig.js` (world-space two-bone IK; the carry-swim is the first user). Three.js r155
 (the hub's copy) plus GLTFLoader/SkeletonUtils from three@0.155.0, bundled by
 `tools/build/bundle-addons.mjs`.
