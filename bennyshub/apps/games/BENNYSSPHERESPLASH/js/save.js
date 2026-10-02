@@ -13,6 +13,7 @@ SS.save = (function () {
   const DEFAULTS = {
     stops: 'both',          // Decision stops: ours | both | key | coach (Bryan: defend by default)
     shotCam: 'cinematic',   // cinematic | steady: the camera's shot move (game.js shot moment)
+    replays: true,          // goal replays (game.js goal moment)
     difficulty: 'normal',   // easy | normal | hard: how much stronger the player's team plays (RULES.DIFFICULTY)
     speed: 'normal',        // Play speed: slow | normal | fast
     commentary: 'full',     // full | calls | captions | off

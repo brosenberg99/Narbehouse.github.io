@@ -267,6 +267,19 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
 @keyframes goalSlam { from { transform: skewY(3deg) scale(2.2); opacity: 0; } to { transform: skewY(3deg) scale(1); opacity: 1; } }
 @keyframes lineUp { from { transform: translateY(1.2rem); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes bannerOut { to { transform: translateX(105%); } }
+/* A goal replay: a big tag where the info row was, so it is never mistaken for live play. */
+.replaytag { position: absolute; left: .9rem; top: .9rem; display: none; flex-direction: column; align-items: flex-start; gap: .35rem; pointer-events: none; }
+.replaytag.on { display: flex; }
+.replaytag b { display: flex; align-items: center; gap: .6rem; padding: .35rem 1.1rem .45rem .8rem; border: 4px solid #fff; border-radius: 1rem;
+  background: var(--ink); color: #fff; font: italic 900 2.6rem/1 var(--head); letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 .35rem 0 rgba(0,0,0,.35); }
+.replaytag b i { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: #ff3b4f; box-shadow: 0 0 0 .2rem #fff; animation: recPulse 1s ease-in-out infinite alternate; }
+@keyframes recPulse { to { opacity: .45; } }
+.replaytag span { padding: .2rem .7rem; border-radius: .6rem; background: rgba(20,22,31,.78); color: #fff; font: 800 1.15rem/1.2 var(--body); }
+#hud.replaying .info, #hud.replaying .carrier { display: none; }
+.wipe { position: fixed; inset: 0; display: none; overflow: hidden; pointer-events: none; z-index: 13; }   /* over #worldLayer (later in the page), under captions */
+.wipe.on { display: block; }
+.wipe .band { position: absolute; top: -10%; bottom: -10%; left: 0; width: 200vw; background: var(--kit);
+  border-left: 3vw solid var(--accent); border-right: 3vw solid var(--accent); box-shadow: inset 1.2vw 0 0 var(--ink), inset -1.2vw 0 0 var(--ink); }
 .ring { position: absolute; right: 2.2rem; bottom: 9rem; width: 7.4rem; height: 7.4rem; display: none; border-radius: 50%;
   background: radial-gradient(circle, rgba(20,22,31,.8) 0 56%, transparent 57%); }
 .ring.on { display: block; }
@@ -309,4 +322,5 @@ kbd { display: inline-block; padding: 0 .35em; border: 2px solid var(--ink); bor
   #scanFrame { transition: none; } #scanFrame.on i { animation: none; }
   .card.enter, .pop.on, .goalbanner.on .band, .goalbanner.on .word, .goalbanner.on .line { animation: none; }
   .goalbanner.out { animation: none; opacity: 0; }
+  .replaytag b i { animation: none; }
 }

@@ -594,6 +594,7 @@ SS.ui = (function () {
           '<p>When they have the ball, choose how to defend: <b>Tackle</b> to win it, or <b>Block</b> to stand in the way of passes and shots.</p>' },
         { e: '🎮', t: 'Controls', s: '<p>Tap <b>Space</b> to move, <b>hold Space</b> to go backwards, and press <b>Enter</b> to choose.</p>' +
           '<p>While the ball is moving, press either switch for the <b>Huddle</b>: change formation, or call a pass or shot right now.</p>' +
+          '<p>After a goal you see it again in slow motion. Press either switch to skip the <b>replay</b>.</p>' +
           '<p>To pause, <b>hold Enter</b>, or press the <b>Pause</b> button.</p>' },
       ];
       const pg = pages[page];
@@ -611,7 +612,7 @@ SS.ui = (function () {
       const tts = v ? v.getSettings().ttsEnabled : true;
       const voiceName = v && v.getVoiceDisplayName ? v.getVoiceDisplayName(v.getCurrentVoice()) : 'Default';
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
-      const shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
+      const replays = setting('replays') !== false, shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
       const list = [
         { icon: '🗣️', label: 'Text to Speech', value: tts ? 'On' : 'Off', speech: 'Text to Speech, ' + (tts ? 'On' : 'Off'),
@@ -624,6 +625,9 @@ SS.ui = (function () {
         { icon: '🎥', label: 'Shot Camera', value: shotCam === 'steady' ? 'Steady' : 'Cinematic',
           speech: shotCam === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.',
           action: () => { const n = shotCam === 'steady' ? 'cinematic' : 'steady'; set('shotCam', n, n === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.'); } },
+        { icon: '⏪', label: 'Goal Replays', value: replays ? 'On' : 'Off',
+          speech: replays ? 'Goal replays, on. Every goal plays again in slow motion. Press to skip one.' : 'Goal replays, off.',
+          action: () => set('replays', !replays, replays ? 'Goal replays, off.' : 'Goal replays, on. Every goal plays again in slow motion. Press to skip one.') },
         { icon: '⏩', label: 'Play Speed', value: SPEEDS[play], speech: 'Play speed, ' + SPEEDS[play],
           action: () => { const n = cycle(Object.keys(SPEEDS), play); set('speed', n, 'Play speed, ' + SPEEDS[n]); } },
         { icon: '📢', label: 'Commentary', value: COMMENTARY[com], speech: 'Commentary, ' + COMMENTARY[com],

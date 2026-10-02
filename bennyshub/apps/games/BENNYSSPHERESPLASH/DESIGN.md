@@ -131,6 +131,20 @@ exception: the cut to the wide view after a goal, below).
   has played out (`GOAL_MOMENT`, 4.5 s from the goal; the clock is stopped then anyway).
   Then the one cut in the game, to the wide view, so nobody is seen jumping back to their
   kickoff places; the camera eases back in at the kickoff.
+- **The goal again: the replay (M3).** `js/replay.js` records the SCREEN, not the match:
+  30 times a second of live play, every swimmer's place, heading, lean and every bone, and
+  the ball (~7 MB ring, 10 s), because the throw, the kick and the keeper's dive exist only
+  on screen (moves.js). Nothing is recorded while play is frozen, so a replay never stops
+  for a choice; the ring is cleared at every kickoff. After the celebration (setting **Goal
+  Replays**, default On) a wipe in the scorers' colours covers the cut into it; the
+  build-up replays at 55% speed (`REPLAY_LEAD` 1.8 s of it), the shot at the pace it was
+  seen (already slow), the net bursts again (no ring: the camera is right at the net), then
+  1 s more. A REPLAY tag with a red dot sits top left (the info row makes way) with "Press
+  to skip". Camera `replay`: tighter than live (`REPLAY_HALF` 4.2), lower, and a little
+  behind the attack, still from our side. **Any press skips it** (live play's press goes
+  to `openHuddle`, which skips instead while a replay is up; hold Enter still pauses), and
+  a second wipe covers the cut to the wide view for the kickoff. Pause or the Huddle in
+  the middle of a goal moment comes back to the same camera (`toLive`).
 - **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
   the ball to the keeper), and custom animations for the shooter's shot, a defender's block
   and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame
@@ -161,6 +175,12 @@ chatter is dropped rather than queued; per-speaker cooldowns stop droning. Comme
 only in live play and never over the interface. **Voice slot:** a line id listed in
 `audio/vo/index.json` plays that clip instead of the system voice - no game changes needed.
 Setting: Full broadcast / Big calls only / Captions only / Off.
+
+**To fix in the audio pass (Bryan, 2026-10-02):** stale lines. Lines about an earlier play
+still sit in the queue and come out late - "Picked off by Moku!" and "You can't throw it
+through traffic like that." were heard during a goal celebration. A queued line should be
+dropped once play has moved past it (a goal, a save, a change of possession), so the call
+always matches what is on screen. Fix it with the voices, not before.
 
 ## Saves (`js/save.js`)
 

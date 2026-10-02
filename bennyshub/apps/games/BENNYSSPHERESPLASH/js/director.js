@@ -15,7 +15,10 @@
  *                side of the pool, looking down the shot at the goal; as the ball gets
  *                halfway it swings to the goal mouth, framing the ball and the keeper;
  *   - goal:      (after a goal, Shot Camera on Cinematic) in close on the scorer
- *                celebrating, from our side as ever, pushing slowly in.
+ *                celebrating, from our side as ever, pushing slowly in;
+ *   - replay:    a goal again (game.js), in tighter on the ball than live play and from
+ *                lower down and a little behind the attack, so it looks like a replay
+ *                and not live; still from our side, so the attack still runs the same way.
  *  Moves are eased, never cut, so the view never jumps under the player's eyes. The
  *  one cut is after a goal, to the wide view, while everyone resets for the kickoff.
  */
@@ -30,6 +33,7 @@ SS.director = (function () {
   let follow = null;                                          // () => { ball, to }: the ball, and where a pass or shot is headed (or null)
   let shot = null;                                            // () => { from, to, ball, keeper, stage } while a shot plays (game.js shotFrame)
   let star = null, starT = 0;                                 // () => the scorer's chest (world), after a goal
+  const REPLAY_HALF = 4.2, repSide = new THREE.Vector3();      // replay: tighter, lower, behind the attack
   const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
   const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
@@ -44,6 +48,10 @@ SS.director = (function () {
     if (opts && opts.follow) follow = opts.follow;
     if (opts && opts.shot) shot = opts.shot;
     if (opts && opts.star) { star = opts.star; starT = 0; }
+    if (m === 'replay') {
+      dist = 0;
+      repSide.set(-1, 0.14, -0.5 * ((opts && opts.dir) || 1)).normalize();
+    }
     if (opts && opts.cut) first = true;
   }
 
@@ -65,18 +73,20 @@ SS.director = (function () {
       case 'wide':
         wantAim.set(0, 0, 0); wantPos.copy(SIDE).multiplyScalar(fitDistance(21)); rate = 1.6;
         break;
-      case 'broadcast': {
+      case 'broadcast': case 'replay': {
+        const rep = mode === 'replay', side = rep ? repSide : SIDE;
         const f = follow ? follow() : null, b = f ? f.ball : _c.set(0, 0, 0), to = f && f.to;
         // The ball's speed, smoothed, so the frame can look ahead of it. A jump (a kickoff
         // reset, a restored save) is not a speed.
         if (dt > 0) { _d.copy(b).sub(lastBall).divideScalar(dt); if (_d.length() > 30) _d.set(0, 0, 0); vel.lerp(_d, 1 - Math.exp(-dt * 3)); }
         lastBall.copy(b);
         const v = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), h = v * camera.aspect;
-        let halfW = TIGHT_HALF, halfH = 2.5, depth = 0;
+        const tight = rep ? REPLAY_HALF : TIGHT_HALF;
+        let halfW = tight, halfH = 2.5, depth = 0;
         if (to) {
           // In the air: frame the ball and where it is going.
           _c.copy(b).add(to).multiplyScalar(0.5);
-          halfW = Math.max(TIGHT_HALF, Math.abs(to.z - b.z) / 2 + 3);
+          halfW = Math.max(tight, Math.abs(to.z - b.z) / 2 + 3);
           halfH = Math.abs(to.y - b.y) / 2 + 2.5;
           depth = Math.abs(to.x - b.x);
           lead.multiplyScalar(1 - Math.min(1, dt * 4));
@@ -89,7 +99,8 @@ SS.director = (function () {
         if (!dist) dist = first ? want : pos.distanceTo(aim);
         dist += (want - dist) * (1 - Math.exp(-dt * (want > dist ? 3.5 : 1)));
         wantAim.copy(_c);
-        wantPos.copy(_c).addScaledVector(SIDE, dist);
+        wantPos.copy(_c).addScaledVector(side, dist);
+        if (rep && wantPos.length() > POOL_R - 1.5) wantPos.setLength(POOL_R - 1.5);   // in close: stay inside the sphere
         rate = 3;
         break;
       }

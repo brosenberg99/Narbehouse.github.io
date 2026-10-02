@@ -16,7 +16,8 @@
  *  - commentary is never spoken while a choice is on screen, and every line is captioned;
  *  - a match saved mid-play resumes at exactly the same moment after a reload;
  *  - a whole Quick Game plays to the results card, and every goal in it gets its
- *    moment (the banner, the scorer celebrating) and play goes on after it.
+ *    moment (the banner, the scorer celebrating, the replay) and play goes on after it;
+ *  - a real press during a goal replay skips it and opens no Huddle.
  * Screenshots go to the system temp folder, never into this served folder.
  */
 'use strict';
@@ -228,6 +229,21 @@ function findChrome() {
     const back = await evaluate('JSON.stringify({ c: SS.game.match.s.clock, s: SS.game.match.s.score, o: SS.game.match.s.ball.owner, p: SS.game.match.s.players.map(p => p.hp.toFixed(3)).join(), pend: SS.game.match.pending && SS.game.match.pending.seq })');
     check('the saved match resumes at exactly the same moment', snap === back);
 
+    /* ── a goal replay: a real press skips it, and opens nothing ──────── */
+    await evaluate("SS.save.clearMatch(); SS.save.settings.set('stops', 'ours'); SS.save.settings.set('difficulty', 'easy'); SS.game.startQuick(['reef', 'beamers']); SS.game.kickoff(); true");
+    await until(`(() => {
+      const p = SS.game.match.pending;
+      if (p && SS.ui.context() === 'world') { const sh = p.options.find(o => o.kind === 'shoot' && !o.tech); SS.game.choose((sh || p.options[0]).id); }
+      const g = SS.game.goalMoment;
+      return !!(g && g.replay && g.replay.on && g.replay.rt - g.replay.from > 0.5);
+    })()`, 300000);
+    await shot('replay.png');
+    await press('Space');
+    await until('!SS.game.goalMoment', 3000).catch(() => {});
+    const afterSkip = await evaluate('JSON.stringify({ gm: !!SS.game.goalMoment, screen: SS.ui.screen, ctx: SS.ui.context(), cam: SS.director.mode })');
+    check('a press during a goal replay skips it, and opens nothing', /"gm":false/.test(afterSkip) && /"ctx":"live"/.test(afterSkip) && !/huddle/.test(afterSkip), afterSkip);
+    await evaluate("SS.save.settings.set('difficulty', 'normal'); SS.save.settings.set('stops', 'both'); true");
+
     /* ── one switch: Auto Scan on, Enter only ───────────────────────── */
     await evaluate('(() => { const s = NarbeScanManager; if (!s.getSettings().autoScan) s.toggleAutoScan(); while (s.getScanInterval() !== 1000) s.cycleScanSpeed(); SS.save.clearMatch(); SS.game.quitToMenu(); })(); true');
     const litEnter = async (label) => { await until(`(SS.ui.__dbg().rows[SS.ui.__dbg().index] || "").startsWith(${JSON.stringify(label)})`, 20000); await press('Enter'); };
@@ -246,13 +262,14 @@ function findChrome() {
     /* ── a whole Quick Game to the results card, at 1024x768 ──────────── */
     await size(1024, 768);
     await evaluate('SS.game.startQuick(["summit", "mistwood"]); SS.game.kickoff(); true');
-    await evaluate('window.__goals = { seen: 0, celebrated: 0, banner: 0 }; true');
+    await evaluate('window.__goals = { seen: 0, celebrated: 0, banner: 0, replayed: 0 }; true');
     await until(`(() => {
       // Every goal gets its moment: the banner, the scorer celebrating, and then the cut.
       const g = SS.game.goalMoment;
       if (g && !g.__seen) { g.__seen = 1; __goals.seen++; }
       if (g && g.started && !g.__cel) { g.__cel = 1; __goals.celebrated++; }
       if (g && !g.__ban && document.querySelector('#hud .goalbanner.on')) { g.__ban = 1; __goals.banner++; }
+      if (g && g.replay && g.replay.on && !g.__rep) { g.__rep = 1; __goals.replayed++; }
       if (SS.ui.screen === 'halftime') SS.game.startSecondHalf();
       const p = SS.game.match && SS.game.match.pending;
       if (p && SS.ui.context() === 'world') SS.game.choose(p.options.slice().sort((a, b) => b.odds.p - a.odds.p)[0].id);
@@ -262,7 +279,7 @@ function findChrome() {
     check('a whole Quick Game plays to the results card', (await ui()).screen === 'results');
     const gl = await evaluate('JSON.stringify(Object.assign({ score: SS.game.matchInfo().score }, __goals))'), gv = JSON.parse(gl);
     const total = gv.score[0] + gv.score[1];
-    check('every goal gets its moment: banner, celebration, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total, gl);
+    check('every goal gets its moment: banner, celebration, replay, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total && gv.replayed === total, gl);
 
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length })');
     const sv = JSON.parse(said);

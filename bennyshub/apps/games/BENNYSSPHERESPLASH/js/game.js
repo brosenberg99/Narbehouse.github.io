@@ -12,7 +12,9 @@
  *            defender standing in that lane is marked ✕.
  *   defend:  (Attack and defense stops only) Tackle · Block · tackle techniques.
  *
- * The outcome is rolled the moment a choice is made, then acted out.
+ * The outcome is rolled the moment a choice is made, then acted out. A goal then gets
+ * its moment (banner, burst, celebration) and, with Goal Replays on, plays again in slow
+ * motion from what js/replay.js recorded of the screen.
  */
 SS.game = (function () {
   'use strict';
@@ -97,6 +99,7 @@ SS.game = (function () {
       badges.push(SS.worldui.addBadge(sw.head, { number: NUMBERS[pl.pos], team: pl.team, colour: U.hex(team.kit), ink: inkFor(team.kit) }));
       prevP[j] = vec(pl.p); curP[j] = vec(pl.p);
     });
+    SS.replay.init(swimmers);
     prevBall.copy(vec(s.ball.p)); curBall.copy(prevBall);
     ball.visible = true;
     SS.hud.setTeams(kits);
@@ -127,7 +130,7 @@ SS.game = (function () {
   function begin(kind) {
     SS.broadcast.reset();
     buildScene();
-    acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} }; gm = null;
+    acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} }; gm = null; wipeFx = null;
     rings.forEach(r => { r.visible = false; r.material.color.set(kits[0] ? kits[0].kit : 0xffffff); });
     SS.director.setMode('wide', { cut: true });
     if (kind === 'kickoff') { phase = 'kickoff'; SS.ui.setScreen('kickoff'); saveNow(); }
@@ -171,7 +174,7 @@ SS.game = (function () {
     SS.ui.setScreen('title');
   }
   function endMatchView() {
-    phase = 'menu'; frozen = false; m = null; gm = null;
+    phase = 'menu'; frozen = false; m = null; gm = null; wipeFx = null;
     SS.ui.closeWorld();
     teardownScene();
     SS.hud.visible(false); SS.hud.reset();
@@ -200,6 +203,7 @@ SS.game = (function () {
   function stepSim(dt) {
     const TICK = RU().TICK;
     if (shotBeat(dt)) return;                          // the shooter's wind-up: the clock waits
+    wipeBeat(dt);
     if (goalBeat(dt)) return;                          // the scorer's celebration: the kickoff waits
     acc += dt * (SPEED[SS.save.settings.get('speed')] || 1) * shotPace();
     sinceSave += dt;
@@ -223,6 +227,7 @@ SS.game = (function () {
 
   function drawMatch(dt) {
     const s = S(), live = phase === 'live' && !frozen;
+    if (gm && gm.replay && gm.replay.on) { drawReplay(dt); return; }
     const a = live ? Math.min(1, acc / RU().TICK) : 1;
     drawA = a;
     s.players.forEach((pl, j) => {
@@ -259,6 +264,7 @@ SS.game = (function () {
     if (lane.visible) lane.material.dashOffset -= dt * 1.2;
     drawPreview(dt);
     fadeBlockers(dt);
+    if (live) SS.replay.record(dt, ball.position, s.ball.owner);
   }
 
   /* ══ a shot, as a moment ═════════════════════════════════════════════
@@ -276,7 +282,7 @@ SS.game = (function () {
   function startShotMoment(e) {
     const s = S(), sh = s.players[e.player];
     cine = { t: 0, hold: WINDUP, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
-      from: curP[e.player].clone(), to: vec(e.to), done: -1, offset: null };
+      from: curP[e.player].clone(), to: vec(e.to), done: -1, offset: null, recAt: SS.replay.now };
     if (shotCinematic()) SS.director.setMode('shot', { shot: shotFrame });
     // The moves (moves.js): the shooter throws, the keeper or a blocker goes for it.
     // How far along its path the ball is, smooth between sim ticks (slow motion ticks slowly).
@@ -337,13 +343,14 @@ SS.game = (function () {
       const sw = swimmers[cine.shooter];
       cine.offset = sw ? sw.ballPoint.clone().sub(curBall) : null;
       cine.start = sw ? sw.ballPoint.clone() : curBall.clone();
+      cine.recRelease = SS.replay.now;
       return false;
     }
     if (cine.done < 0 && !S().ball.flight) cine.done = cine.t;
     if (cine.done >= 0 && cine.t - cine.done > (gm ? GOAL_CAM_AT : SHOT_HOLD)) {
       endShotMoment();
       if (SS.director.mode === 'shot') {
-        if (gm) SS.director.setMode('goal', { star: starPoint });
+        if (gm) { gm.cam = 'goal'; SS.director.setMode('goal', { star: starPoint }); }
         else SS.director.setMode('broadcast', { follow: playFocus });
       }
     }
@@ -380,7 +387,8 @@ SS.game = (function () {
   function startGoalMoment(e) {
     const s = S(), kit = kits[e.team], other = kits[1 - e.team];
     gm = { t: 0, scorer: e.player, team: e.team, started: false,
-      net: cine && cine.to ? cine.to.clone() : curBall.clone(), cheers: [] };
+      net: cine && cine.to ? cine.to.clone() : curBall.clone(), cheers: [],
+      recShot: cine ? cine.recAt : null, recRelease: cine && cine.recRelease != null ? cine.recRelease : SS.replay.now, recGoal: SS.replay.now };
     const sc = e.team === 0 ? [kit, other] : [other, kit];
     SS.hud.goalBanner({ kit: kit.kit, accent: kit.accent, who: '#' + numberOf(e.player) + ' ' + who(e.player),
       score: sc[0].short + ' ' + s.score[0] + ' – ' + s.score[1] + ' ' + sc[1].short });
@@ -403,26 +411,100 @@ SS.game = (function () {
     if (sw && gm.started) sw.faceTarget = camera.position;            // the scorer plays to the camera
     if (sw) sw.setCaustic(1 - 0.7 * Math.min(1, gm.t / 0.8));        // and keeps their kit colour in close-up
     gm.cheers.forEach(c => { if (!c.done && gm.t >= c.at && swimmers[c.j]) { c.done = true; swimmers[c.j].once('cheer'); } });
+    if (gm.t >= GOAL_MOMENT && !gm.replay && !gm.release) {
+      if (!startReplay()) release();
+    }
+    if (gm.replay) replayBeat(dt);
     return false;
   }
+  /** Let the sim go on to the kickoff now (the tick that does it runs this frame). */
+  function release() { gm.release = true; acc = RU().TICK; }
   /** The next tick would end the sim's goal pause: wait while the celebration plays. */
   function goalHeld() {
     const s = S();
-    if (!gm || gm.t >= GOAL_MOMENT || s.phase !== 'goal' || s.phaseT + RU().TICK < 3 - 1e-6) return false;
+    if (!gm || gm.release || s.phase !== 'goal' || s.phaseT + RU().TICK < 3 - 1e-6) return false;
     acc = 0;
     return true;
   }
   function endGoalMoment() {
     const sw = swimmers[gm.scorer];
     if (sw) { sw.faceTarget = null; sw.setCaustic(1); if (sw.move && sw.move.name === 'celebrate') sw.setMove(null); }
+    if (gm.replay) swimmers.forEach(w => w.setTilt(_qid, _zero));       // a replayed lean is not this moment's
     gm = null;
-    SS.hud.hideBanner();
+    SS.hud.hideBanner(); SS.hud.replayTag(false);
     // Everyone has just been put back in their kickoff places: cut, don't sweep.
     S().players.forEach((pl, j) => prevP[j].copy(curP[j]));
     prevBall.copy(curBall);
     if (phase === 'live') SS.director.setMode('wide', { cut: true });
   }
   function starPoint() { const sw = gm && swimmers[gm.scorer]; return sw ? sw.chest.getWorldPosition(_star) : null; }
+  const _qid = new THREE.Quaternion(), _zero = new THREE.Vector3();
+
+  /* ══ the goal again: the replay ═══════════════════════════════════════
+     After the celebration (Goal Replays on): a wipe in the scorers' colours, and under
+     it the cut to the replay - the build-up in slow motion (REPLAY_LEAD seconds of it,
+     at REPLAY_SLOW), then the shot at the pace it was seen, already slow, the net
+     bursting again, and REPLAY_TAIL after. A REPLAY tag stays up the whole time. Any
+     press skips it (openHuddle). A second wipe covers the cut to the wide view for the
+     kickoff. The sim waits throughout (goalHeld). */
+  const REPLAY_LEAD = 1.8, REPLAY_TAIL = 1.0, REPLAY_SLOW = 0.55, WIPE_SECS = 0.7;
+  let wipeFx = null;                  // { t, kit, accent, mid, midDone }
+  function startReplay() {
+    if (SS.save.settings.get('replays') === false || gm.recShot == null) return false;
+    const from = Math.max(SS.replay.earliest(), gm.recShot - REPLAY_LEAD), to = gm.recGoal + REPLAY_TAIL;
+    if (gm.recGoal - from < 0.5) return false;           // nothing recorded worth showing (a restored save)
+    gm.replay = { on: false, rt: from, from, to, burst: false, shotSound: false };
+    startWipe(kits[gm.team], () => {
+      if (!gm || !gm.replay) return;
+      if (gm.replay.skip) { release(); return; }          // skipped before it began: straight to the kickoff
+      gm.replay.on = true;
+      SS.hud.hideBanner(); SS.hud.replayTag(true);
+      replayCamera();
+    });
+    return true;
+  }
+  function replayBeat(dt) {
+    const r = gm.replay;
+    if (!r.on) return;
+    if (r.skip) r.rt = r.to;
+    // Slow through the build-up, then the shot at its own (already slowed) pace.
+    const rate = THREE.MathUtils.lerp(REPLAY_SLOW, 1, THREE.MathUtils.smoothstep(r.rt, gm.recShot - 0.3, gm.recShot));
+    r.rt = Math.min(r.to, r.rt + dt * rate);
+    if (!r.shotSound && r.rt >= gm.recRelease) { r.shotSound = true; if (!r.skip) SS.audio.play('bloop', 0.45); }
+    if (!r.burst && r.rt >= gm.recGoal) { r.burst = true; if (!r.skip) { SS.world.goalBurst(gm.net, kits[gm.team].kit, { ring: false }); SS.audio.play('horn', 0.35); } }
+    if (r.rt >= r.to && !r.ending) {
+      r.ending = true;
+      startWipe(kits[gm.team], () => { if (gm && gm.replay) { gm.replay.on = false; release(); } });
+    }
+  }
+  function drawReplay(dt) {
+    const owner = SS.replay.pose(gm.replay.rt, ball.position);
+    swimmers.forEach((sw, j) => badges[j].carrier(owner === j));
+    fadeBlockers(dt);
+  }
+  /** What the replay camera follows: the ball, and the goal once the shot is away. */
+  const _repTo = new THREE.Vector3();
+  function replayFocus() {
+    const r = gm && gm.replay;
+    const flying = r && r.rt >= gm.recRelease && r.rt < gm.recGoal;
+    return { ball: ball.position, to: flying ? _repTo.copy(gm.net) : null };
+  }
+  function replayCamera() { SS.director.setMode('replay', { follow: replayFocus, dir: SS.ai.dirOf(gm.team), cut: true }); }
+  /** A press during the replay skips it (true = the press was used). */
+  function skipReplay() {
+    if (!gm || !gm.replay) return false;
+    gm.replay.skip = true;
+    return true;
+  }
+  function startWipe(kit, mid) { wipeFx = { t: 0, mid, midDone: false }; SS.hud.wipe(0, kit.kit, kit.accent); }
+  function wipeBeat(dt) {
+    if (!wipeFx) return;
+    wipeFx.t += dt;
+    const p = Math.min(1, wipeFx.t / WIPE_SECS);
+    SS.hud.wipe(p);
+    if (!wipeFx.midDone && p >= 0.5) { wipeFx.midDone = true; wipeFx.mid(); }
+    if (p >= 1) { SS.hud.wipe(null); wipeFx = null; }
+  }
 
   /** What the live camera follows: the ball, and where a pass or shot in the air is headed. */
   const _headed = new THREE.Vector3();
@@ -536,6 +618,7 @@ SS.game = (function () {
     const s = S(), team = j => kits[s.players[j].team].short;
     switch (e.type) {
       case 'kickoff':
+        SS.replay.clear();                               // everyone was just put in place: nothing before this replays
         SS.audio.play('whistle', 0.5); say('kickoff', { team: kits[e.team].short }, 1);
         if (SS.director.mode === 'wide' && phase === 'live') SS.director.setMode('broadcast', { follow: playFocus });   // after a goal's cut
         break;
@@ -805,7 +888,9 @@ SS.game = (function () {
   function toLive() {
     phase = 'live'; frozen = false;
     SS.ui.goLive();
-    SS.director.setMode(cine && shotCinematic() ? 'shot' : 'broadcast', { follow: playFocus, shot: shotFrame });
+    if (gm && gm.replay && gm.replay.on) replayCamera();                          // back to what was on screen
+    else if (gm && gm.cam === 'goal') SS.director.setMode('goal', { star: starPoint });
+    else SS.director.setMode(cine && shotCinematic() ? 'shot' : 'broadcast', { follow: playFocus, shot: shotFrame });
     if (previewPending) startPreview();
   }
 
@@ -868,6 +953,7 @@ SS.game = (function () {
   /* ══ the Huddle, Pause and friends ═════════════════════════════════════ */
   function openHuddle() {
     if (phase !== 'live' || frozen) return;
+    if (skipReplay()) return;                           // a press during a goal replay skips it
     phase = 'huddle';
     SS.ui.setScreen('huddle');
   }
@@ -945,6 +1031,6 @@ SS.game = (function () {
     formationId, formationName, setFormation, formationsOpen, formationRecord, theirFormationName, totalWins, weHaveBall, matchInfo, inMatch,
     choose,
     get phase() { return phase; }, get match() { return m; }, get swimmers() { return swimmers; }, get badges() { return badges; },
-    get shotMoment() { return cine; }, get goalMoment() { return gm; },
+    get shotMoment() { return cine; }, get goalMoment() { return gm; }, skipReplay,
   };
 })();

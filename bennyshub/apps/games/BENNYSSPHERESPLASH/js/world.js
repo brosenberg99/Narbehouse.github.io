@@ -96,7 +96,7 @@ SS.world = (function () {
      ball went in, slow down in the water and rise; a ring spreads across the goal mouth;
      the frame shudders; the crowd jumps for four seconds. */
   const BURST_N = 140, BURST_LIFE = 2.4, RING_LIFE = 0.8;
-  function goalBurst(at, colour) {
+  function goalBurst(at, colour, opts) {
     const gl = goals.reduce((a, b) => Math.abs(b.z - at.z) < Math.abs(a.z - at.z) ? b : a, goals[0]);
     const team = new THREE.Color(colour), into = Math.sign(gl.z) || 1;   // the pool is the other way: -into
     gl.flash = 1; gl.shake = 1; gl.net.material.color.copy(team);
@@ -118,8 +118,9 @@ SS.world = (function () {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.15, 48), new THREE.MeshBasicMaterial({ color: team, transparent: true,
       opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
     ring.position.set(at.x, at.y, at.z - into * 0.3); ring.renderOrder = 15;
+    ring.visible = !(opts && opts.ring === false);       // a replay's camera is right at the net: the ring would fill the view
     scene.add(pts, ring);
-    bursts.push({ t: 0, pts, vel, ring });
+    bursts.push({ t: 0, pts, vel, ring, ringOn: ring.visible });
     cheer = 4;
   }
   function updateGoals(dt) {
@@ -147,7 +148,7 @@ SS.world = (function () {
       br.pts.material.opacity = 1 - Math.max(0, (br.t - BURST_LIFE * 0.5) / (BURST_LIFE * 0.5));
       const r = Math.min(1, br.t / RING_LIFE);
       br.ring.scale.setScalar(1 + r * 2.6);          // out to the goal's own size br.ring.material.opacity = 0.9 * (1 - r);
-      br.ring.visible = r < 1;
+      br.ring.visible = br.ringOn && r < 1;
       if (br.t >= BURST_LIFE) {
         scene.remove(br.pts, br.ring);
         br.pts.geometry.dispose(); br.pts.material.dispose(); br.ring.geometry.dispose(); br.ring.material.dispose();

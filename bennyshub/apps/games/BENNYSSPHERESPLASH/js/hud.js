@@ -6,7 +6,8 @@
  *  Centre: big stroked pops for the moments that matter (GOAL!, SAVED!), one at a
  *  time, highest priority first; a goal gets the banner instead - a band right across
  *  the screen in the scorers' kit, GOAL! in giant type, the scorer and the new score
- *  under it. Right: the pause-hold ring. Bottom centre: captions
+ *  under it. During a goal replay: a REPLAY tag top left, and a wipe in the scorers'
+ *  colours across the screen going in and out. Right: the pause-hold ring. Bottom centre: captions
  *  (broadcast.js writes those). Layout and sizing follow NARBE Racer's hud.js.
  */
 SS.hud = (function () {
@@ -28,6 +29,7 @@ SS.hud = (function () {
       '<div class="carrier"><div class="who"><span class="num"></span><span class="nm"></span></div>' +
         '<div class="hp"><i></i><span></span></div><div class="st"></div></div>' +
       '<div class="pop"></div>' +
+      '<div class="replaytag"><b><i></i>Replay</b><span>Press to skip</span></div>' +
       '<div class="goalbanner"><div class="band"><b class="word">GOAL!</b></div><div class="line"><span class="who"></span><span class="sc"></span></div></div>' +
       '<div class="ring"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="' + RING_R + '"></circle>' +
         '<circle class="fill" cx="60" cy="60" r="' + RING_R + '" stroke-dasharray="' + RING_LEN.toFixed(1) +
@@ -38,7 +40,11 @@ SS.hud = (function () {
       form: q('.info .form'), theirs: q('.info .theirs'), stops: q('.info .stops'), carrier: q('.carrier'), num: q('.carrier .num'),
       nm: q('.carrier .nm'), hpBar: q('.hp i'), hpTx: q('.hp span'), st: q('.carrier .st'),
       pop: q('.pop'), ring: q('.ring'), ringFill: q('.ring .fill'),
-      banner: q('.goalbanner'), bWho: q('.goalbanner .who'), bSc: q('.goalbanner .sc') };
+      banner: q('.goalbanner'), bWho: q('.goalbanner .who'), bSc: q('.goalbanner .sc'),
+      replay: q('.replaytag') };
+    // The wipe covers the badges too, so it sits over the world layer, not in the HUD.
+    el.wipe = document.createElement('div'); el.wipe.className = 'wipe'; el.wipe.innerHTML = '<div class="band"></div>';
+    document.body.appendChild(el.wipe); el.wipeBand = el.wipe.firstChild;
   }
 
   function setTeams(teams) {
@@ -120,6 +126,17 @@ SS.hud = (function () {
       bannerTimer = setTimeout(hideBanner, 450);
     }, (BANNER_SECS - 0.45) * 1000);
   }
+  /** The REPLAY tag (and the score bug's info row makes way for it). */
+  function replayTag(on) { el.replay.classList.toggle('on', !!on); root.classList.toggle('replaying', !!on); }
+  /** The wipe: p 0..1 across the screen (it covers it all for the middle third), or null. */
+  const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function wipe(p, kit, accent) {
+    if (p == null) { el.wipe.classList.remove('on'); return; }
+    if (kit != null) { el.wipe.style.setProperty('--kit', U.hex(kit)); el.wipe.style.setProperty('--accent', U.hex(accent)); }
+    el.wipe.classList.add('on');
+    if (REDUCED) { el.wipeBand.style.transform = 'none'; el.wipeBand.style.opacity = Math.min(1, 3 - Math.abs(p - 0.5) * 6).toFixed(2); return; }
+    el.wipeBand.style.transform = 'translateX(' + (-200 + 300 * p).toFixed(2) + 'vw) skewX(-12deg)';
+  }
   function hideBanner() { clearTimeout(bannerTimer); bannerTimer = null; if (el.banner) el.banner.classList.remove('on', 'out'); }
 
   /** The pause hold: 0 hides the ring, 0..1 fills it. */
@@ -130,7 +147,7 @@ SS.hud = (function () {
     el.ringFill.setAttribute('stroke-dashoffset', (RING_LEN * (1 - Math.min(1, f))).toFixed(1));
   }
 
-  function reset() { last = {}; clearPops(); hideBanner(); ring(0); }
+  function reset() { last = {}; clearPops(); hideBanner(); replayTag(false); wipe(null); ring(0); }
 
-  return { build, setTeams, visible, update, pop, clearPops, goalBanner, hideBanner, ring, reset };
+  return { build, setTeams, visible, update, pop, clearPops, goalBanner, hideBanner, replayTag, wipe, ring, reset };
 })();
