@@ -143,7 +143,11 @@ SS.models = (function () {
   // out along its normals in bind pose and drawn back-faces-only in ink. The offset
   // is applied before skinning, so the outline follows every bend of the body. It
   // grows with distance (projectionMatrix[1][1] is 1/tan of half the field of view),
-  // so a far swimmer keeps the same ink line as a near one.
+  // so a far swimmer keeps the same ink line as a near one. A thick hull pokes through
+  // the body's own creases (a dark line down the small of the back), so each vertex is
+  // also pushed straight away from the camera: that leaves where it lands on screen, and
+  // so the silhouette, unchanged, and sinks the hull behind any crease shallower than
+  // three outline widths.
   function outlineFor(mesh, st) {
     const mat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
     mat.onBeforeCompile = shader => {
@@ -152,7 +156,10 @@ SS.models = (function () {
       shader.vertexShader = 'uniform float uOutlineMin, uOutlinePx, uViewH;\n' + shader.vertexShader.replace(
         '#include <begin_vertex>', `#include <begin_vertex>
   float oDist = distance(cameraPosition, (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
-  transformed += normal * max(uOutlineMin, uOutlinePx * oDist * 2.0 / (projectionMatrix[1][1] * uViewH));`);
+  float oWidth = max(uOutlineMin, uOutlinePx * oDist * 2.0 / (projectionMatrix[1][1] * uViewH));
+  transformed += normal * oWidth;`).replace('#include <project_vertex>', `#include <project_vertex>
+  mvPosition.xyz += normalize(mvPosition.xyz) * oWidth * 3.0;
+  gl_Position = projectionMatrix * mvPosition;`);
     };
     const hull = new THREE.SkinnedMesh(mesh.geometry, mat);
     hull.bind(mesh.skeleton, mesh.bindMatrix);
