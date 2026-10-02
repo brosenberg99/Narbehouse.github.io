@@ -338,6 +338,11 @@ swimmers cost ~103 draw calls of the 150 budget. Teams whose looks read as one m
 away kit (`CLASHES` + `alt` in data.js: Stars gold/navy v Horns, Gliders dark brown v
 Beamers and Raiders, Monarchs dark plum v Horns); the Beamers never change. With that,
 all 15 team pairs measure >= 20 (CIEDE2000, rendered in the water at 11 m; ~±3 run to run).
+Every cap carries the team's ornament as a pair in the accent colour (keepers too), from
+the team's `badge`: Beamers a sun, Stars a star, Raiders a shark fin, Gliders a cog,
+Horns real horns, Monarchs a leaf. Bryan placed them on the sides of the cap, up and back
+clear of the cheek and neck (`CREST_UP` / `CREST_BACK`), flat shapes facing sideways so
+the side-on camera sees the whole shape; sizes in `CREST_SIZE` / `CREST_SCALE`.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in

@@ -158,9 +158,9 @@ SS.models = (function () {
      forearm with a fin blade swept back along it. */
   function buildGear(body, hf, o) {
     const skel = body.skeleton, boneIdx = name => skel.bones.findIndex(b => b.name === name);
-    const P = [], N = [], C = [], SI = [], SW = [], col = new THREE.Color(o.gearColour);
+    const P = [], N = [], C = [], SI = [], SW = [], gearCol = new THREE.Color(o.gearColour);
     const m4 = new THREE.Matrix4(), m3 = new THREE.Matrix3(), v = new THREE.Vector3();
-    function add(geo, matrix, weights) {
+    function add(geo, matrix, weights, col = gearCol) {
       geo = geo.index ? geo.toNonIndexed() : geo;
       m3.getNormalMatrix(matrix);
       const gp = geo.attributes.position, gn = geo.attributes.normal;
@@ -231,6 +231,89 @@ SS.models = (function () {
       m4.makeBasis(along, back, across).setPosition(elbow);
       add(fin, m4, weights);
     });
+    /* The team's ornament: a pair, one on each side of the cap where the horns grow
+       (Bryan, 2026-10-02: on the sides like the horns, not along the top). Flat shapes
+       face sideways, so the side-on camera sees the whole shape whichever way the swimmer
+       faces; the horns are real tapered tubes. Shapes are drawn in (back, up) metres and
+       centred on the mount point. */
+    const CREST_SCALE = { round: 0.8, star: 0.8, hex: 0.8, gear: 0.8 };   // Bryan: these four a bit smaller
+    const CREST_UP = 0.6, CREST_BACK = 0.3;                                  // mount point, x head radius
+    function crest(kind, col, k) {
+      const head = [[boneIdx('Head'), 1]], back = hf.front.clone().negate();
+      k *= CREST_SCALE[kind] || 1;
+      if (kind === 'horn') {
+        [-1, 1].forEach(side => {
+          const out = hf.right.clone().multiplyScalar(side);
+          const root = hf.centre.clone().addScaledVector(hf.up, 0.35 * hf.radius).addScaledVector(out, 0.75 * hf.radius);
+          const curve = new THREE.QuadraticBezierCurve3(root,
+            root.clone().addScaledVector(out, 0.13 * k).addScaledVector(hf.up, 0.06 * k),
+            root.clone().addScaledVector(out, 0.12 * k).addScaledVector(hf.up, 0.17 * k).addScaledVector(back, 0.1 * k));
+          add(taperTube(curve, 0.055 * k, 0.008 * k), new THREE.Matrix4(), head, col);
+        });
+        return;
+      }
+      const sh = new THREE.Shape();
+      if (kind === 'star') {
+        const cx = 0.02, cy = 0.1;
+        for (let i = 0; i < 10; i++) {
+          const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.06 : 0.14;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          i ? sh.lineTo(x, y) : sh.moveTo(x, y);
+        }
+      } else if (kind === 'hex') {                                   // shark fin, swept back
+        sh.moveTo(-0.08, 0); sh.quadraticCurveTo(0.0, 0.08, 0.1, 0.22);
+        sh.quadraticCurveTo(0.08, 0.1, 0.14, 0); sh.lineTo(-0.08, 0);
+      } else if (kind === 'gear') {                                   // a cog with a hole
+        const cx = 0.02, cy = 0.09, teeth = 8;
+        for (let i = 0; i < teeth * 4; i++) {
+          const a = (i / (teeth * 4)) * Math.PI * 2, r = (i % 4 < 2) ? 0.125 : 0.09;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          i ? sh.lineTo(x, y) : sh.moveTo(x, y);
+        }
+        const hole = new THREE.Path(); hole.absarc(cx, cy, 0.04, 0, Math.PI * 2, true); sh.holes.push(hole);
+      } else if (kind === 'leaf') {                                   // a leaf leaning back
+        sh.moveTo(-0.04, -0.01); sh.quadraticCurveTo(-0.07, 0.14, 0.13, 0.24);
+        sh.quadraticCurveTo(0.12, 0.06, -0.04, -0.01);
+      } else {                                                        // 'round': a rising sun
+        const cx = 0.02, rays = 7;
+        sh.moveTo(cx - 0.17, 0);
+        for (let i = 0; i <= rays * 2; i++) {
+          const a = Math.PI - (i / (rays * 2)) * Math.PI, r = i % 2 ? 0.17 : 0.1;
+          sh.lineTo(cx + Math.cos(a) * r, Math.sin(a) * r);
+        }
+        sh.lineTo(cx - 0.17, 0);
+      }
+      const depth = 0.03;
+      const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 1, curveSegments: 8 });
+      geo.computeBoundingBox();
+      const mid = geo.boundingBox.getCenter(new THREE.Vector3());
+      geo.translate(-mid.x, -mid.y, -depth / 2); geo.scale(k, k, 1);
+      const across = new THREE.Vector3().crossVectors(back, hf.up);
+      [-1, 1].forEach(side => {
+        const out = hf.right.clone().multiplyScalar(side);
+        // Up and back on the side of the cap, clear of the cheek and neck (Bryan, 2026-10-02).
+        const level = hf.centre.clone().addScaledVector(hf.up, CREST_UP * hf.radius).addScaledVector(back, CREST_BACK * hf.radius);
+        const at = level.addScaledVector(out, topAbove(level, 0.04, ['Head'], out) + depth / 2 + 0.006);   // on the cap's side
+        m4.makeBasis(back, hf.up, across).setPosition(at);
+        add(geo, m4, head, col);
+      });
+    }
+    // A tube along a curve that tapers from r0 to r1: a horn.
+    function taperTube(curve, r0, r1) {
+      const segs = 12, radial = 12, geo = new THREE.TubeGeometry(curve, segs, 1, radial, false);
+      const pos = geo.attributes.position, frames = curve.computeFrenetFrames(segs, false), c = new THREE.Vector3();
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs, r = r0 + (r1 - r0) * t; curve.getPointAt(t, c);
+        for (let j = 0; j <= radial; j++) {
+          const k = i * (radial + 1) + j;
+          v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r).add(c);
+          pos.setXYZ(k, v.x, v.y, v.z);
+        }
+      }
+      geo.computeVertexNormals();
+      return geo;
+    }
+    if (o.crest) crest(o.crest, new THREE.Color(o.crestColour), o.crestSize || 1);
     if (!P.length) return null;
     const geo = new THREE.BufferGeometry();
     const inv = body.bindMatrixInverse, ninv = new THREE.Matrix3().getNormalMatrix(inv);
@@ -335,7 +418,7 @@ SS.models = (function () {
 
   /**
    * One swimmer. `o` = { body:'male'|'female', kit, accent, skin, hair, style } plus
-   * what they wear (lookFor): { cap, gloves, gear, gearColour }.
+   * what they wear (lookFor): { cap, gloves, gear, gearColour, crest, crestColour }.
    * `style` is a STYLES name or object; without one, the style set by setStyle().
    * Returns { group, play(name, fade), update(dt) }. `group` faces +Z.
    */
@@ -492,6 +575,7 @@ SS.models = (function () {
      team). The red keeper cap is water polo's own rule; white gloves beat red ones (red
      sat too close to the Monarchs' pink). */
   const KEEPER_CAP = 0xe8322e, KEEPER_GLOVES = 0xffffff;
+  const CREST_SIZE = 1.05;           // the team ornament on the cap, x its drawn size (Bryan: 1.4 was too big, 2026-10-02)
   function lookFor(kit, pos) {
     const keeper = pos === 'GL';
     return {
@@ -499,6 +583,7 @@ SS.models = (function () {
       cap: keeper ? KEEPER_CAP : kit.kit,
       gloves: keeper ? KEEPER_GLOVES : null,
       gear: keeper ? null : pos === 'LF' || pos === 'RF' ? 'fins' : 'pad', gearColour: kit.kit,
+      crest: kit.badge, crestColour: kit.accent, crestSize: CREST_SIZE,
     };
   }
 
