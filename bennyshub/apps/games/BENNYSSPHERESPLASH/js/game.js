@@ -160,7 +160,7 @@ SS.game = (function () {
     m.s.stops = SS.save.settings.get('stops');
     m.setBoost(boostOf());
     begin('resume');
-    if (sv.context === 'halftime') { phase = 'halftime'; SS.ui.setScreen('halftime'); return; }
+    if (sv.context === 'halftime') { phase = 'halftime'; SS.director.setMode('orbit'); SS.ui.setScreen('halftime'); return; }
     if (m.pending) { SS.director.setMode('broadcast', { follow: playFocus, cut: true }); enterDecision(); return; }
     phase = 'kickoff';
     SS.ui.setScreen('kickoff', { resume: true });
@@ -747,7 +747,7 @@ SS.game = (function () {
         SS.hud.pop('Halftime', 'info', 3);
         say('halftime', { score: scoreWords() }, 3);
         saveNow();
-        SS.director.setMode('wide');
+        SS.director.setMode('orbit');
         setTimeout(() => { if (phase === 'halftime' && m) SS.ui.setScreen('halftime'); }, 1400);
         break;
       case 'secondHalf': say('secondHalf', { score: scoreWords() }, 3); break;
@@ -766,7 +766,7 @@ SS.game = (function () {
         say('fulltime', { score: scoreWords() }, 3);
         if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short }, 3);
         SS.save.clearMatch();
-        SS.director.setMode('wide');
+        SS.director.setMode('orbit');
         setTimeout(() => { if (phase === 'fulltime' && m) SS.ui.setScreen('results'); }, 1800);
         break;
       }

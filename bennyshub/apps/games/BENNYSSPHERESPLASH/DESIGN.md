@@ -157,6 +157,9 @@ exception: the cut to the wide view after a goal, below).
   half-time break is run through in ticks first (`startSecondHalf`), so nobody is seen
   drifting and then jumping to their places. No sweep after a goal (the cut to wide does
   that job) or on a resumed save. **Any press skips it** (no Huddle).
+- **Halftime and full time (M3):** behind the card the camera circles the outside of the
+  sphere, a lap every two minutes (`director.js` mode `orbit`), starting from wherever it
+  was, so the pool shows life round the card; the second-half drop starts from there.
 - **Technique flourishes (M3).** A technique's name in giant type on a slowly turning
   burst of its colour, who used it under it (`hud.techFlourish`, 1.9 s), and a sparkle
   burst of the same colour round the player, its ring facing the camera

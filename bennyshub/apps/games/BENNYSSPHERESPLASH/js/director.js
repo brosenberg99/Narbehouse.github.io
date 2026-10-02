@@ -4,7 +4,9 @@
  *  our team always attacks to the RIGHT of the screen and theirs to the left. Every
  *  shot is framed from that side; only the distance and aim change:
  *   - menu:      a slow orbit of the whole sphere;
- *   - wide:      the whole pool (kickoff, halftime);
+ *   - wide:      the whole pool (kickoff);
+ *   - orbit:     halftime and full time, behind the card: a slow circle round the outside
+ *                of the sphere, starting from wherever the camera is, so it never jumps;
  *   - broadcast: live play, in tight on the ball (Bryan: "follow the ball ... focus more
  *                tightly on the ball during plays"), looking a little ahead of where it
  *                is going; while a pass or shot is in the air it widens to keep where
@@ -38,6 +40,8 @@ SS.director = (function () {
   let star = null, starT = 0;                                 // () => the scorer's chest (world), after a goal
   const REPLAY_HALF = 4.2, repSide = new THREE.Vector3();      // replay: tighter, lower, behind the attack
   let intro = null;                                           // { at: () => 0..1, pos: Curve, aim: Curve } while a kickoff sweep plays
+  let orbitA = 0;                                             // the orbit's angle round the pool
+  const ORBIT_R = 34, ORBIT_Y = 10, ORBIT_SPEED = 0.05;        // metres, metres, radians a second (a lap every two minutes)
   const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
   const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
@@ -53,6 +57,7 @@ SS.director = (function () {
     if (opts && opts.shot) shot = opts.shot;
     if (opts && opts.star) { star = opts.star; starT = 0; }
     if (m === 'intro') intro = makeIntro(opts.kind, opts.at);
+    if (m === 'orbit') orbitA = Math.atan2(camera.position.x, camera.position.z);
     if (m === 'replay') {
       dist = 0;
       repSide.set(-1, 0.14, -0.5 * ((opts && opts.dir) || 1)).normalize();
@@ -96,6 +101,10 @@ SS.director = (function () {
         wantPos.set(Math.sin(a) * 50, 14, Math.cos(a) * 50); wantAim.set(0, -2, 0); rate = 1.2;
         break;
       }
+      case 'orbit':
+        orbitA += dt * ORBIT_SPEED;
+        wantPos.set(Math.sin(orbitA) * ORBIT_R, ORBIT_Y, Math.cos(orbitA) * ORBIT_R); wantAim.set(0, -1, 0); rate = 0.9;
+        break;
       case 'wide':
         wantAim.set(0, 0, 0); wantPos.copy(SIDE).multiplyScalar(fitDistance(21)); rate = 1.6;
         break;
