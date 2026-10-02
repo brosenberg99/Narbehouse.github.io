@@ -343,12 +343,17 @@ the team's `badge`: Beamers a sun, Stars a star, Raiders a shark fin, Gliders a 
 Horns real horns, Monarchs a leaf. Bryan placed them on the sides of the cap, up and back
 clear of the cheek and neck (`CREST_UP` / `CREST_BACK`), flat shapes facing sideways so
 the side-on camera sees the whole shape; sizes in `CREST_SIZE` / `CREST_SCALE`.
-The ball carrier glows: a gold band outside their ink outline (`setGlow`, Bryan's pick
+The ball carrier glows: a gold band outside their ink outline, white on yellow and orange
+kits where gold blends in (`setGlow` / `glowFor`, Bryan's pick
 over a disc of light behind them, which was faint at decision distance). A loose ball
 draws a trail (`world.makeTrail`): a solid gold ribbon, white at the ball, 4.5 m of PATH
 (not seconds, so slow motion keeps it), built from where the ball is drawn so replays get
 it too; it shrinks into the hands on a catch. Glowing (additive) light washed out against
 the bright water, so it is solid colour. Revisit both with the Motion setting.
+Checklist round 5 (Bryan, 2026-10-02): the Stars and Horns sit below 20 against the
+blue-teal water (12-18); lighter/deeper shades did not help and broke other pairs, and
+Bryan accepted it - the thick ink outline carries their shape. High Contrast is checked
+with the themes step (the game has no themes yet).
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in

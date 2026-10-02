@@ -17,6 +17,10 @@ SS.models = (function () {
   const ACCENT = new Set(['spine_03', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r']);
   const INK = 0x14161f;
   const GLOW = 0xffe14d, GLOW_PX = 5;   // the ball carrier's glow round the ink line (round 3)
+  /* On a yellow or orange kit a gold glow reads as more kit, so those carriers glow white. */
+  const _hsl = {};
+  const goldish = hex => { new THREE.Color(hex).getHSL(_hsl, THREE.SRGBColorSpace); return _hsl.h > 0.04 && _hsl.h < 0.2 && _hsl.s > 0.5 && _hsl.l > 0.35; };
+  const glowFor = o => o.glow || (goldish(o.kit) || goldish(o.accent) ? 0xffffff : GLOW);
 
   /* Body styles. Proportions are sculpted into the bind-pose geometry once, so the bones
      and clips are untouched and every move, IK reach and ball hold still lines up.
@@ -434,7 +438,7 @@ SS.models = (function () {
       sculpt(mesh, st);
     });
     const glows = [];
-    const glowHull = (mesh, geometry) => { const h = outlineFor(mesh, st, geometry, GLOW_PX, GLOW); h.visible = false; glows.push(h); return h; };
+    const glowHull = (mesh, geometry) => { const h = outlineFor(mesh, st, geometry, GLOW_PX, glowFor(o)); h.visible = false; glows.push(h); return h; };
     const body = meshes.find(n => n.geometry.attributes.position.count > 3000);
     const eyes = meshes.find(n => n.material.name === 'MI_Eyes');
     const hf = headFrame(body, eyes);
