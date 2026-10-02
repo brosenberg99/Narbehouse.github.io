@@ -32,7 +32,7 @@ SS.game = (function () {
   let phase = 'menu';                  // menu | kickoff | live | decision | huddle | halftime | fulltime
   let frozen = false;                  // a card (Pause) is over live play
   let acc = 0, sinceSave = 0;
-  let swimmers = [], badges = [], ball = null, lane = null, rings = [], ringLinks = null;
+  let swimmers = [], badges = [], ball = null, lane = null, rings = [], ringLinks = null, trail = null;
   let preview = 0, previewPending = false;              // seconds of formation preview left
   let talk = { at: -99, done: {} };                     // the analyst's formation reactions
   const prevP = [], curP = [], prevBall = new THREE.Vector3(), curBall = new THREE.Vector3();
@@ -55,6 +55,7 @@ SS.game = (function () {
     ball.add(new THREE.PointLight(0xffe7a0, 2, 4));
     ball.visible = false;
     scene.add(ball);
+    trail = SS.world.makeTrail(scene);
     const laneMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.6, gapSize: 0.35, depthTest: false, transparent: true, opacity: 0.95 });
     lane = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]), laneMat);
     lane.renderOrder = 20; lane.visible = false; lane.frustumCulled = false;
@@ -108,6 +109,7 @@ SS.game = (function () {
     swimmers.forEach(sw => { scene.remove(sw.group); sw.dispose(); });
     swimmers = []; SS.worldui.clearBadges(); badges = [];
     if (ball) ball.visible = false;
+    if (trail) trail.clear();
     showLane(null);
   }
 
@@ -189,6 +191,7 @@ SS.game = (function () {
     if (m) {
       if (phase === 'live' && !frozen) stepSim(dt);
       drawMatch(dt);
+      drawCarrier(dt);
       SS.hud.update(S(), phase !== 'live' || frozen, hudLabels);
     }
     SS.director.update(dt);
@@ -493,7 +496,18 @@ SS.game = (function () {
   function drawReplay(dt) {
     const owner = SS.replay.pose(gm.replay.rt, ball.position);
     swimmers.forEach((sw, j) => badges[j].carrier(owner === j));
+    replayOwner = owner;
     fadeBlockers(dt);
+  }
+  /* The ball carrier glows (a gold band round their outline, Bryan's pick of four marks)
+     and a loose ball draws its trail, live or in a replay. */
+  let replayOwner = null;
+  function drawCarrier(dt) {
+    const s = S(), rep = gm && gm.replay && gm.replay.on;
+    const owner = rep ? replayOwner : s.ball.owner;
+    const holder = owner != null ? owner : (!rep && cine && cine.hold > 0 ? cine.shooter : null);
+    swimmers.forEach((sw, j) => sw.setGlow(j === holder));
+    trail.update(dt, ball.position, camera, holder == null && ball.visible);
   }
   /** What the replay camera follows: the ball, and the goal once the shot is away. */
   const _repTo = new THREE.Vector3();

@@ -16,6 +16,7 @@ SS.models = (function () {
   const KIT = new Set(['pelvis', 'spine_01', 'spine_02', 'thigh_l', 'thigh_r']);
   const ACCENT = new Set(['spine_03', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r']);
   const INK = 0x14161f;
+  const GLOW = 0xffe14d, GLOW_PX = 5;   // the ball carrier's glow round the ink line (round 3)
 
   /* Body styles. Proportions are sculpted into the bind-pose geometry once, so the bones
      and clips are untouched and every move, IK reach and ball hold still lines up.
@@ -396,10 +397,11 @@ SS.models = (function () {
   // also pushed straight away from the camera: that leaves where it lands on screen, and
   // so the silhouette, unchanged, and sinks the hull behind any crease shallower than
   // three outline widths.
-  function outlineFor(mesh, st, geometry = mesh.geometry) {
-    const mat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+  // `extraPx` / `colour` make a wider hull behind the ink one: the ball carrier's glow.
+  function outlineFor(mesh, st, geometry = mesh.geometry, extraPx = 0, colour = INK) {
+    const mat = new THREE.MeshBasicMaterial({ color: colour, side: THREE.BackSide });
     mat.onBeforeCompile = shader => {
-      shader.uniforms.uOutlineMin = { value: st.outlineMin }; shader.uniforms.uOutlinePx = { value: st.outlinePx };
+      shader.uniforms.uOutlineMin = { value: st.outlineMin * (extraPx ? 1.6 : 1) }; shader.uniforms.uOutlinePx = { value: st.outlinePx + extraPx };
       shader.uniforms.uViewH = viewH;
       shader.vertexShader = 'uniform float uOutlineMin, uOutlinePx, uViewH;\n' + shader.vertexShader.replace(
         '#include <begin_vertex>', `#include <begin_vertex>
@@ -431,6 +433,8 @@ SS.models = (function () {
       mesh.geometry = mesh.geometry.clone();         // each swimmer owns its colours and shape
       sculpt(mesh, st);
     });
+    const glows = [];
+    const glowHull = (mesh, geometry) => { const h = outlineFor(mesh, st, geometry, GLOW_PX, GLOW); h.visible = false; glows.push(h); return h; };
     const body = meshes.find(n => n.geometry.attributes.position.count > 3000);
     const eyes = meshes.find(n => n.material.name === 'MI_Eyes');
     const hf = headFrame(body, eyes);
@@ -442,7 +446,7 @@ SS.models = (function () {
       mesh.material = toonMaterial();
       mesh.material.userData.caustic.value = st.caustic;
       mesh.frustumCulled = false;                    // skinned bounds are the bind pose, not the pose
-      if (mesh === body) mesh.parent.add(outlineFor(mesh, st));
+      if (mesh === body) mesh.parent.add(outlineFor(mesh, st), glowHull(mesh));
     });
     const gearGeo = buildGear(body, hf, o);
     if (gearGeo) {
@@ -452,7 +456,8 @@ SS.models = (function () {
       body.parent.add(gear);
       gear.bind(body.skeleton, body.bindMatrix);
       gear.frustumCulled = false;
-      body.parent.add(outlineFor(gear, st, smoothNormals(gearGeo)));
+      const smooth = smoothNormals(gearGeo);
+      body.parent.add(outlineFor(gear, st, smooth), glowHull(gear, smooth));
       meshes.push(gear);
     }
     const group = new THREE.Group();
@@ -512,7 +517,7 @@ SS.models = (function () {
       const solid = a >= 0.99;
       root.traverse(n => {
         if (!n.isSkinnedMesh) return;
-        if (!meshes.includes(n)) { n.visible = solid; return; }
+        if (!meshes.includes(n)) { n.visible = solid && !glows.includes(n); return; }
         if (n.material.transparent === solid) { n.material.transparent = !solid; n.material.needsUpdate = true; }
         n.material.opacity = solid ? 1 : a;
         n.material.depthWrite = solid;
@@ -563,7 +568,9 @@ SS.models = (function () {
     const api = { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
       head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
       setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; },
-      setMove, setTilt, setCaustic, get move() { return move; }, faceTarget: null };
+      setMove, setTilt, setCaustic, get move() { return move; }, faceTarget: null,
+      /** The ball carrier's glow: a band of light round the ink outline. */
+      setGlow(on) { glows.forEach(h => { h.visible = on && opacity >= 0.99; }); } };
     return api;
   }
 

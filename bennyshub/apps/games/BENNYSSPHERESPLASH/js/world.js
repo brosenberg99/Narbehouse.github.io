@@ -300,5 +300,64 @@ SS.world = (function () {
     }
   }
 
-  return { build, update, addCaustics, goalBurst, techBurst, R, GOAL_Z };
+  /* ── the ball's trail ──────────────────────────────────────────────────────
+     A ribbon of light behind a ball that is in the air or loose, so a low-vision player
+     can follow a pass or a shot and see where it came from. It is built from where the
+     ball is DRAWN each frame, so slow motion and replays get it for free. Length is in
+     metres of path, not seconds, so slow motion does not shrink it. Caught, it shrinks
+     away into the hands; a jump (a kickoff reset) clears it. */
+  function makeTrail(scene, { length = 4.5, width = 0.4, colour = 0xffc21a, core = 0xfffbe6 } = {}) {
+    const MAX = 80, STEP = 0.05;
+    const pos = new Float32Array(MAX * 2 * 3), col = new Float32Array(MAX * 2 * 4);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
+    const idx = [];
+    for (let i = 0; i < MAX - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    geo.setIndex(idx);
+    // Solid colour, not additive light: light washes out against the bright water.
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false,
+      side: THREE.DoubleSide, fog: false }));
+    mesh.frustumCulled = false; mesh.renderOrder = 5;
+    scene.add(mesh);
+    const pts = [], base = new THREE.Color(colour), hot = new THREE.Color(core), c = new THREE.Color();
+    let budget = 0;
+    const t = new THREE.Vector3(), side = new THREE.Vector3(), view = new THREE.Vector3();
+    function clear() { pts.length = 0; budget = 0; geo.setDrawRange(0, 0); }
+    function update(dt, ball, camera, free) {
+      if (pts.length && pts[0].distanceTo(ball) > 4) clear();           // teleported
+      if (!pts.length || pts[0].distanceTo(ball) > STEP) pts.unshift(ball.clone());
+      else pts[0].copy(ball);
+      budget = free ? length : Math.max(0, budget - dt * 14);           // caught: shrink into the hands
+      let run = 0;                                                      // trim the tail to the budget
+      for (let i = 1; i < pts.length; i++) {
+        const d = pts[i].distanceTo(pts[i - 1]);
+        if (run + d > budget) {
+          if (budget > run) { pts[i].lerpVectors(pts[i - 1], pts[i], (budget - run) / d); pts.length = i + 1; } else pts.length = i;
+          break;
+        }
+        run += d;
+      }
+      if (pts.length > MAX) pts.length = MAX;
+      const n = pts.length;
+      if (n < 2) { geo.setDrawRange(0, 0); return; }
+      let along = 0;
+      for (let i = 0; i < n; i++) {
+        if (i) along += pts[i].distanceTo(pts[i - 1]);
+        const k = Math.max(0, 1 - along / length);                      // 1 at the ball, 0 at the tail
+        t.subVectors(pts[Math.max(0, i - 1)], pts[Math.min(n - 1, i + 1)]).normalize();
+        view.subVectors(camera.position, pts[i]).normalize();
+        side.crossVectors(t, view).normalize().multiplyScalar(width * 0.5 * Math.sqrt(k));
+        pos.set([pts[i].x + side.x, pts[i].y + side.y, pts[i].z + side.z, pts[i].x - side.x, pts[i].y - side.y, pts[i].z - side.z], i * 6);
+        c.copy(base).lerp(hot, Math.max(0, k * 2 - 1));                // white-hot at the ball, gold behind
+        const a = Math.min(1, k * 1.6);
+        col.set([c.r, c.g, c.b, a, c.r, c.g, c.b, a], i * 8);
+      }
+      geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+      geo.setDrawRange(0, (n - 1) * 6);
+    }
+    return { update, clear, mesh };
+  }
+
+  return { build, update, addCaustics, goalBurst, techBurst, makeTrail, R, GOAL_Z };
 })();
