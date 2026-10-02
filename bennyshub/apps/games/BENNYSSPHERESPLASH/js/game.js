@@ -83,16 +83,15 @@ SS.game = (function () {
   function buildScene() {
     teardownScene();
     const s = S();
-    kits = [teamById(s.teams[0].id), teamById(s.teams[1].id)];
-    // Two teams in similar colours would read as one: the away side swaps to its accent.
+    // Two teams whose looks read as one: the listed team wears its away kit (data.js CLASHES).
+    kits = SS.models.matchKits(teamById(s.teams[0].id), teamById(s.teams[1].id));
     s.players.forEach((pl, j) => {
-      const team = kits[pl.team], keeper = pl.pos === 'GL';
+      const team = kits[pl.team];
       const h = (pl.name.charCodeAt(0) * 7 + pl.name.length * 3 + j) >>> 0;
-      const sw = SS.models.makeSwimmer({
+      const sw = SS.models.makeSwimmer(Object.assign(SS.models.lookFor(team, pl.pos), {
         body: h % 2 ? 'female' : 'male',
-        kit: keeper ? team.accent : team.kit, accent: keeper ? team.kit : team.accent,
         skin: SKINS[h % SKINS.length], hair: HAIR[(h >> 2) % HAIR.length],
-      });
+      }));
       sw.play('tread'); sw.mixer.update((h % 17) / 10);
       scene.add(sw.group);
       swimmers.push(sw);

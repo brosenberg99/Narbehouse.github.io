@@ -173,7 +173,7 @@
         p('Wes Driftwood','LD', 2, [210, 13, 13, 10, 7, 10, 4, 3], []),
       ] },
     { id: 'harbor', name: 'Harbor Stars', short: 'Stars', home: 'Starlight Harbor',
-      blurb: 'The big-city champions. Sharp shooting, sharper passing.', kit: 0x2f6bff, accent: 0xf5f7ff, badge: 'star', morale: 0.7,
+      blurb: 'The big-city champions. Sharp shooting, sharper passing.', kit: 0x2f6bff, accent: 0xf5f7ff, alt: { kit: 0xffc928, accent: 0x1a2a6c }, badge: 'star', morale: 0.7,
       players: [
         p('Ace Marlowe',  'LF', 12, [330, 25, 15, 12, 18, 8, 23, 2], ['spinShot', 'stingShot2']),
         p('Nova Brightwater','RF', 11, [310, 25, 14, 11, 17, 8, 21, 2], ['wiltShot']),
@@ -197,7 +197,7 @@
         p('Pono Wake',    'LD', 5, [280, 14, 17, 15, 8, 11, 5, 3], []),
       ] },
     { id: 'gliders', name: 'Gearhead Gliders', short: 'Gliders', home: 'Rivet Dunes',
-      blurb: 'Desert tinkerers who swim faster than anyone.', kit: 0xffd21f, accent: 0x3a2b17, badge: 'gear', morale: 0.55,
+      blurb: 'Desert tinkerers who swim faster than anyone.', kit: 0xffd21f, accent: 0x3a2b17, alt: { kit: 0x3a2b17, accent: 0xffd21f }, badge: 'gear', morale: 0.55,
       players: [
         p('Zip Sprocket', 'LF', 7, [250, 32, 14, 9, 14, 6, 20, 2], ['slipStream']),
         p('Vex Flywheel', 'RF', 7, [240, 31, 13, 9, 13, 6, 19, 2], ['snoozeShot']),
@@ -221,7 +221,7 @@
         p('Runa Boulderback','RD', 6, [350, 12, 23, 18, 8, 12, 5, 3], []),
       ] },
     { id: 'mistwood', name: 'Mistwood Monarchs', short: 'Monarchs', home: 'Mistwood Hollow',
-      blurb: 'Graceful forest swimmers who pass rings round you.', kit: 0xe03a8c, accent: 0x2a1036, badge: 'leaf', morale: 0.65,
+      blurb: 'Graceful forest swimmers who pass rings round you.', kit: 0xe03a8c, accent: 0x2a1036, alt: { kit: 0x2a1036, accent: 0xe03a8c }, badge: 'leaf', morale: 0.65,
       players: [
         p('Sylvie Fern',  'LF', 10, [290, 23, 14, 10, 20, 9, 22, 2], ['ghostShot']),
         p('Orin Willow',  'RF', 9, [280, 22, 13, 10, 19, 9, 20, 2], ['wiltShot']),
@@ -234,5 +234,10 @@
       ] },
   ];
 
-  SS.DATA = { RULES, TECHS, FORMATIONS, POSITIONS, POSITION_NAMES, TEAMS, oddsWord };
+  // Teams whose looks read as one in the water (measured from rendered frames, see the
+  // character checklist in DESIGN.md): when they meet, the first wears its `alt` kit.
+  // The Beamers, the player's home team, never change.
+  const CLASHES = [['gliders', 'beamers'], ['gliders', 'reef'], ['harbor', 'summit'], ['mistwood', 'summit']];
+
+  SS.DATA = { RULES, TECHS, FORMATIONS, POSITIONS, POSITION_NAMES, TEAMS, CLASHES, oddsWord };
 })(typeof window !== 'undefined' ? window : globalThis);

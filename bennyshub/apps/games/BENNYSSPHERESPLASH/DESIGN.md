@@ -328,6 +328,16 @@ stripped, toon colours painted by bone). The "chunky" body style (`STYLES` in
 `js/models.js`, Bryan's pick of four in M3) sculpts the bind pose once at load: head
 x1.35, hands x1.6, feet x1.5, thicker limbs and chest, so no bone or clip changes. The
 ink outline holds 2.5 px on screen at any distance (it was ~1 px at match distance).
+Team look (M3 round 2, Bryan's picks): a full suit (main colour on the legs, accent on
+chest and arms) and a water-polo cap in the main colour. Gear says the role by shape:
+forwards (LF, RF) a bracer with a fin on each forearm; defenders and the midfielder two
+pads on the backs of the shoulders (a pad on top of the shoulder tucks in beside the cap
+while swimming and vanishes); the keeper wears the team's colours with water polo's red
+cap and big white gloves. All gear is one skinned mesh per swimmer (`buildGear`), so 12
+swimmers cost ~103 draw calls of the 150 budget. Teams whose looks read as one meet in an
+away kit (`CLASHES` + `alt` in data.js: Stars gold/navy v Horns, Gliders dark brown v
+Beamers and Raiders, Monarchs dark plum v Horns); the Beamers never change. With that,
+all 15 team pairs measure >= 20 (CIEDE2000, rendered in the water at 11 m; ~±3 run to run).
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in
