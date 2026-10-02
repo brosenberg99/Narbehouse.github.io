@@ -18,7 +18,10 @@
  *                celebrating, from our side as ever, pushing slowly in;
  *   - replay:    a goal again (game.js), in tighter on the ball than live play and from
  *                lower down and a little behind the attack, so it looks like a replay
- *                and not live; still from our side, so the attack still runs the same way.
+ *                and not live; still from our side, so the attack still runs the same way;
+ *   - intro:     the kickoff sweep (game.js): from wherever the camera is, down into the
+ *                pool past our team, across past theirs, and into the live-play spot.
+ *                A spline through keyframes, timed by game.js, so Pause holds it.
  *  Moves are eased, never cut, so the view never jumps under the player's eyes. The
  *  one cut is after a goal, to the wide view, while everyone resets for the kickoff.
  */
@@ -34,6 +37,7 @@ SS.director = (function () {
   let shot = null;                                            // () => { from, to, ball, keeper, stage } while a shot plays (game.js shotFrame)
   let star = null, starT = 0;                                 // () => the scorer's chest (world), after a goal
   const REPLAY_HALF = 4.2, repSide = new THREE.Vector3();      // replay: tighter, lower, behind the attack
+  let intro = null;                                           // { at: () => 0..1, pos: Curve, aim: Curve } while a kickoff sweep plays
   const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
   const TIGHT_HALF = 6, LEAD_SECS = 0.5, LEAD_MAX = 3;
@@ -48,11 +52,33 @@ SS.director = (function () {
     if (opts && opts.follow) follow = opts.follow;
     if (opts && opts.shot) shot = opts.shot;
     if (opts && opts.star) { star = opts.star; starT = 0; }
+    if (m === 'intro') intro = makeIntro(opts.kind, opts.at);
     if (m === 'replay') {
       dist = 0;
       repSide.set(-1, 0.14, -0.5 * ((opts && opts.dir) || 1)).normalize();
     }
     if (opts && opts.cut) first = true;
+  }
+
+  /** Where live play's camera starts, looking at the centre spot: broadcast's own framing. */
+  function liveStart(out) {
+    const v = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), h = v * camera.aspect;
+    return out.copy(SIDE).multiplyScalar(Math.max(TIGHT_HALF / h, 2.5 / v));
+  }
+  /* The kickoff sweep. Keyframes are evenly spaced in time and game.js eases the whole
+     run, so it starts and lands gently and glides through the middle. Our team kicks off
+     from the -z half (screen left), theirs from +z (screen right).
+      full:   the start of a match - down past our lineup, across past theirs, home;
+      second: the second half - a shorter drop from the wide view to the centre. */
+  const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  function makeIntro(kind, at) {
+    const from = camera.position.clone(), look = aim.clone(), home = liveStart(new THREE.Vector3());
+    const keys = kind === 'second'
+      ? [[from, look], [V3(-15, 7, 9), V3(0, 0, 3)], [home, V3(0, 0, 0)]]
+      : [[from, look], [V3(-21, 13, -21), V3(0, -1, -4)], [V3(-9.5, 1.8, -5.5), V3(0, 0.4, -5)],
+        [V3(-9.5, 1.8, 6), V3(0, 0.4, 5)], [home, V3(0, 0, 0)]];
+    return { at, pos: new THREE.CatmullRomCurve3(keys.map(k => k[0]), false, 'centripetal'),
+      aim: new THREE.CatmullRomCurve3(keys.map(k => k[1]), false, 'centripetal') };
   }
 
   /** Distance at which a sphere of radius r fills the view, whichever of width or height is tighter. */
@@ -139,6 +165,13 @@ SS.director = (function () {
         wantPos.copy(p).addScaledVector(SIDE, d); wantPos.y += 0.3 * v * d;
         if (wantPos.length() > POOL_R - 1.5) wantPos.setLength(POOL_R - 1.5);
         rate = 2.4;
+        break;
+      }
+      case 'intro': {
+        if (!intro) break;
+        const u = THREE.MathUtils.clamp(intro.at(), 0, 1);
+        intro.pos.getPoint(u, wantPos); intro.aim.getPoint(u, wantAim);
+        pos.copy(wantPos); aim.copy(wantAim);                 // on the rails: the curve is already smooth
         break;
       }
       case 'decision': {

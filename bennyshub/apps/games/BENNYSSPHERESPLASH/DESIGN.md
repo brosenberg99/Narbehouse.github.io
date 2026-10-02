@@ -146,6 +146,24 @@ exception: the cut to the wide view after a goal, below).
   to `openHuddle`, which skips instead while a replay is up; hold Enter still pauses), and
   a second wipe covers the cut to the wide view for the kickoff. Pause or the Huddle in
   the middle of a goal moment comes back to the same camera (`toLive`).
+- **The kickoff sweep (M3).** After Kick Off, the camera (`director.js` mode `intro`, a
+  Catmull-Rom spline through keyframes, timed by `game.js` so Pause holds it) dives from
+  the wide view into the pool, low past our lineup (our plate slides in bottom left:
+  name, round badge, "You · Normal formation"), across past theirs (bottom right, diamond),
+  and lands where live play starts. 6.5 s; everyone waits in their places until the last
+  1.4 s, which are the sim's own kickoff count, so the whistle goes as the camera lands.
+  The plates follow the camera's place on the path, not the clock. The second half gets a
+  3.6 s drop from the wide view with a "Second Half" plate and the score, and the sim's
+  half-time break is run through in ticks first (`startSecondHalf`), so nobody is seen
+  drifting and then jumping to their places. No sweep after a goal (the cut to wide does
+  that job) or on a resumed save. **Any press skips it** (no Huddle).
+- **Technique flourishes (M3).** A technique's name in giant type on a slowly turning
+  burst of its colour, who used it under it (`hud.techFlourish`, 1.9 s), and a sparkle
+  burst of the same colour round the player, its ring facing the camera
+  (`world.techBurst`). One colour per family, so they can be learned by colour: stings
+  violet, snoozes sky blue, wilts gold-brown, Beamin' Blasts yellow, the rest their own.
+  A technique shot holds 0.5 s (`TECH_PRE`) before the wind-up, so the name is up before
+  the ball flies.
 - **Later (Bryan, 2026-09-30):** a cinematic camera for shots (cut in on the shooter, follow
   the ball to the keeper), and custom animations for the shooter's shot, a defender's block
   and the keeper's save attempts. Build the moves the `rig.js` way (canned clip + per-frame

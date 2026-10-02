@@ -7,7 +7,7 @@
  *  - caustics: a light pattern computed in the shader of everything that opts in via
  *    addCaustics(material), so swimmers glitter as they cross the light;
  *  - light shafts (additive cones), rising bubbles (Points) and teal depth fog.
- * goalBurst() is the net's part of a goal: bubbles burst out of it, a ring of the
+ * techBurst() is a technique's sparkle round the player; goalBurst() is the net's part of a goal: bubbles burst out of it, a ring of the
  * scorers' colour spreads across the mouth, the net lights up and the crowd jumps.
  */
 SS.world = (function () {
@@ -95,33 +95,53 @@ SS.world = (function () {
      a second and a half. ~140 bubbles (white and the team colour) fly out of where the
      ball went in, slow down in the water and rise; a ring spreads across the goal mouth;
      the frame shudders; the crowd jumps for four seconds. */
-  const BURST_N = 140, BURST_LIFE = 2.4, RING_LIFE = 0.8;
+  const BURST_LIFE = 2.4, RING_LIFE = 0.8;
   function goalBurst(at, colour, opts) {
     const gl = goals.reduce((a, b) => Math.abs(b.z - at.z) < Math.abs(a.z - at.z) ? b : a, goals[0]);
-    const team = new THREE.Color(colour), into = Math.sign(gl.z) || 1;   // the pool is the other way: -into
-    gl.flash = 1; gl.shake = 1; gl.net.material.color.copy(team);
-    const pos = new Float32Array(BURST_N * 3), col = new Float32Array(BURST_N * 3), vel = [];
-    const white = new THREE.Color(0xffffff), c = new THREE.Color();
-    for (let i = 0; i < BURST_N; i++) {
+    const into = Math.sign(gl.z) || 1;                              // the pool is the other way: -into
+    gl.flash = 1; gl.shake = 1; gl.net.material.color.set(colour);
+    // Out of the net into the pool: a wide cone, mostly away from the goal. A replay's
+    // camera is right at the net, so its burst has no ring (it would fill the view).
+    burst(at, colour, { n: 140, cone: new THREE.Vector3(0, 0, -into), spread: 1.15, speed: [4, 11], size: 0.5,
+      ring: !(opts && opts.ring === false), ringAt: new THREE.Vector3(at.x, at.y, at.z - into * 0.3), ringGrow: 2.6 });
+    cheer = 4;
+  }
+  /* ── a technique: a sparkle burst round the player who used it ─────────────
+     Its colour (game.js picks it: violet stings, blue snoozes, gold blasts...), all
+     round them, smaller and quicker than a goal's; the ring faces the camera. */
+  function techBurst(at, colour, cameraQuat) {
+    burst(at, colour, { n: 70, cone: null, speed: [2.5, 5.5], size: 0.38, ring: true, ringQuat: cameraQuat, ringGrow: 0.9, mix: 2 });
+  }
+  /** Bubbles flying out of `at` (a cone round o.cone, or every way), and a spreading ring. */
+  function burst(at, colour, o) {
+    const n = o.n, fx = new THREE.Color(colour), white = new THREE.Color(0xffffff), c = new THREE.Color();
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), vel = [];
+    const q = o.cone ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), o.cone) : null;
+    for (let i = 0; i < n; i++) {
       pos[i * 3] = at.x; pos[i * 3 + 1] = at.y; pos[i * 3 + 2] = at.z;
-      // Out of the net into the pool: a wide cone, mostly away from the goal.
-      const a = Math.random() * Math.PI * 2, spread = Math.random() * 1.15, sp = 4 + Math.random() * 7;
-      vel.push(new THREE.Vector3(Math.cos(a) * Math.sin(spread), Math.sin(a) * Math.sin(spread) + 0.25, -into * Math.cos(spread)).multiplyScalar(sp));
-      c.copy(i % 3 ? white : team).toArray(col, i * 3);
+      const sp = o.speed[0] + Math.random() * (o.speed[1] - o.speed[0]);
+      const v = new THREE.Vector3();
+      if (q) {
+        const a = Math.random() * Math.PI * 2, spread = Math.random() * o.spread;
+        v.set(Math.cos(a) * Math.sin(spread), Math.sin(a) * Math.sin(spread), Math.cos(spread)).applyQuaternion(q);
+        v.y += 0.25;
+      } else v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
+      vel.push(v.multiplyScalar(sp));
+      c.copy(i % (o.mix || 3) ? white : fx).toArray(col, i * 3);
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.5, map: bubbleTex, vertexColors: true, transparent: true,
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: o.size, map: bubbleTex, vertexColors: true, transparent: true,
       opacity: 1, depthWrite: false, sizeAttenuation: true }));
     pts.frustumCulled = false; pts.renderOrder = 15;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.15, 48), new THREE.MeshBasicMaterial({ color: team, transparent: true,
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.15, 48), new THREE.MeshBasicMaterial({ color: fx, transparent: true,
       opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
-    ring.position.set(at.x, at.y, at.z - into * 0.3); ring.renderOrder = 15;
-    ring.visible = !(opts && opts.ring === false);       // a replay's camera is right at the net: the ring would fill the view
+    ring.position.copy(o.ringAt || at); ring.renderOrder = 15;
+    if (o.ringQuat) ring.quaternion.copy(o.ringQuat);
+    ring.visible = !!o.ring;
     scene.add(pts, ring);
-    bursts.push({ t: 0, pts, vel, ring, ringOn: ring.visible });
-    cheer = 4;
+    bursts.push({ t: 0, pts, vel, ring, ringOn: ring.visible, grow: o.ringGrow || 2.6 });
   }
   function updateGoals(dt) {
     goals.forEach(g => {
@@ -147,7 +167,7 @@ SS.world = (function () {
       br.pts.geometry.attributes.position.needsUpdate = true;
       br.pts.material.opacity = 1 - Math.max(0, (br.t - BURST_LIFE * 0.5) / (BURST_LIFE * 0.5));
       const r = Math.min(1, br.t / RING_LIFE);
-      br.ring.scale.setScalar(1 + r * 2.6);          // out to the goal's own size br.ring.material.opacity = 0.9 * (1 - r);
+      br.ring.scale.setScalar(1 + r * br.grow);       // a goal's: out to the goal's own size br.ring.material.opacity = 0.9 * (1 - r);
       br.ring.visible = br.ringOn && r < 1;
       if (br.t >= BURST_LIFE) {
         scene.remove(br.pts, br.ring);
@@ -280,5 +300,5 @@ SS.world = (function () {
     }
   }
 
-  return { build, update, addCaustics, goalBurst, R, GOAL_Z };
+  return { build, update, addCaustics, goalBurst, techBurst, R, GOAL_Z };
 })();

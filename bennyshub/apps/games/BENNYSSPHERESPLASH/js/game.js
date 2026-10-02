@@ -130,7 +130,7 @@ SS.game = (function () {
   function begin(kind) {
     SS.broadcast.reset();
     buildScene();
-    acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} }; gm = null; wipeFx = null;
+    acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} }; gm = null; wipeFx = null; intro = null;
     rings.forEach(r => { r.visible = false; r.material.color.set(kits[0] ? kits[0].kit : 0xffffff); });
     SS.director.setMode('wide', { cut: true });
     if (kind === 'kickoff') { phase = 'kickoff'; SS.ui.setScreen('kickoff'); saveNow(); }
@@ -138,7 +138,8 @@ SS.game = (function () {
   function kickoff() {
     phase = 'live';
     SS.ui.goLive();
-    SS.director.setMode('broadcast', { follow: playFocus });
+    if (S().phase === 'kickoff' && S().clock === 0 && S().period === 1) startIntro('full');
+    else SS.director.setMode('broadcast', { follow: playFocus });
     const t = matchInfo().teams;
     if (S().clock === 0 && S().period === 1) SS.broadcast.say('intro', { home: t[0].name, away: t[1].name }, 3);
   }
@@ -174,7 +175,7 @@ SS.game = (function () {
     SS.ui.setScreen('title');
   }
   function endMatchView() {
-    phase = 'menu'; frozen = false; m = null; gm = null; wipeFx = null;
+    phase = 'menu'; frozen = false; m = null; gm = null; wipeFx = null; intro = null;
     SS.ui.closeWorld();
     teardownScene();
     SS.hud.visible(false); SS.hud.reset();
@@ -204,6 +205,7 @@ SS.game = (function () {
     const TICK = RU().TICK;
     if (shotBeat(dt)) return;                          // the shooter's wind-up: the clock waits
     wipeBeat(dt);
+    if (introBeat(dt)) return;                         // the kickoff sweep: everyone waits in their places
     if (goalBeat(dt)) return;                          // the scorer's celebration: the kickoff waits
     acc += dt * (SPEED[SS.save.settings.get('speed')] || 1) * shotPace();
     sinceSave += dt;
@@ -275,13 +277,14 @@ SS.game = (function () {
      the ball and the keeper as it arrives. All display: the sim decided the shot when it
      was taken, and nothing here changes what it decided (or the saved match). */
   const WINDUP = 0.6, SLOWMO = 0.4, SLOW_TAIL = 0.35, SHOT_HOLD = 1.1;
+  const TECH_PRE = 0.5;               // a technique shot: the shooter holds this long first, so its name can be read
   let cine = null;                    // { t, hold, shooter, keeper, from, to, done, cross, stopAt }
   let drawA = 1;                      // this frame's blend between sim ticks
   const _prog = new THREE.Vector3();
   const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady';
   function startShotMoment(e) {
     const s = S(), sh = s.players[e.player];
-    cine = { t: 0, hold: WINDUP, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
+    cine = { t: 0, hold: WINDUP, pre: e.tech ? TECH_PRE : 0, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
       from: curP[e.player].clone(), to: vec(e.to), done: -1, offset: null, recAt: SS.replay.now };
     if (shotCinematic()) SS.director.setMode('shot', { shot: shotFrame });
     // The moves (moves.js): the shooter throws, the keeper or a blocker goes for it.
@@ -295,7 +298,11 @@ SS.game = (function () {
     };
     cine.progress = progress;
     const shooter = swimmers[e.player];
-    if (shooter) { shooter.setMove(e.tech ? 'kick' : 'throw', { to: cine.to }); shooter.faceTarget = cine.to; }
+    if (shooter) {
+      shooter.faceTarget = cine.to;
+      if (cine.pre > 0) cine.pendingMove = () => shooter.setMove('kick', { to: cine.to });   // after the technique's name is up
+      else shooter.setMove(e.tech ? 'kick' : 'throw', { to: cine.to });
+    }
     const keeper = swimmers[cine.keeper];
     if (keeper && (e.result === 'goal' || e.result === 'catch' || e.result === 'parry')) {
       // Where the ball crosses the keeper: the point of its path nearest their chest. The
@@ -335,6 +342,13 @@ SS.game = (function () {
   function shotBeat(dt) {
     if (!cine) return false;
     cine.t += dt;
+    if (cine.pre > 0) {
+      cine.pre -= dt;
+      acc = 0;
+      if (cine.pre > 0) return true;
+      if (cine.pendingMove) { cine.pendingMove(); cine.pendingMove = null; }
+      return true;
+    }
     if (cine.hold > 0) {
       cine.hold -= dt;
       acc = 0;
@@ -506,6 +520,64 @@ SS.game = (function () {
     if (p >= 1) { SS.hud.wipe(null); wipeFx = null; }
   }
 
+  /* ══ the kickoff sweep ════════════════════════════════════════════════
+     The start of a match: the camera dives into the pool past our lineup (their plate
+     slides in, bottom left), across past theirs (bottom right), and lands where live play
+     starts, just as the whistle goes. The second half: a shorter drop, with a "Second
+     Half" plate and the score. Everyone waits in their places (the sim holds) until the
+     last KO_LEAD seconds, which are the sim's own kickoff count. Any press skips it. */
+  const INTRO = { full: 6.5, second: 3.6 }, KO_LEAD = 1.4;
+  let intro = null;                   // { kind, t, dur }
+  const easeIO = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  function startIntro(kind) {
+    intro = { kind, t: 0, dur: INTRO[kind] };
+    SS.hud.clearPops();                                  // (a halftime formation pop would sit on the plate)
+    const it = intro;
+    SS.director.setMode('intro', { kind, at: () => easeIO(it.t / it.dur) });
+  }
+  function introBeat(dt) {
+    if (!intro) return false;
+    intro.t += dt;
+    const f = intro.t / intro.dur, u = easeIO(f), s = S();
+    if (intro.kind === 'full') {
+      // By where the camera is on its path (u), not the clock: each plate is up while the
+      // camera passes that team (keyframes at u = 0.5 and 0.75).
+      const side = u > 0.4 && u < 0.62 ? 0 : u >= 0.62 && u < 0.88 ? 1 : -1;
+      SS.hud.teamPlate(side < 0 ? null : { name: kits[side].name, kit: kits[side].kit, accent: kits[side].accent,
+        side: side ? 'right' : 'left', round: !side,
+        sub: (side ? '' : 'You · ') + (D().FORMATIONS[s.teams[side].formation] || D().FORMATIONS.normal).name + ' formation' });
+    } else {
+      SS.hud.teamPlate(f > 0.12 && f < 0.85 ? { name: 'Second Half', kit: 0x1d2a4a, accent: 0xffd400, side: 'centre',
+        sub: kits[0].short + ' ' + s.score[0] + ' – ' + s.score[1] + ' ' + kits[1].short } : null);
+    }
+    if (intro.t >= intro.dur) { endIntro(); return false; }
+    if (intro.t < intro.dur - KO_LEAD) { acc = 0; return true; }
+    return false;
+  }
+  function endIntro() {
+    intro = null;
+    SS.hud.teamPlate(null);
+    SS.director.setMode('broadcast', { follow: playFocus });
+  }
+
+  /* ══ a technique's flourish ═══════════════════════════════════════════
+     Its name in giant type on a burst of its colour (hud.techFlourish), and a sparkle
+     burst of the same colour round the player (world.techBurst). One colour per family,
+     so Ben can learn them by colour: stings violet, snoozes sky blue, wilts gold-brown,
+     Beamin' Blasts yellow; the rest their own, or the team's kit. */
+  const TECH_FX_STATUS = { poison: 0xb46cff, sleep: 0x6fc3ff, wilt: 0xc99a3a };
+  const TECH_FX = { beaminBlast: 0xffd23f, beaminBlast2: 0xffd23f, spinShot: 0xff8a3d, ghostShot: 0x9ff7ee, longPass: 0x8fe3ff,
+    drainTackle: 0xff4f6d, bruiserBash: 0xff6a3d, slipStream: 0x4fe0c0, toughShell: 0x7ddc5a, superSave: 0xfff1a0, reboundShot: 0xffa94d };
+  const _fxAt = new THREE.Vector3();
+  function techFlourish(e, t) {
+    const pl = S().players[e.player], kit = kits[pl.team];
+    const colour = TECH_FX[e.tech] || TECH_FX_STATUS[t.status] || kit.kit;
+    SS.hud.clearPops();
+    SS.hud.techFlourish({ name: t.name, who: '#' + numberOf(e.player) + ' ' + who(e.player), colour, kit: kit.kit });
+    const sw = swimmers[e.player];
+    if (sw) SS.world.techBurst(sw.chest.getWorldPosition(_fxAt).clone(), colour, camera.quaternion);
+  }
+
   /** What the live camera follows: the ball, and where a pass or shot in the air is headed. */
   const _headed = new THREE.Vector3();
   function playFocus() {
@@ -651,12 +723,13 @@ SS.game = (function () {
         break;
       case 'tech': {
         const t = D().TECHS[e.tech];
-        if (t) { SS.hud.pop(t.name + '!', 'tech', 2); say('tech', { player: who(e.player), tech: t.name }, 2); }
+        if (t) { techFlourish(e, t); say('tech', { player: who(e.player), tech: t.name }, 2); }
         break;
       }
       case 'status': say('status', { player: who(e.player) }, 1); break;
       case 'goal': {
         SS.audio.play('horn', 0.6);
+        SS.hud.hideTech();
         startGoalMoment(e);
         say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, '') }, 3);
         say('goalScore', { score: scoreWords() }, 3);
@@ -888,7 +961,8 @@ SS.game = (function () {
   function toLive() {
     phase = 'live'; frozen = false;
     SS.ui.goLive();
-    if (gm && gm.replay && gm.replay.on) replayCamera();                          // back to what was on screen
+    if (intro) { /* the sweep carries on where it was */ }
+    else if (gm && gm.replay && gm.replay.on) replayCamera();                     // back to what was on screen
     else if (gm && gm.cam === 'goal') SS.director.setMode('goal', { star: starPoint });
     else SS.director.setMode(cine && shotCinematic() ? 'shot' : 'broadcast', { follow: playFocus, shot: shotFrame });
     if (previewPending) startPreview();
@@ -954,6 +1028,7 @@ SS.game = (function () {
   function openHuddle() {
     if (phase !== 'live' || frozen) return;
     if (skipReplay()) return;                           // a press during a goal replay skips it
+    if (intro) { endIntro(); return; }                  // ...and during the kickoff sweep
     phase = 'huddle';
     SS.ui.setScreen('huddle');
   }
@@ -970,7 +1045,17 @@ SS.game = (function () {
     phase = 'live';
     if (m.callNow(0) && m.pending) enterDecision(); else toLive();
   }
-  function startSecondHalf() { toLive(); }
+  function startSecondHalf() {
+    // Straight to the kickoff places: the sim's break would show everyone drifting, then
+    // jumping there. Ticks only, so the match plays out exactly the same.
+    const s = S();
+    for (let n = 0; n < 200 && !m.done && (s.phase === 'break' || (s.phase === 'kickoff' && s.phaseT === 0)); n++) m.advance(RU().TICK).forEach(handle);
+    s.players.forEach((pl, j) => { curP[j].set(pl.p.x, pl.p.y, pl.p.z); prevP[j].copy(curP[j]); });
+    curBall.set(s.ball.p.x, s.ball.p.y, s.ball.p.z); prevBall.copy(curBall);
+    acc = 0;
+    toLive();
+    if (s.phase === 'kickoff') startIntro('second');
+  }
   function skipToEnd() {
     let guard = 0;
     while (!m.done && guard++ < 100000) {
@@ -1031,6 +1116,6 @@ SS.game = (function () {
     formationId, formationName, setFormation, formationsOpen, formationRecord, theirFormationName, totalWins, weHaveBall, matchInfo, inMatch,
     choose,
     get phase() { return phase; }, get match() { return m; }, get swimmers() { return swimmers; }, get badges() { return badges; },
-    get shotMoment() { return cine; }, get goalMoment() { return gm; }, skipReplay,
+    get shotMoment() { return cine; }, get goalMoment() { return gm; }, get intro() { return intro; }, skipReplay,
   };
 })();

@@ -17,7 +17,8 @@
  *  - a match saved mid-play resumes at exactly the same moment after a reload;
  *  - a whole Quick Game plays to the results card, and every goal in it gets its
  *    moment (the banner, the scorer celebrating, the replay) and play goes on after it;
- *  - a real press during a goal replay skips it and opens no Huddle.
+ *  - a real press during a goal replay skips it and opens no Huddle; so does one
+ *    during the kickoff sweep.
  * Screenshots go to the system temp folder, never into this served folder.
  */
 'use strict';
@@ -140,7 +141,7 @@ function findChrome() {
     check('Start opens the kickoff card, Kick Off already lit', u.screen === 'kickoff' && u.index === 0, u.screen + '/' + u.index);
     await evaluate('SS.save.settings.set("speed", "fast"); true');
     await press('Enter'); u = await ui();
-    check('Kick Off starts live play', u.ctx === 'live', u.ctx);
+    check('Kick Off starts live play, with the kickoff sweep', u.ctx === 'live' && await evaluate('!!SS.game.intro && SS.director.mode === "intro"'), u.ctx);
 
     let decisions = 0, frozeOk = 0, auditBad = [], kinds = {};
     for (let n = 0; n < 8; n++) {
@@ -175,6 +176,9 @@ function findChrome() {
     /* ── Huddle and Pause (Coach: nothing else interrupts) ──────────────── */
     await evaluate('SS.save.settings.set("stops", "coach"); SS.game.startQuick(["reef", "gliders"]); SS.game.kickoff(); true');
     await wait(800);
+    await press('Space'); u = await ui();
+    const swept = await evaluate('JSON.stringify({ intro: !!SS.game.intro, cam: SS.director.mode })');
+    check('a press during the kickoff sweep skips it, and opens nothing', u.ctx === 'live' && !u.screen && /"intro":false/.test(swept) && /broadcast/.test(swept), u.ctx + ' ' + swept);
     await press('Space'); u = await ui();
     check('a tap in live play opens the Huddle, Continue lit', u.screen === 'huddle' && u.row === 'Continue', u.screen + '/' + u.row);
     await press('Enter'); u = await ui();

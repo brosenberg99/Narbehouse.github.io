@@ -7,7 +7,10 @@
  *  time, highest priority first; a goal gets the banner instead - a band right across
  *  the screen in the scorers' kit, GOAL! in giant type, the scorer and the new score
  *  under it. During a goal replay: a REPLAY tag top left, and a wipe in the scorers'
- *  colours across the screen going in and out. Right: the pause-hold ring. Bottom centre: captions
+ *  colours across the screen going in and out. The kickoff sweep: a plate for each team
+ *  as the camera passes it (ours bottom left, theirs bottom right), or one for the second
+ *  half. A technique: its name in giant type on a burst of its colour (techFlourish).
+ *  Right: the pause-hold ring. Bottom centre: captions
  *  (broadcast.js writes those). Layout and sizing follow NARBE Racer's hud.js.
  */
 SS.hud = (function () {
@@ -29,6 +32,8 @@ SS.hud = (function () {
       '<div class="carrier"><div class="who"><span class="num"></span><span class="nm"></span></div>' +
         '<div class="hp"><i></i><span></span></div><div class="st"></div></div>' +
       '<div class="pop"></div>' +
+      '<div class="teamplate"><i class="crest"></i><div><b class="nm"></b><span class="sub"></span></div></div>' +
+      '<div class="techfx"><div class="burst"></div><b class="nm"></b><span class="who"></span></div>' +
       '<div class="replaytag"><b><i></i>Replay</b><span>Press to skip</span></div>' +
       '<div class="goalbanner"><div class="band"><b class="word">GOAL!</b></div><div class="line"><span class="who"></span><span class="sc"></span></div></div>' +
       '<div class="ring"><svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="' + RING_R + '"></circle>' +
@@ -41,7 +46,8 @@ SS.hud = (function () {
       nm: q('.carrier .nm'), hpBar: q('.hp i'), hpTx: q('.hp span'), st: q('.carrier .st'),
       pop: q('.pop'), ring: q('.ring'), ringFill: q('.ring .fill'),
       banner: q('.goalbanner'), bWho: q('.goalbanner .who'), bSc: q('.goalbanner .sc'),
-      replay: q('.replaytag') };
+      replay: q('.replaytag'), plate: q('.teamplate'), plNm: q('.teamplate .nm'), plSub: q('.teamplate .sub'), plCrest: q('.teamplate .crest'),
+      tech: q('.techfx'), techNm: q('.techfx .nm'), techWho: q('.techfx .who') };
     // The wipe covers the badges too, so it sits over the world layer, not in the HUD.
     el.wipe = document.createElement('div'); el.wipe.className = 'wipe'; el.wipe.innerHTML = '<div class="band"></div>';
     document.body.appendChild(el.wipe); el.wipeBand = el.wipe.firstChild;
@@ -137,6 +143,30 @@ SS.hud = (function () {
     if (REDUCED) { el.wipeBand.style.transform = 'none'; el.wipeBand.style.opacity = Math.min(1, 3 - Math.abs(p - 0.5) * 6).toFixed(2); return; }
     el.wipeBand.style.transform = 'translateX(' + (-200 + 300 * p).toFixed(2) + 'vw) skewX(-12deg)';
   }
+  /** A kickoff plate: { name, sub, kit, accent, side: 'left' | 'right' | 'centre', round } or null to hide. */
+  let plateKey = '';
+  function teamPlate(o) {
+    const key = o ? o.name + '|' + o.side : '';
+    if (key === plateKey) return;
+    plateKey = key;
+    if (!o) { el.plate.classList.remove('on'); return; }
+    el.plate.style.setProperty('--kit', U.hex(o.kit)); el.plate.style.setProperty('--accent', U.hex(o.accent));
+    el.plNm.textContent = o.name; el.plSub.textContent = o.sub || '';
+    el.plCrest.className = 'crest ' + (o.round ? 'round' : 'diamond');
+    el.plCrest.style.display = o.side === 'centre' ? 'none' : '';
+    el.plate.className = 'teamplate s-' + o.side;
+    void el.plate.offsetWidth; el.plate.classList.add('on');
+  }
+  /** A technique's moment: { name, who, colour (hex number), kit (hex number) }. */
+  let techTimer = null;
+  function techFlourish(o) {
+    el.tech.style.setProperty('--fx', U.hex(o.colour)); el.tech.style.setProperty('--kit', U.hex(o.kit));
+    el.techNm.textContent = o.name + '!'; el.techWho.textContent = o.who;
+    el.tech.classList.remove('on'); void el.tech.offsetWidth; el.tech.classList.add('on');
+    clearTimeout(techTimer);
+    techTimer = setTimeout(() => el.tech.classList.remove('on'), 1900);
+  }
+  function hideTech() { clearTimeout(techTimer); if (el.tech) el.tech.classList.remove('on'); }
   function hideBanner() { clearTimeout(bannerTimer); bannerTimer = null; if (el.banner) el.banner.classList.remove('on', 'out'); }
 
   /** The pause hold: 0 hides the ring, 0..1 fills it. */
@@ -147,7 +177,7 @@ SS.hud = (function () {
     el.ringFill.setAttribute('stroke-dashoffset', (RING_LEN * (1 - Math.min(1, f))).toFixed(1));
   }
 
-  function reset() { last = {}; clearPops(); hideBanner(); replayTag(false); wipe(null); ring(0); }
+  function reset() { last = {}; clearPops(); hideBanner(); replayTag(false); wipe(null); teamPlate(null); hideTech(); ring(0); }
 
-  return { build, setTeams, visible, update, pop, clearPops, goalBanner, hideBanner, replayTag, wipe, ring, reset };
+  return { build, setTeams, visible, update, pop, clearPops, goalBanner, hideBanner, replayTag, wipe, teamPlate, techFlourish, hideTech, ring, reset };
 })();
