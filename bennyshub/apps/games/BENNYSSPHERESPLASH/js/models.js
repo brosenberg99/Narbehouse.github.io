@@ -26,14 +26,13 @@ SS.models = (function () {
      and clips are untouched and every move, IK reach and ball hold still lines up.
      head/hand/foot scale about that joint; limb and torso push the surface out along its
      normal, in metres. outlinePx is the ink line's thickness on screen at any distance,
-     never thinner than outlineMin metres up close. caustic is how much of the water's
-     light pattern plays over the body.
+     never thinner than outlineMin metres up close.
      chunky (Bryan's pick, 2026-10-02, of four side by side): the only one where every
      swimmer stands out from the water by a clear margin, and big cartoon shapes read for
      a low-vision player. classic is the original body, kept for before/after captures. */
   const STYLES = {
-    chunky:  { head: 1.35, hand: 1.6, foot: 1.5, limb: 0.025, torso: 0.03, outlinePx: 2.5, outlineMin: 0.03,  caustic: 0.4 },
-    classic: { head: 1,    hand: 1,   foot: 1,   limb: 0,     torso: 0,    outlinePx: 0,   outlineMin: 0.018, caustic: 1 },
+    chunky:  { head: 1.35, hand: 1.6, foot: 1.5, limb: 0.025, torso: 0.03, outlinePx: 2.5, outlineMin: 0.03 },
+    classic: { head: 1,    hand: 1,   foot: 1,   limb: 0,     torso: 0,    outlinePx: 0,   outlineMin: 0.018 },
   };
   let style = STYLES.chunky;
   const FINGER = /^(index|middle|ring|pinky|thumb)_/;
@@ -78,9 +77,7 @@ SS.models = (function () {
   }
 
   function toonMaterial() {
-    const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient });
-    SS.world.addCaustics(mat);
-    return mat;
+    return new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient });
   }
 
   const get = ['getX', 'getY', 'getZ', 'getW'];       // r155 has no getComponent()
@@ -448,14 +445,12 @@ SS.models = (function () {
       else if (o.cap) { mesh.parent.remove(mesh); meshes.splice(meshes.indexOf(mesh), 1); return; }   // hair, under the cap
       else paintSolid(mesh.geometry, o.hair || 0x3a2a1c);
       mesh.material = toonMaterial();
-      mesh.material.userData.caustic.value = st.caustic;
       mesh.frustumCulled = false;                    // skinned bounds are the bind pose, not the pose
       if (mesh === body) mesh.parent.add(outlineFor(mesh, st), glowHull(mesh));
     });
     const gearGeo = buildGear(body, hf, o);
     if (gearGeo) {
       const gear = new THREE.SkinnedMesh(gearGeo, toonMaterial());
-      gear.material.userData.caustic.value = st.caustic;
       gear.position.copy(body.position); gear.quaternion.copy(body.quaternion); gear.scale.copy(body.scale);
       body.parent.add(gear);
       gear.bind(body.skeleton, body.bindMatrix);
@@ -558,10 +553,6 @@ SS.models = (function () {
       if (carrying) holdBall();
       if (move) { move.t += dt; if (SS.moves.apply(api, move)) move = null; }
     }
-    /** How much of the water's light pattern plays over this swimmer (1 = the style's
-        usual amount). Up close it washes a kit out (a dark green went pale mint), so a
-        close-up turns it down. */
-    function setCaustic(k) { meshes.forEach(n => { if (n.material.userData.caustic) n.material.userData.caustic.value = k * st.caustic; }); }
     /** Free the GPU copies this swimmer owns (its painted geometry and materials). */
     function dispose() {
       mixer.stopAllAction();
@@ -572,7 +563,7 @@ SS.models = (function () {
     const api = { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,
       head: bones.head, chest: bones.chest, handL: bones.handL, handR: bones.handR, pelvis: bones.pelvis,
       setCarry(on) { carrying = on; }, get carrying() { return carrying; }, get busy() { return lock > 0; },
-      setMove, setTilt, setCaustic, get move() { return move; }, faceTarget: null,
+      setMove, setTilt, get move() { return move; }, faceTarget: null,
       /** The ball carrier's glow: a band of light round the ink outline. */
       setGlow(on) { glows.forEach(h => { h.visible = on && opacity >= 0.99; }); } };
     return api;

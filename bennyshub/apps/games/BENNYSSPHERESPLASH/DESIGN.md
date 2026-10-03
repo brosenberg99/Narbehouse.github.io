@@ -381,6 +381,14 @@ changes while the kickoff sweep passes through the skin): the crowd was nearly a
 the background busyness behind play, and every arena measures calmer than the old
 stadium (0.45-0.59 v 0.87, mean L* gradient of the swimmer-free frame). The arena is
 saved with the match (`setup.arena`) and the last one is the menu's backdrop.
+Water life (round 4): no ambient decoration. Bryan: "Visibility is most important so if
+anything adds visual clutter or noise it's best to dial it back or remove." The caustic
+light pattern (on swimmers and goals), 420 drifting bubbles and seven swaying light shafts
+were measured with the swimmers and camera frozen: they were the only moving thing behind
+play (mean frame-to-frame L* change 0.19 live, 0.27 in a shot close-up, against ~0.003
+without them), and a softened version still moved. None helped read the play - the
+water's own gradient already shows up and down - so all three are gone. Bubbles stay
+where they mark an event: the goal and technique bursts.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in

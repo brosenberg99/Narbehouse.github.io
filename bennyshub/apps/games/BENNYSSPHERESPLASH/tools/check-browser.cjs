@@ -241,9 +241,12 @@ function findChrome() {
     await until(`(() => {
       const p = SS.game.match.pending;
       if (p && SS.ui.context() === 'world') { const sh = p.options.find(o => o.kind === 'shoot' && !o.tech); SS.game.choose((sh || p.options[0]).id); }
+      // No goal yet: play on past halftime, and if the match ends goalless, start another.
+      if (SS.ui.screen === 'halftime') SS.game.startSecondHalf();
+      if (SS.ui.screen === 'results') { SS.game.startQuick(['reef', 'beamers']); SS.game.kickoff(); }
       const g = SS.game.goalMoment;
       return !!(g && g.replay && g.replay.on && g.replay.rt - g.replay.from > 0.5);
-    })()`, 300000);
+    })()`, 500000);
     await shot('replay.png');
     await press('Space');
     await until('!SS.game.goalMoment', 3000).catch(() => {});

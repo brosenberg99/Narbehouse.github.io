@@ -1,12 +1,10 @@
 /** Benny's Sphere Splash - the arena: a floating sphere of water inside a stadium bowl.
  *
  * No post-processing library (EffectComposer is not in the hub's vendored Three): the
- * underwater look is built from cheap parts that each cost one draw call -
- *  - the sphere's skin: a Fresnel shader, clear when you look straight out, silver at
- *    a grazing angle, with slow ripples, so the stadium shows through the water;
- *  - caustics: a light pattern computed in the shader of everything that opts in via
- *    addCaustics(material), so swimmers glitter as they cross the light;
- *  - light shafts (additive cones), rising bubbles (Points) and teal depth fog.
+ * underwater look is the sphere's skin (a Fresnel shader: clear glass from outside, the
+ * water's own hazy colour from inside) and teal depth fog. The water has no ambient
+ * decoration - no caustics, drifting bubbles or light shafts (Bryan, pool round 4:
+ * visibility first; they moved behind and across every play and helped nobody read it).
  * techBurst() is a technique's sparkle round the player; goalBurst() is the net's part of a goal: bubbles burst out of it, a ring of the
  * scorers' colour spreads across the mouth, the net lights up and the crowd jumps.
  */
@@ -15,31 +13,8 @@ SS.world = (function () {
 
   const R = 20;                         // sphere radius in metres; the whole pool
   const GOAL_Z = R - 2.2;               // goals hang just inside the skin at the poles
-  const uniforms = { uTime: { value: 0 }, uCaustic: { value: 0.32 }, uCheer: { value: 0 }, uCalm: { value: 0 } };
-  let scene, shafts = [], bubbles, crowd, bubbleTex, goals = [], bursts = [], cheer = 0;
-
-  /* ── caustics, injected into any lit material ─────────────────────────── */
-  const CAUSTIC_GLSL = `
-    uniform float uTime; uniform float uCaustic; uniform float uCausticSelf; varying vec3 vCWorld;
-    float causticAt(vec3 p) {
-      vec2 q = p.xz * 0.55 + vec2(p.y * 0.21, -p.y * 0.17);
-      float a = sin(q.x + uTime * 0.9) + sin(q.y * 1.3 - uTime * 0.7) + sin((q.x + q.y) * 0.7 + uTime * 1.1);
-      float b = sin(q.x * 1.7 - uTime * 0.5) + sin(q.y * 0.9 + uTime * 1.3);
-      float c = 1.0 - abs(a * 0.33 + b * 0.25);
-      return pow(clamp(c, 0.0, 1.0), 6.0);
-    }`;
-  /** mat.userData.caustic.value scales the light on this material alone (1 = as everything else). */
-  function addCaustics(mat) {
-    mat.userData.caustic = { value: 1 };
-    mat.onBeforeCompile = shader => {
-      shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uCaustic = uniforms.uCaustic; shader.uniforms.uCausticSelf = mat.userData.caustic;
-      shader.vertexShader = 'varying vec3 vCWorld;\n' + shader.vertexShader.replace(
-        '#include <project_vertex>', '#include <project_vertex>\n  vCWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      shader.fragmentShader = CAUSTIC_GLSL + '\n' + shader.fragmentShader.replace(
-        '#include <opaque_fragment>',
-        'outgoingLight += vec3(0.75, 0.95, 1.0) * causticAt(vCWorld) * uCaustic * uCausticSelf;\n#include <opaque_fragment>');
-    };
-  }
+  const uniforms = { uTime: { value: 0 }, uCheer: { value: 0 }, uCalm: { value: 0 } };
+  let scene, crowd, bubbleTex, goals = [], bursts = [], cheer = 0;
 
   /* ── the sphere's skin ─────────────────────────────────────────────────── */
   /* Seen from inside, the skin is the backdrop of every play, so it is also the depth of the
@@ -112,7 +87,7 @@ SS.world = (function () {
     const path = [];
     for (let i = 0; i < 3; i++) for (let k = 0; k <= 6; k++) path.push(pts[i].clone().lerp(pts[(i + 1) % 3], 0.1 + 0.8 * k / 6));
     const curve = new THREE.CatmullRomCurve3(path, true, 'centripetal');
-    const frameMat = new THREE.MeshToonMaterial({ color: colour, emissive: new THREE.Color(colour).multiplyScalar(0.35) }); addCaustics(frameMat);
+    const frameMat = new THREE.MeshToonMaterial({ color: colour, emissive: new THREE.Color(colour).multiplyScalar(0.35) });
     g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE, 14, true), frameMat));
     g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE + 0.08, 10, true),
       new THREE.MeshBasicMaterial({ color: 0x10202a, side: THREE.BackSide })));
@@ -226,42 +201,12 @@ SS.world = (function () {
     uniforms.uCheer.value = Math.min(1, cheer / 1.2);
   }
 
-  /* ── light shafts from the surface above ──────────────────────────────── */
-  function lightShafts() {
-    const mat = new THREE.MeshBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.07,
-      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    // Cut off at the skin: the cones are taller than the water, and from outside their tips
-    // poked out of the top of the sphere as white spikes.
-    mat.onBeforeCompile = shader => {
-      shader.vertexShader = 'varying vec3 vSW;\n' + shader.vertexShader.replace('#include <project_vertex>',
-        '#include <project_vertex>\n  vSW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      shader.fragmentShader = 'varying vec3 vSW;\n' + shader.fragmentShader.replace('void main() {',
-        'void main() {\n  if (dot(vSW, vSW) > ' + (R * R * 0.97).toFixed(1) + ') discard;');
-    };
-    for (let i = 0; i < 7; i++) {
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(2.2 + Math.random() * 2, R * 2.1, 24, 1, true), mat);
-      cone.position.set((Math.random() - 0.5) * R, 0, (Math.random() - 0.5) * R);
-      cone.userData.phase = Math.random() * 6.28;
-      scene.add(cone); shafts.push(cone);
-    }
-  }
-
-  /* ── bubbles ──────────────────────────────────────────────────────────── */
-  function makeBubbles(n) {
-    const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) randomInSphere(pos, i, R * 0.95);
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  /* ── a bubble: the ring the goal and technique bursts are made of ───────── */
+  function bubbleTexture() {
     const c = document.createElement('canvas'); c.width = c.height = 64;
     const g = c.getContext('2d'); g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 6;
     g.beginPath(); g.arc(32, 32, 24, 0, Math.PI * 2); g.stroke();
-    const tex = bubbleTex = new THREE.CanvasTexture(c);
-    return new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.28, map: tex, transparent: true,
-      opacity: 0.65, depthWrite: false, sizeAttenuation: true }));
-  }
-  function randomInSphere(arr, i, r) {
-    let x, y, z;
-    do { x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1; } while (x * x + y * y + z * z > 1);
-    arr[i * 3] = x * r; arr[i * 3 + 1] = y * r; arr[i * 3 + 2] = z * r;
+    return new THREE.CanvasTexture(c);
   }
 
   /* ── the arena: a stadium at a time of day ─────────────────────────────────
@@ -574,8 +519,7 @@ SS.world = (function () {
     setArena(arena0.stadium, arena0.time);
     scene.add(waterSkin());
     scene.add(goal(-GOAL_Z, GOAL_DEFAULT[0]), goal(GOAL_Z, GOAL_DEFAULT[1]));
-    lightShafts();
-    bubbles = makeBubbles(420); scene.add(bubbles);
+    bubbleTex = bubbleTexture();
   }
 
   function update(dt, t) {
@@ -586,15 +530,6 @@ SS.world = (function () {
       if (phones) { phones.material.opacity = 1 - uniforms.uCalm.value; phones.visible = uniforms.uCalm.value < 1; }
     }
     updateGoals(dt);
-    shafts.forEach(s => { s.rotation.z = Math.sin(t * 0.2 + s.userData.phase) * 0.12; s.material.opacity = 0.06 + Math.sin(t * 0.5 + s.userData.phase) * 0.02; });
-    if (bubbles) {
-      const a = bubbles.geometry.attributes.position.array;
-      for (let i = 0; i < a.length; i += 3) {
-        a[i + 1] += dt * (0.6 + (i % 7) * 0.08); a[i] += Math.sin(t * 2 + i) * dt * 0.05;
-        if (a[i] * a[i] + a[i + 1] * a[i + 1] + a[i + 2] * a[i + 2] > R * R * 0.9) { randomInSphere(a, i / 3, R * 0.9); a[i + 1] = -Math.abs(a[i + 1]); }
-      }
-      bubbles.geometry.attributes.position.needsUpdate = true;
-    }
   }
 
   /* ── the ball's trail ──────────────────────────────────────────────────────
@@ -656,5 +591,5 @@ SS.world = (function () {
     return { update, clear, mesh };
   }
 
-  return { build, update, setGoalKits, setArena, pickArena, STADIUMS, TIMES, get arena() { return arena; }, addCaustics, goalBurst, techBurst, makeTrail, R, GOAL_Z };
+  return { build, update, setGoalKits, setArena, pickArena, STADIUMS, TIMES, get arena() { return arena; }, goalBurst, techBurst, makeTrail, R, GOAL_Z };
 })();

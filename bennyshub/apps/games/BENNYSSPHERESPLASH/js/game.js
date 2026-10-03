@@ -438,7 +438,6 @@ SS.game = (function () {
       sw.setMove('celebrate');
     }
     if (sw && gm.started) sw.faceTarget = camera.position;            // the scorer plays to the camera
-    if (sw) sw.setCaustic(1 - 0.7 * Math.min(1, gm.t / 0.8));        // and keeps their kit colour in close-up
     gm.cheers.forEach(c => { if (!c.done && gm.t >= c.at && swimmers[c.j]) { c.done = true; swimmers[c.j].once('cheer'); } });
     if (gm.t >= GOAL_MOMENT && !gm.replay && !gm.release) {
       if (!startReplay()) release();
@@ -457,7 +456,7 @@ SS.game = (function () {
   }
   function endGoalMoment() {
     const sw = swimmers[gm.scorer];
-    if (sw) { sw.faceTarget = null; sw.setCaustic(1); if (sw.move && sw.move.name === 'celebrate') sw.setMove(null); }
+    if (sw) { sw.faceTarget = null; if (sw.move && sw.move.name === 'celebrate') sw.setMove(null); }
     if (gm.replay) swimmers.forEach(w => w.setTilt(_qid, _zero));       // a replayed lean is not this moment's
     gm = null;
     SS.hud.hideBanner(); SS.hud.replayTag(false);
