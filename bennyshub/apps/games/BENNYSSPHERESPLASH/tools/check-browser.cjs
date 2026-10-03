@@ -137,13 +137,19 @@ function findChrome() {
     await press('Enter'); u = await ui();
     check('Enter (released) chooses it', u.screen === 'quick', u.screen);
     await keyDown('Space'); await wait(3400); await keyUp('Space'); await wait(300); u = await ui();
-    check('holding Space scans backwards', u.index === 2 && u.row === 'Back', u.row);
-    await press('Space'); await press('Space'); u = await ui();
+    check('holding Space with nothing lit starts at the last item', u.index === 2 && u.row === 'Back', u.row);
+    await press('Enter'); u = await ui();
+    check('Back opens the menu with nothing highlighted', u.screen === 'title' && u.index === -1, u.screen + '/' + u.index);
+    await press('Space'); await press('Enter');
+    for (let i = 0; i < 5; i++) await press('Space');      // Start, Pick, Back, (blank), Start
+    u = await ui();
     check('the list wraps through a blank step', u.row.startsWith('Start'), u.row);
     await press('Enter'); u = await ui();
-    check('Start opens the kickoff card, Kick Off already lit', u.screen === 'kickoff' && u.index === 0, u.screen + '/' + u.index);
-    await evaluate('SS.save.settings.set("speed", "fast"); true');
+    check('Start opens the kickoff card with nothing lit', u.screen === 'kickoff' && u.index === -1, u.screen + '/' + u.index);
     await press('Enter'); u = await ui();
+    check('Enter with nothing lit chooses nothing', u.screen === 'kickoff' && u.index === -1, u.screen + '/' + u.index);
+    await evaluate('SS.save.settings.set("speed", "fast"); true');
+    await press('Space'); await press('Enter'); u = await ui();
     check('Kick Off starts live play, with the kickoff sweep', u.ctx === 'live' && await evaluate('!!SS.game.intro && SS.director.mode === "intro"'), u.ctx);
 
     let decisions = 0, frozeOk = 0, auditBad = [], kinds = {};
@@ -183,8 +189,8 @@ function findChrome() {
     const swept = await evaluate('JSON.stringify({ intro: !!SS.game.intro, cam: SS.director.mode })');
     check('a press during the kickoff sweep skips it, and opens nothing', u.ctx === 'live' && !u.screen && /"intro":false/.test(swept) && /broadcast/.test(swept), u.ctx + ' ' + swept);
     await press('Space'); u = await ui();
-    check('a tap in live play opens the Huddle, Continue lit', u.screen === 'huddle' && u.row === 'Continue', u.screen + '/' + u.row);
-    await press('Enter'); u = await ui();
+    check('a tap in live play opens the Huddle, nothing lit', u.screen === 'huddle' && u.index === -1, u.screen + '/' + u.index);
+    await press('Space'); await press('Enter'); u = await ui();
     check('Continue goes back to live play', u.ctx === 'live', u.ctx);
     await wait(500);
     await keyDown('Enter'); await wait(3300);
@@ -202,16 +208,16 @@ function findChrome() {
     await until("SS.ui.context() === 'live' && !SS.game.goalMoment && SS.director.mode === 'broadcast'", 60000);
     await keyDown('Enter'); await wait(4000); await keyUp('Enter'); await wait(300); u = await ui();
     check('a slow 4 s press is an ordinary press (Huddle, not Pause)', u.screen === 'huddle', JSON.stringify({ screen: u.screen, ctx: u.ctx }));
-    await press('Enter');
+    await press('Space'); await press('Enter');
 
-    /* ── Pause from inside a decision comes back to the same choice ────── */
+    /* ── Pause from inside a decision asks the same choice again ──────── */
     await evaluate('SS.save.settings.set("stops", "ours"); SS.game.startQuick(["beamers", "reef"]); SS.game.kickoff(); true');
     await until('SS.ui.context() === "world"', 90000);
-    await press('Space'); const before = await ui();
+    await press('Space'); const rowsNow = () => evaluate('SS.ui.__dbg().rows.join("|")'), before = await rowsNow();
     await keyDown('Enter'); await wait(5400); await keyUp('Enter'); await wait(300);
     check('holding Enter during a decision opens Pause', (await ui()).screen === 'pause');
     await press('Space'); await press('Enter'); u = await ui();
-    check('Continue returns to the same choice, same item lit', u.ctx === 'world' && u.row === before.row, before.row + ' -> ' + u.row);
+    check('Continue asks the same choice again, nothing lit', u.ctx === 'world' && u.index === -1 && await rowsNow() === before, u.ctx + '/' + u.index);
     // ...with its plates drawn, not just its items in the list (Bryan: they vanished).
     const platesNow = () => evaluate('(() => { const r = document.querySelector(".cluster .row"); return r ? [...r.querySelectorAll(".plate")].filter(p => p.getBoundingClientRect().width > 0).length : 0; })()');
     const wantPlates = await evaluate('SS.ui.__dbg().rows.length') - 1;          // every item but Pause
@@ -222,7 +228,9 @@ function findChrome() {
     const toRow = async (label) => { for (let i = 0; i < 20; i++) { if ((await ui()).row.startsWith(label)) return; await press('Space'); } throw Error('never reached ' + label); };
     await toRow('Settings'); await press('Enter');
     await toRow('Difficulty'); await press('Enter');
+    check('changing a setting keeps its highlight', (await ui()).row.startsWith('Difficulty'), (await ui()).row);
     await toRow('Back'); await press('Enter');
+    check('Back from Settings opens Pause with nothing lit', (await ui()).index === -1);
     await toRow('Continue'); await press('Enter');
     got = await platesNow();
     check('after Pause > Settings > Back > Continue every plate is back', (await ui()).ctx === 'world' && got === wantPlates, got + ' of ' + wantPlates);
@@ -259,7 +267,7 @@ function findChrome() {
     /* ── one switch: Auto Scan on, Enter only ───────────────────────── */
     await evaluate('(() => { const s = NarbeScanManager; if (!s.getSettings().autoScan) s.toggleAutoScan(); while (s.getScanInterval() !== 1000) s.cycleScanSpeed(); SS.save.clearMatch(); SS.game.quitToMenu(); })(); true');
     const litEnter = async (label) => { await until(`(SS.ui.__dbg().rows[SS.ui.__dbg().index] || "").startsWith(${JSON.stringify(label)})`, 20000); await press('Enter'); };
-    await litEnter('Quick Game'); await litEnter('Start'); await press('Enter');
+    await litEnter('Quick Game'); await litEnter('Start'); await litEnter('Kick off');
     let oneSwitch = 0;
     for (let n = 0; n < 4; n++) {
       await until('SS.ui.context() === "world" || SS.ui.screen === "halftime"', 90000);

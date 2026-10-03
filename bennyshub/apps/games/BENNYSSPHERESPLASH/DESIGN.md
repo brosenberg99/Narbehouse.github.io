@@ -72,11 +72,14 @@ ordinary press (a player may hold a switch for seconds without meaning to).
 | world | a decision, laid out on the scene | next (hold = scan back) | choose | Pause (ring + ticks) |
 | live | the match playing | Huddle | Huddle | Pause (ring + ticks) |
 
-- Lists start with nothing lit (except Kickoff and the Huddle, where one Enter is the point)
-  and wrap through a blank step, so Auto Scan leaves a beat between laps.
-- The **Huddle**: Continue (lit) · Call it Now · Formation · (Coach: Skip to Full Time) ·
+- Every card and decision opens with nothing lit, Back and Continue included
+  (ACCESSIBILITY.md "Menus open with nothing highlighted"; Kickoff and the Huddle used to
+  open with their first item lit, changed 2026-10-03). First Space = first item, hold Space
+  = last, Enter with nothing lit only speaks a hint. Changing a setting's value keeps the
+  highlight. Lists wrap through a blank step, so Auto Scan leaves a beat between laps.
+- The **Huddle**: Continue · Call it Now · Formation · (Coach: Skip to Full Time) ·
   Settings · Pause Menu. Pause is also the last stop of every decision scan and an on-screen
-  button. Continue from Pause returns to exactly the choice and item that was lit.
+  button. Continue from Pause asks the same choice again, with nothing lit.
 - Hold thresholds (scan back 3 s, ring 2 s, pause 5 s) live in `ui.js` and are never quoted
   to the player.
 

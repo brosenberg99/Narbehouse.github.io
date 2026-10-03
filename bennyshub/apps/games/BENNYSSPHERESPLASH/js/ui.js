@@ -11,14 +11,17 @@
  *   world  a decision is on the scene: the SAME scanning, over the choice plates
  *          beside the carrier, the teammates themselves (pass targets) and the
  *          on-screen Pause button. Holding Enter opens Pause from here too.
- *   live   the match is playing. A short press of either switch opens the Huddle
- *          (Continue first, so an accidental press costs one Enter). Holding Enter
- *          opens Pause directly, with Racer's "keep holding" ring and rising ticks.
+ *   live   the match is playing. A short press of either switch opens the Huddle.
+ *          Holding Enter opens Pause directly, with Racer's "keep holding" ring and
+ *          rising ticks.
  * Everything fires on RELEASE. A press of any length short of the full pause hold
  * is an ordinary press - a player may hold a switch for seconds without meaning to.
  *
- * Every list starts with nothing highlighted unless the card says otherwise, and
- * has a blank step before it wraps, so Auto Scan leaves a beat between laps.
+ * Every card and decision opens with nothing highlighted, Back included
+ * (ACCESSIBILITY.md "Menus open with nothing highlighted"): the first Space finds the
+ * first item, hold Space the last, and Enter waits for a choice. Only an in-place
+ * change (a setting's value, arming Reset) keeps the highlight. Each list has a blank
+ * step before it wraps, so Auto Scan leaves a beat between laps.
  * The focus marker (Fish Mystery's brackets) is the same on cards and in the world.
  */
 SS.ui = (function () {
@@ -173,10 +176,10 @@ SS.ui = (function () {
 
   /* ══ the world (a decision on the scene) ════════════════════════════════ */
   /** spec = { title, sub, items: [{ label, sub, odds, speech, action, focus?, el? }], anchor, speech } */
-  function openWorld(spec, keepIndex) {
+  function openWorld(spec) {
     closeCard();
     leaveWorld();
-    world = { spec, index: keepIndex != null ? keepIndex : (spec.startIndex != null ? spec.startIndex : -1) };
+    world = { spec, index: -1 };
     ctx = 'world';
     items = spec.items;
     buildCluster(spec);
@@ -185,7 +188,7 @@ SS.ui = (function () {
     swallowHeld();
     showChrome();
     showFocus();
-    if (spec.speech && !keepIndex) U.speak(spec.speech);
+    if (spec.speech) U.speak(spec.speech);
     SS.broadcast.hush();
     restartAuto();
   }
@@ -282,7 +285,7 @@ SS.ui = (function () {
     if (t - lastActivate < ACTIVATE_DEBOUNCE) return;
     lastActivate = t;
     const i = at != null && at >= 0 && at < items.length ? at : index;
-    if (i < 0) { step(1); return; }                       // nothing chosen yet: the first press finds the first item
+    if (i < 0) { U.speak(isAuto() ? 'Wait for the highlight, then press Enter' : 'Press Space first to pick an item'); return; }
     const it = items[i];
     if (!selectable(it)) { SS.audio.menu('blocked'); return; }
     SS.audio.menu('select');
@@ -384,13 +387,13 @@ SS.ui = (function () {
   /** Pause: from live play, a decision, or the Huddle. Continue returns to where it came from. */
   function openPause() {
     if (!G().inMatch()) return;
-    cardReturn = world ? { world: world.spec, index: world.index } : { live: true };
+    cardReturn = world ? { world: world.spec } : { live: true };
     G().setFrozen(true);
     setScreen('pause');
   }
   function resumeFromCard() {
     const r = cardReturn; cardReturn = null;
-    if (r && r.world) { openWorld(r.world, r.index); return; }
+    if (r && r.world) { openWorld(r.world); return; }      // asks again, nothing highlighted
     G().resume();
   }
 
@@ -404,8 +407,8 @@ SS.ui = (function () {
     if (window.parent && window.parent !== window) window.parent.postMessage({ action: 'focusBackButton' }, '*');
     else window.location.href = '../../../index.html';
   }
-  function openSettings() { resetArmed = 0; settingsReturn = { screen, opts: screenOpts, index }; setScreen('settings'); }
-  function backFromSettings() { resetArmed = 0; const r = settingsReturn || { screen: 'title' }; setScreen(r.screen, Object.assign({}, r.opts || {}, { index: r.index })); }
+  function openSettings() { resetArmed = 0; settingsReturn = { screen, opts: screenOpts }; setScreen('settings'); }
+  function backFromSettings() { resetArmed = 0; const r = settingsReturn || { screen: 'title' }; setScreen(r.screen, Object.assign({}, r.opts, { index: undefined })); }
 
   /* ══ screen helpers ═════════════════════════════════════════════════════ */
   const back = fn => ({ icon: '↩', label: 'Back', speech: 'Back', wide: true, action: fn, cls: 'back' });
@@ -463,7 +466,7 @@ SS.ui = (function () {
       items: [
         { icon: '🎲', label: 'Start', note: 'Random teams', primary: true, speech: 'Start, with random teams.', action: () => G().startQuick(null) },
         { icon: '👕', label: 'Pick the Teams', speech: 'Pick the teams', action: () => setScreen('pickTeam', { side: 0 }) },
-        back(() => setScreen('title', { index: G().savedMatch() ? 1 : 0 })),
+        back(() => setScreen('title')),
       ],
       speech: 'Quick Game. Start with random teams, or pick the teams.',
     }),
@@ -476,7 +479,7 @@ SS.ui = (function () {
         speech: t.name + '. ' + TEAM_WORD(t) + '. ' + t.blurb,
         action: () => side === 0 ? setScreen('pickTeam', { side: 1, ours: t.id }) : G().startQuick([o.ours, t.id]),
       }));
-      list.push(back(() => side === 0 ? setScreen('quick', { index: 1 }) : setScreen('pickTeam', { side: 0 })));
+      list.push(back(() => side === 0 ? setScreen('quick') : setScreen('pickTeam', { side: 0 })));
       return { art: art(side === 0 ? '👕' : '🆚'), title: side === 0 ? 'Your Team' : 'Your Opponent',
         sub: side === 0 ? 'Pick the team you will play for.' : 'Pick who you will play against.',
         items: list, layout: 'grid2', size: 'wide', speech: side === 0 ? 'Pick your team.' : 'Pick your opponent.' };
@@ -487,14 +490,13 @@ SS.ui = (function () {
       const vs = U.esc(info.teams[0].name) + ' <small>vs</small> ' + U.esc(info.teams[1].name);
       return { art: art(back2 ? '👋' : '🌊'), title: back2 ? 'Welcome Back' : vs,
         sub: back2 ? scoreLine(info) : 'You play for the <b>' + U.esc(info.teams[0].name) + '</b>, attacking to the right. ' + U.esc(STOPS[setting('stops')]) + '. ' + DIFFS[setting('difficulty')] + ' difficulty.',
-        startIndex: 0,
         items: [
           { icon: back2 ? '▶️' : '🏁', label: back2 ? 'Resume Play' : 'Kick Off', primary: true, speech: back2 ? 'Resume play' : 'Kick off', action: () => G().kickoff() },
           { icon: '⚙️', label: 'Settings', speech: 'Settings', action: openSettings },
           { icon: '🏠', label: 'Main Menu', speech: 'Main Menu', action: () => G().quitToMenu() },
         ],
-        speech: back2 ? 'Welcome back. ' + info.scoreSpeech + ' Resume play.'
-          : info.teams[0].name + ' versus ' + info.teams[1].name + '. You play for the ' + info.teams[0].name + '. Kick off.' };
+        speech: back2 ? 'Welcome back. ' + info.scoreSpeech + ' Resume play, Settings, or Main Menu.'
+          : info.teams[0].name + ' versus ' + info.teams[1].name + '. You play for the ' + info.teams[0].name + '. Kick off, Settings, or Main Menu.' };
     },
 
     huddle: () => {
@@ -508,8 +510,8 @@ SS.ui = (function () {
       if (coach) list.push({ icon: '⏭️', label: 'Skip to Full Time', speech: 'Skip to full time', action: () => g.skipToEnd() });
       list.push({ icon: '⚙️', label: 'Settings', speech: 'Settings', action: openSettings },
         { icon: '⏸️', label: 'Pause Menu', speech: 'Pause menu', action: () => setScreen('pause') });
-      return { art: art('🤝'), title: 'Huddle', sub: 'Play is stopped.', items: list, layout: 'grid2', startIndex: 0,
-        speech: 'Huddle. Play is stopped. Continue.' };
+      return { art: art('🤝'), title: 'Huddle', sub: 'Play is stopped.', items: list, layout: 'grid2',
+        speech: 'Huddle. Play is stopped.' };
     },
 
     formation: o => {
@@ -518,9 +520,9 @@ SS.ui = (function () {
         const f = SS.DATA.FORMATIONS[id], open = g.formationsOpen() || wins >= f.wins;
         return { label: U.esc(f.name), note: open ? U.esc(f.blurb) : 'Win ' + f.wins + ' matches to unlock', value: id === cur ? 'Now' : '',
           enabled: open, speech: f.name + (id === cur ? ', current' : '') + '. ' + f.blurb,
-          action: () => { g.setFormation(id); U.speak('Formation: ' + f.name); setScreen(o.from || 'huddle', { index: 2 }); } };
+          action: () => { g.setFormation(id); U.speak('Formation: ' + f.name); setScreen(o.from || 'huddle'); } };
       });
-      list.push(back(() => setScreen(o.from || 'huddle', { index: 2 })));
+      list.push(back(() => setScreen(o.from || 'huddle')));
       const rec = g.formationRecord(), theirs = g.theirFormationName();
       return { art: art('🧭'), title: 'Formation',
         sub: 'Now: <b>' + U.esc(rec) + '</b><br>' + U.esc(g.matchInfo().teams[1].short) + ' play <b>' + U.esc(theirs) + '</b>.',
@@ -529,7 +531,7 @@ SS.ui = (function () {
     },
 
     pause: () => ({
-      art: art('⏸️'), title: 'Paused', startIndex: -1,
+      art: art('⏸️'), title: 'Paused',
       items: [
         { icon: '▶️', label: 'Continue', speech: 'Continue', action: resumeFromCard },
         { icon: '🔄', label: 'Restart Match', speech: 'Restart match', action: () => setScreen('confirmRestart') },
@@ -542,18 +544,18 @@ SS.ui = (function () {
     }),
 
     confirmRestart: () => ({
-      art: art('🔄'), title: 'Restart the Match?', sub: 'The score goes back to <b>0 – 0</b>.', startIndex: 0,
+      art: art('🔄'), title: 'Restart the Match?', sub: 'The score goes back to <b>0 – 0</b>.',
       items: [
-        { icon: '↩', label: 'Keep Playing', primary: true, speech: 'Keep playing', action: () => setScreen('pause', { index: 1 }) },
+        { icon: '↩', label: 'Keep Playing', primary: true, speech: 'Keep playing', action: () => setScreen('pause') },
         { icon: '🔄', label: 'Restart', speech: 'Restart', action: () => G().restartMatch() },
       ],
       speech: 'Restart the match? The score goes back to nil nil. Keep playing, or Restart.',
     }),
 
     confirmExit: o => ({
-      art: art('🚪'), title: 'Leave Sphere Splash?', sub: 'Go back to the hub. The match is saved, so you can continue it later.', startIndex: 0,
+      art: art('🚪'), title: 'Leave Sphere Splash?', sub: 'Go back to the hub. The match is saved, so you can continue it later.',
       items: [
-        { icon: '↩', label: 'Stay', primary: true, speech: 'Stay', action: () => setScreen(o.from || 'pause', { index: 4 }) },
+        { icon: '↩', label: 'Stay', primary: true, speech: 'Stay', action: () => setScreen(o.from || 'pause') },
         { icon: '🏠', label: 'Exit Game', speech: 'Exit Game', action: goToHub },
       ],
       speech: 'Leave Sphere Splash and go back to the hub? The match is saved. Stay, or Exit Game.',
@@ -603,7 +605,7 @@ SS.ui = (function () {
       const list = [page < pages.length - 1
         ? { icon: '▶', label: 'Next: ' + pages[page + 1].t, speech: 'Next page. ' + pages[page + 1].t, action: () => setScreen('howto', { page: page + 1 }) }
         : { icon: '⏮', label: 'Back to the start', speech: 'Back to the first page', action: () => setScreen('howto', { page: 0 }) }];
-      list.push(back(() => setScreen('title', { index: G().savedMatch() ? 4 : 3 })));
+      list.push(back(() => setScreen('title')));
       return { art: art(pg.e), title: '<span class="kicker">How to Play · ' + (page + 1) + ' of ' + pages.length + '</span>' + pg.t,
         sub: pg.s, cardClass: 'howto', items: list,
         speech: 'How to play, page ' + (page + 1) + ' of ' + pages.length + '. ' + pg.t + '. ' + U.stripTags(pg.s.replace(/<\/p>/g, ' ')) };
