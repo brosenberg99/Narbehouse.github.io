@@ -167,7 +167,8 @@ SS.world = (function () {
       br.pts.geometry.attributes.position.needsUpdate = true;
       br.pts.material.opacity = 1 - Math.max(0, (br.t - BURST_LIFE * 0.5) / (BURST_LIFE * 0.5));
       const r = Math.min(1, br.t / RING_LIFE);
-      br.ring.scale.setScalar(1 + r * br.grow);       // a goal's: out to the goal's own size br.ring.material.opacity = 0.9 * (1 - r);
+      br.ring.scale.setScalar(1 + r * br.grow);       // a goal's: out to the goal's own size
+      br.ring.material.opacity = 0.9 * (1 - r);
       br.ring.visible = br.ringOn && r < 1;
       if (br.t >= BURST_LIFE) {
         scene.remove(br.pts, br.ring);
