@@ -87,25 +87,52 @@ SS.world = (function () {
     return skin;
   }
 
-  /* ── goals: big triangular frames, one per pole ───────────────────────── */
+  /* ── goals: big triangular frames, one per pole ─────────────────────────
+     The mouth is the sim's (RULES.GOAL_SIZE: a triangle's "radius"); the frame is one
+     thick rounded tube round it with an ink shell like the swimmers', lit from within so
+     it stays bright in the haze, and a net with a visible mesh. Each goal is in the colour
+     of the team that DEFENDS it (Bryan's pick, M3): you shoot at the goal in their colours.
+     The -z goal is ours (team 0 attacks +z) and nobody changes ends. */
+  const GOAL_TUBE = 0.42, NET_OPACITY = 0.7, GOAL_DEFAULT = [0xff4f9a, 0xff8a3d];      // -z, +z when no match is on
+  let goalKits = null, netTex = null;
+  /** A net you can see: diamond mesh lines over a light fill (white; the material tints it). */
+  function makeNetTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(255,255,255,0.32)'; g.fillRect(0, 0, 64, 64);
+    g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(64, 64); g.moveTo(64, 0); g.lineTo(0, 64); g.stroke();
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1.1, 1.1);
+    return t;
+  }
   function goal(z, colour) {
-    const g = new THREE.Group();
-    const s = 3.6, pts = [0, 1, 2].map(i => new THREE.Vector3(Math.sin(i * 2.094) * s, Math.cos(i * 2.094) * s, 0));
-    const frameMat = new THREE.MeshToonMaterial({ color: colour, gradientMap: null }); addCaustics(frameMat);
-    for (let i = 0; i < 3; i++) {
-      const a = pts[i], b = pts[(i + 1) % 3], len = a.distanceTo(b);
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, len, 12), frameMat);
-      bar.position.copy(a).add(b).multiplyScalar(0.5);
-      bar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-      g.add(bar);
-    }
-    const shape = new THREE.Shape(pts.map(p => new THREE.Vector2(p.x, p.y)));
-    const net = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({
-      color: colour, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+    const g = new THREE.Group(), s = SS.DATA.RULES.GOAL_SIZE;
+    const pts = [0, 1, 2].map(i => new THREE.Vector3(Math.sin(i * 2.094) * s, Math.cos(i * 2.094) * s, 0));
+    // Along each side, short of the corners: the closed spline rounds them.
+    const path = [];
+    for (let i = 0; i < 3; i++) for (let k = 0; k <= 6; k++) path.push(pts[i].clone().lerp(pts[(i + 1) % 3], 0.1 + 0.8 * k / 6));
+    const curve = new THREE.CatmullRomCurve3(path, true, 'centripetal');
+    const frameMat = new THREE.MeshToonMaterial({ color: colour, emissive: new THREE.Color(colour).multiplyScalar(0.35) }); addCaustics(frameMat);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE, 14, true), frameMat));
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE + 0.08, 10, true),
+      new THREE.MeshBasicMaterial({ color: 0x10202a, side: THREE.BackSide })));
+    netTex = netTex || makeNetTex();
+    const net = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(pts.map(p => new THREE.Vector2(p.x, p.y)))), new THREE.MeshBasicMaterial({
+      color: colour, map: netTex, transparent: true, opacity: NET_OPACITY, side: THREE.DoubleSide, depthWrite: false }));
     g.add(net);
     g.position.z = z;
-    goals.push({ group: g, net, z, colour: new THREE.Color(colour), flash: 0, shake: 0 });
+    goals.push({ group: g, net, z, colour: new THREE.Color(colour), flash: 0, shake: 0, frameMat });
     return g;
+  }
+  /** The match's kit colours, ours (the -z goal) and theirs (+z); null between matches. */
+  function setGoalKits(ours, theirs) {
+    goalKits = ours == null ? null : [ours, theirs];
+    const c = goalKits || GOAL_DEFAULT;
+    goals.forEach(gl => {
+      gl.colour.set(c[gl.z < 0 ? 0 : 1]);
+      gl.frameMat.color.copy(gl.colour); gl.frameMat.emissive.copy(gl.colour).multiplyScalar(0.35);
+      gl.net.material.color.copy(gl.colour);
+    });
   }
 
   /* ── a goal: the net bursts ───────────────────────────────────────────────
@@ -165,7 +192,7 @@ SS.world = (function () {
     goals.forEach(g => {
       if (g.flash > 0) {
         g.flash = Math.max(0, g.flash - dt / 1.5);
-        g.net.material.opacity = 0.22 + 0.6 * g.flash;
+        g.net.material.opacity = Math.min(1, NET_OPACITY + 0.6 * g.flash);
         if (!g.flash) g.net.material.color.copy(g.colour);
       }
       if (g.shake > 0) {
@@ -300,7 +327,7 @@ SS.world = (function () {
     scene.add(new THREE.HemisphereLight(0xcff6ff, 0x0b3a52, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 1.3); sun.position.set(12, 30, 8); scene.add(sun);
     scene.add(sky(), stadium(), waterSkin());
-    scene.add(goal(GOAL_Z, 0xff8a3d), goal(-GOAL_Z, 0xff4f9a));
+    scene.add(goal(-GOAL_Z, GOAL_DEFAULT[0]), goal(GOAL_Z, GOAL_DEFAULT[1]));
     lightShafts();
     bubbles = makeBubbles(420); scene.add(bubbles);
   }
@@ -378,5 +405,5 @@ SS.world = (function () {
     return { update, clear, mesh };
   }
 
-  return { build, update, addCaustics, goalBurst, techBurst, makeTrail, R, GOAL_Z };
+  return { build, update, setGoalKits, addCaustics, goalBurst, techBurst, makeTrail, R, GOAL_Z };
 })();

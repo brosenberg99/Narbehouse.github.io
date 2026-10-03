@@ -86,6 +86,7 @@ SS.game = (function () {
     const s = S();
     // Two teams whose looks read as one: the listed team wears its away kit (data.js CLASHES).
     kits = SS.models.matchKits(teamById(s.teams[0].id), teamById(s.teams[1].id));
+    SS.world.setGoalKits(kits[0].kit, kits[1].kit);
     s.players.forEach((pl, j) => {
       const team = kits[pl.team];
       const h = (pl.name.charCodeAt(0) * 7 + pl.name.length * 3 + j) >>> 0;
@@ -181,6 +182,7 @@ SS.game = (function () {
     teardownScene();
     SS.hud.visible(false); SS.hud.reset();
     SS.broadcast.reset();
+    SS.world.setGoalKits(null);
     SS.director.setMode('menu');
   }
   function restartMatch() { startQuick(setup.teams.slice()); }

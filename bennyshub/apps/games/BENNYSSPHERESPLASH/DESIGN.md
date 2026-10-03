@@ -363,6 +363,11 @@ near skin stays glass and the far side is the same water, so the sphere reads as
 of water. Teal measured better than blue for the kits: swimmers below 20 against the
 water behind them went from 5-7 of 27 kit/role combinations to 2 (Stars' forwards and
 defenders, 18-19). Review sheets in `Projects\Assets\SphereSplash\pool`.
+Goals (round 2, Bryan's pick C of four): the mouth is unchanged (RULES.GOAL_SIZE), the
+frame is one thick rounded tube with the swimmers' ink outline, lit from within so it
+stays bright in the haze, and the net has a visible diamond mesh. Each goal wears the
+match colours of the team that DEFENDS it (`world.setGoalKits`, from game.js), so you
+shoot at the goal in the other team's colours; a goal flashes the scorers' colour.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in
