@@ -130,6 +130,27 @@ function findChrome() {
     await evaluate('SS.save.clearMatch(); SS.game.quitToMenu(); true');
     await size(1368, 840); await wait(200);
 
+    /* ── sound: music on the menus, the crowd in play, quiet under Pause, down under speech ── */
+    const snd = () => evaluate('SS.audio.__dbg()');
+    await wait(1800); let a = await snd();
+    await evaluate('SS.audio.__nearLoop(1); true'); await wait(4000); const lp = await snd();
+    check('the theme loops: the second player takes over at the loop point, still playing', !!lp.music && lp.music.swaps >= 1 && lp.music.playing && lp.music.t < 4, JSON.stringify(lp.music));
+    check('the theme plays on the menus, with no crowd', !!a.music && a.music.state === 'run' && a.music.vol > 0.1 && !(a.bed && a.bed.playing), JSON.stringify(a));
+    // The commentary talks from the kickoff on, so the check decides when "speaking" is true.
+    await evaluate('window.__speaking = SS.util.speaking; window.__talk = false; SS.util.speaking = () => __talk; SS.save.settings.set("speed", "fast"); SS.game.startQuick(["reef", "beamers"]); SS.game.kickoff(); true');
+    await wait(2500); a = await snd();
+    check('in play: the crowd, and no music', !!a.bed && a.bed.playing && a.bed.vol > 0.2 && (!a.music || a.music.state === 'idle'), JSON.stringify(a));
+    await evaluate('__talk = true; true'); await wait(1200); a = await snd();
+    await evaluate('SS.util.speaking = window.__speaking; true');
+    check('the crowd drops while anything speaks', !!a.bed && a.bed.playing && a.bed.vol < 0.1, JSON.stringify(a));
+    await evaluate('SS.ui.openPause(); true'); await wait(1500); a = await snd();
+    check('the crowd goes quiet under Pause', !a.bed || !a.bed.playing || a.bed.vol < 0.01, JSON.stringify(a));
+    await evaluate('SS.ui.resumeFromCard(); SS.save.settings.set("crowd", false); true'); await wait(1500); a = await snd();
+    check('Crowd off: no crowd', !a.bed || !a.bed.playing, JSON.stringify(a));
+    await evaluate('SS.save.settings.set("crowd", true); SS.save.settings.set("music", false); SS.save.settings.set("speed", "normal"); SS.game.quitToMenu(); SS.save.clearMatch(); SS.ui.setScreen("title"); true'); await wait(1500); a = await snd();
+    check('Music off: no theme on the menus', !a.music || a.music.state !== 'run' || a.music.vol < 0.01, JSON.stringify(a));
+    await evaluate('SS.save.settings.set("music", true); true');
+
 
     /* ── two switches, real keys, from the menu into a match ───────────── */
     await press('Space'); let u = await ui();
@@ -303,6 +324,8 @@ function findChrome() {
     gl = await evaluate('JSON.stringify(Object.assign({ score: SS.game.matchInfo().score }, __goals))'); gv = JSON.parse(gl);
     total = gv.score[0] + gv.score[1];
     }
+    await wait(2000); const endSnd = await evaluate('SS.audio.__dbg()');
+    check('full time: a sting, then the theme on the results card', endSnd.stingUntil > 0 && !!endSnd.music && endSnd.music.state === 'run', JSON.stringify(endSnd));
     check('every goal gets its moment: banner, celebration, replay, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total && gv.replayed === total, gl);
 
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');

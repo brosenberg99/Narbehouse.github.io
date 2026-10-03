@@ -141,5 +141,7 @@ SS.broadcast = (function () {
   }
 
   loadIndex();
-  return { say, hush, reset, clearCaption, get history() { return history.slice(); } };
+  /** A commentary line is being heard right now (system voice or a recorded clip): the music and crowd duck. */
+  const talking = () => U.speaking() || !!(clip && !clip.paused && !clip.ended);
+  return { say, hush, reset, clearCaption, talking, get history() { return history.slice(); } };
 })();

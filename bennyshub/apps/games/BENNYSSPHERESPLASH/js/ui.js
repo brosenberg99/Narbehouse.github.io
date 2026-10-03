@@ -616,7 +616,7 @@ SS.ui = (function () {
       const tts = v ? v.getSettings().ttsEnabled : true;
       const voiceName = v && v.getVoiceDisplayName ? v.getVoiceDisplayName(v.getCurrentVoice()) : 'Default';
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
-      const replays = setting('replays') !== false, shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
+      const replays = setting('replays') !== false, shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false, music = setting('music') !== false, crowd = setting('crowd') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
       const STADIA = arenaChoices(SS.world.STADIUMS), TIMES = arenaChoices(SS.world.TIMES), stad = setting('stadium'), tod = setting('timeOfDay');
       const stadSay = k => 'Stadium, ' + STADIA[k] + (k === 'random' ? '. A different stadium every match.' : '.');
@@ -652,6 +652,10 @@ SS.ui = (function () {
           action: () => { if (s) { s.cycleScanSpeed(); refresh(); U.speak('Scan speed ' + (s.getScanInterval() / 1000) + ' seconds'); } } },
         { icon: '🔊', label: 'Sound Effects', value: sfx ? 'On' : 'Off', speech: 'Sound effects, ' + (sfx ? 'On' : 'Off'),
           action: () => set('sfx', !sfx, 'Sound effects ' + (sfx ? 'off' : 'on')) },
+        { icon: '🎵', label: 'Music', value: music ? 'On' : 'Off', speech: 'Music, ' + (music ? 'On' : 'Off'),
+          action: () => set('music', !music, 'Music ' + (music ? 'off' : 'on')) },
+        { icon: '👥', label: 'Crowd', value: crowd ? 'On' : 'Off', speech: 'Crowd, ' + (crowd ? 'On' : 'Off'),
+          action: () => set('crowd', !crowd, 'Crowd ' + (crowd ? 'off' : 'on')) },
         { icon: '🗑️', label: 'Reset Progress', value: resetArmed ? 'Sure?' : '', cls: resetArmed ? 'armed' : '',
           speech: resetArmed ? 'Select again to erase the saved match and these settings' : 'Reset progress',
           action: () => {

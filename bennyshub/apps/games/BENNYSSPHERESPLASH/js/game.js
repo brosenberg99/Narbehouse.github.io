@@ -373,6 +373,7 @@ SS.game = (function () {
       cine.offset = sw ? sw.ballPoint.clone().sub(curBall) : null;
       cine.start = sw ? sw.ballPoint.clone() : curBall.clone();
       cine.recRelease = SS.replay.now;
+      SS.audio.play('shot');
       return false;
     }
     if (cine.done < 0 && !S().ball.flight) cine.done = cine.t;
@@ -498,8 +499,8 @@ SS.game = (function () {
     // Slow through the build-up, then the shot at its own (already slowed) pace.
     const rate = THREE.MathUtils.lerp(REPLAY_SLOW, 1, THREE.MathUtils.smoothstep(r.rt, gm.recShot - 0.3, gm.recShot));
     r.rt = Math.min(r.to, r.rt + dt * rate);
-    if (!r.shotSound && r.rt >= gm.recRelease) { r.shotSound = true; if (!r.skip) SS.audio.play('bloop', 0.45); }
-    if (!r.burst && r.rt >= gm.recGoal) { r.burst = true; if (!r.skip) { SS.world.goalBurst(gm.net, kits[gm.team].kit, { ring: false }); SS.audio.play('horn', 0.35); } }
+    if (!r.shotSound && r.rt >= gm.recRelease) { r.shotSound = true; if (!r.skip) SS.audio.play('shot', 0.6); }
+    if (!r.burst && r.rt >= gm.recGoal) { r.burst = true; if (!r.skip) { SS.world.goalBurst(gm.net, kits[gm.team].kit, { ring: false }); SS.audio.play('goal', 0.5); } }
     if (r.rt >= r.to && !r.ending) {
       r.ending = true;
       startWipe(kits[gm.team], () => { if (gm && gm.replay) { gm.replay.on = false; release(); } });
@@ -716,23 +717,24 @@ SS.game = (function () {
     switch (e.type) {
       case 'kickoff':
         SS.replay.clear();                               // everyone was just put in place: nothing before this replays
-        SS.audio.play('whistle', 0.5); say('kickoff', { team: kits[e.team].short }, 1);
+        SS.audio.play('whistle'); say('kickoff', { team: kits[e.team].short }, 1);
         if (SS.director.mode === 'wide' && phase === 'live') SS.director.setMode('broadcast', { follow: playFocus });   // after a goal's cut
         break;
-      case 'pass': if (swimmers[e.player]) swimmers[e.player].once('throw'); SS.audio.play('bloop', 0.35); break;
+      case 'pass': if (swimmers[e.player]) swimmers[e.player].once('throw'); SS.audio.play('pass'); break;
       case 'shot':
-        startShotMoment(e);
-        SS.audio.play('bloop', 0.6);
+        startShotMoment(e);                              // its sound plays on the release (shotBeat)
+        SS.audio.crowd('swell');
         say('shot', { player: who(e.player) }, 2);
         break;
-      case 'catch': say('pass', { player: who(e.from), target: who(e.player) }, 1); break;
+      case 'catch': SS.audio.play('catch'); say('pass', { player: who(e.from), target: who(e.player) }, 1); break;
       case 'intercept':
+        SS.audio.play('catch');
         SS.hud.pop('Intercepted!', ours(e.player) ? 'good' : 'bad', 2);
         say('intercept', { player: who(e.player), team: team(e.player) }, 2);
         if (Math.random() < 0.35) say('interceptColor', {}, 1);
         break;
       case 'loose':
-        if (e.result === 'blocked' && e.by != null) { SS.hud.pop('Blocked!', ours(e.by) ? 'good' : 'bad', 2); say('blocked', { player: who(e.by) }, 2); }
+        if (e.result === 'blocked' && e.by != null) { SS.audio.play('block'); if (cine) SS.audio.crowd('groan'); SS.hud.pop('Blocked!', ours(e.by) ? 'good' : 'bad', 2); say('blocked', { player: who(e.by) }, 2); }
         else if (e.result === 'short') say('short', {}, 1);
         else say('loose', {}, 1);
         break;
@@ -740,7 +742,7 @@ SS.game = (function () {
         (e.hits || []).forEach(j => { if (swimmers[j]) swimmers[j].once(Math.random() < 0.5 ? 'tackleA' : 'tackleB'); });
         if (e.result === 'kept') say('breakThrough', { player: who(e.player) }, 2);
         else {
-          SS.audio.play('thud', 0.7);
+          SS.audio.play('tackle');
           if (swimmers[e.player]) swimmers[e.player].once('hitChest');
           SS.hud.pop('Tackled!', ours(e.by) ? 'good' : 'bad', 2);
           say('tackle', { player: who(e.by) }, 2);
@@ -748,12 +750,12 @@ SS.game = (function () {
         break;
       case 'tech': {
         const t = D().TECHS[e.tech];
-        if (t) { techFlourish(e, t); say('tech', { player: who(e.player), tech: t.name }, 2); }
+        if (t) { techFlourish(e, t); SS.audio.play('tech'); say('tech', { player: who(e.player), tech: t.name }, 2); }
         break;
       }
       case 'status': say('status', { player: who(e.player) }, 1); break;
       case 'goal': {
-        SS.audio.play('horn', 0.6);
+        SS.audio.play('goal'); SS.audio.crowd('roar'); SS.audio.sting('goal');
         SS.hud.hideTech();
         startGoalMoment(e);
         say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, '') }, 3);
@@ -762,13 +764,14 @@ SS.game = (function () {
         break;
       }
       case 'save':
+        SS.audio.play('save'); SS.audio.crowd('groan');
         SS.hud.pop('Saved!', ours(e.player) ? 'good' : 'bad', 2);
         say(e.caught ? 'saveCatch' : 'saveParry', { player: who(e.player) }, 2);
         if (Math.random() < 0.3) say('saveColor', {}, 1);
         break;
       case 'halftime':
         phase = 'halftime';
-        SS.audio.play('whistle', 0.6);
+        SS.audio.play('whistle');
         SS.hud.pop('Halftime', 'info', 3);
         say('halftime', { score: scoreWords() }, 3);
         saveNow();
@@ -786,7 +789,8 @@ SS.game = (function () {
         break;
       case 'fulltime': {
         phase = 'fulltime';
-        SS.audio.play('whistle', 0.7);
+        SS.audio.play('whistle');
+        SS.audio.sting(e.winner === 0 ? 'win' : 'lose');   // a draw gets the kind "nice try"
         SS.hud.pop('Full Time', 'info', 3);
         say('fulltime', { score: scoreWords() }, 3);
         if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short }, 3);
@@ -804,7 +808,7 @@ SS.game = (function () {
     endShotMoment();
     preview = 0;                          // a choice cuts the formation preview short
     saveNow();
-    SS.audio.play('decision', 0.5);
+    SS.audio.play('decision');
     const dec = m.pending;
     if (dec.kind === 'stance') openStance(dec);
     else if (dec.kind === 'keeper') openPass(dec, null, true);

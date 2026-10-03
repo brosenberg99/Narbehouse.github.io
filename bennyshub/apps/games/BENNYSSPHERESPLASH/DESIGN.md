@@ -207,6 +207,32 @@ through traffic like that." were heard during a goal celebration. A queued line 
 dropped once play has moved past it (a goal, a save, a change of possession), so the call
 always matches what is on screen. Fix it with the voices, not before.
 
+## Sound (`js/audio.js`, M3)
+
+Every sound is a WAV made offline by `node tools/generate-audio.mjs` (synthesised, no
+recordings; `audio/README.md` lists them). Bryan picked each in listening rounds on
+2026-10-03, three options at a time (the round pages and scripts are in
+`Projects\Assets\SphereSplash\sound`), after a look at how Ari's games do it: Robot
+Football's offline-generated files were the model, P3GL's gapless loop player plays the theme.
+
+- **Crowd:** a murmur under every match ("behind the glass": Robot Football's noise-voice
+  crowd, darkened as if heard from inside the sphere), with a sung "ooh" as a shot goes in, a
+  roar for a goal and an "aww" for a save or a blocked shot. The sung reactions have no noise
+  in them at all: M2's noise crowd came out as static over the commentary.
+- **Match sounds:** the "underwater" set - bloops, soft thumps, bubble trails - for the
+  whistle, pass, catch, shot (on the release, not the wind-up), tackle, block, save, goal, tech
+  move, a decision, and the menu's move and select. The pause hold keeps M2's rising ticks.
+- **Music only on the menus, halftime and the results card** (the "island" theme: steel drum,
+  marimba). During play the crowd and the commentary carry it. Stings (the "anthem" set, synth
+  brass) for a goal and at full time: a win, or a kind "nice try" for a loss or a draw.
+- **Speech has the floor:** the crowd drops to 28% and the music to 30% while the menu voice or
+  the commentary speaks (Robot Football's and P3GL's levels); effects start at 65%. The pause
+  ticks never duck. Pause, its questions and Settings quiet the crowd.
+- **Settings:** Sound Effects, Music, Crowd - each on or off, all on by default.
+- All through SafeAudio and plain `<audio>`; never an `AudioContext` (ACCESSIBILITY.md).
+  Browsers hold sound until the first press, sometimes silently (Firefox pauses an element that
+  turns audible), so every press or tap restarts anything that should be playing.
+
 ## Saves (`js/save.js`)
 
 `ss-settings` (this game's settings) and `ss-match` (the sim snapshot, saved at every
@@ -217,10 +243,18 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
 
 - `node tools/check-sim.cjs [--quick]` - the rules (M1).
 - `node tools/check-voice.cjs` - the voice slot contract; passes with no recordings.
+- `node tools/check-audio.cjs` - every sound file exists, is the right format, never clips;
+  the theme's loop tail and seam are right; the package stays under 8 MB.
+- `node tools/check-firefox-sound.cjs` - Firefox (Bryan's browser) from file://, with its normal
+  autoplay rule and real key presses: the theme starts on the first press, loops, and gives way
+  to the crowd in a match. Chrome runs check-browser with autoplay allowed, so only this sees
+  Firefox holding a sound that fades in from silence. Skips if Firefox is not installed.
 - `node tools/check-browser.cjs` - the real game in headless Chrome with real key events: cards
   fit at 1920x1008 / 1368x840 / 1024x768, clock and swimmers frozen at every decision, plates on
   screen and never overlapping, Huddle, hold-to-pause, Auto Scan with Enter alone, save and
-  resume, a whole Quick Game, and commentary never spoken over a choice.
+  resume, a whole Quick Game, and commentary never spoken over a choice. Sound: the theme on
+  the menus and its gapless loop, the crowd in play and quiet under Pause, the crowd ducking
+  under speech, the Crowd and Music settings, the full-time sting and results music.
 
 ## Open questions for the playtest (tune by feel, not by count)
 
@@ -285,7 +319,7 @@ settings (Auto Scan, scan speed, voice) belong to the shared managers, not here.
   - Flat Line (unlocked at 25 wins) is the weakest - an unlock should never be a trap (M4/M5).
 - Sound: every M2 sound is now a clean tone. The noise-based crowd roar / "ooh" and the pass
   swish came out as static over the commentary (Bryan's M2 note) and were removed; a real
-  crowd is M3's.
+  crowd is M3's. (Done in M3: see Sound.)
 
 ## Modes (`js/modes.js`)
 

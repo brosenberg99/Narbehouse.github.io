@@ -18,7 +18,9 @@ SS.save = (function () {
     speed: 'normal',        // Play speed: slow | normal | fast
     commentary: 'full',     // full | calls | captions | off
     uiSize: 1,              // 1 .. 2
-    sfx: true,
+    sfx: true,              // Sound Effects
+    music: true,            // the menu theme and the goal / full-time stings
+    crowd: true,            // the crowd's murmur and its reactions
     stadium: 'random',      // random | towers | arches | lamps (world.js STADIUMS): a new pick every match
     timeOfDay: 'random',    // random | day | sunset | night (world.js TIMES)
   };

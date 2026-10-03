@@ -95,6 +95,7 @@ SS.main = (function () {
       SS.hud.build();
       SS.game.init({ scene, camera });
       SS.ui.init();
+      SS.audio.init();
       frames.push((dt, time) => { SS.world.update(dt, time); SS.game.update(dt, time); SS.worldui.update(); perfHud(time); });
       document.getElementById('loading').style.display = 'none';
       SS.ui.setScreen('title');
