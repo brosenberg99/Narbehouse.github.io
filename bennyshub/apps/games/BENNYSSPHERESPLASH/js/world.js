@@ -42,9 +42,19 @@ SS.world = (function () {
   }
 
   /* ── the sphere's skin ─────────────────────────────────────────────────── */
+  /* Seen from inside, the skin is the backdrop of every play, so it is also the depth of the
+     water: a haze that softens the stadium's tiers behind the swimmers (Bryan picked a light
+     one, so the stadium still shows as soft shapes), bright above (the surface) and deeper
+     below, so up and down read at a glance. Teal, not blue: blue water hid the blue kits.
+     From outside the skin stays clear glass: the near side is a window, and through it the
+     far side is the same water (the inside of the skin is always water, the outside glass). */
+  const WATER = { haze: 0.55, top: 0xb8f3f0, mid: 0x4fc4c8, deep: 0x2a8fa8, surface: 0.5 };
+  const skinU = { uTime: uniforms.uTime, uTint: { value: new THREE.Color(0x1fb3c9) }, uRim: { value: new THREE.Color(0xdff9ff) },
+    uHaze: { value: WATER.haze }, uSurface: { value: WATER.surface },
+    uTop: { value: new THREE.Color(WATER.top) }, uMid: { value: new THREE.Color(WATER.mid) }, uDeep: { value: new THREE.Color(WATER.deep) } };
   function waterSkin() {
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uTime: uniforms.uTime, uTint: { value: new THREE.Color(0x1fb3c9) }, uRim: { value: new THREE.Color(0xdff9ff) } },
+      uniforms: skinU,
       vertexShader: `
         varying vec3 vN; varying vec3 vView; varying vec3 vW;
         void main() {
@@ -54,13 +64,21 @@ SS.world = (function () {
         }`,
       fragmentShader: `
         uniform float uTime; uniform vec3 uTint; uniform vec3 uRim;
+        uniform float uHaze; uniform float uSurface; uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uDeep;
         varying vec3 vN; varying vec3 vView; varying vec3 vW;
         void main() {
           vec3 n = normalize(vN + 0.06 * vec3(sin(vW.y * 0.9 + uTime), sin(vW.z * 0.8 - uTime * 1.2), sin(vW.x * 0.7 + uTime * 0.8)));
           float f = pow(1.0 - abs(dot(n, vView)), 2.2);
           float glint = pow(max(0.0, sin(vW.x * 1.3 + vW.y * 0.7 + uTime * 1.5)), 12.0) * 0.35;
           vec3 col = mix(uTint, uRim, f) + glint;
-          gl_FragColor = vec4(col, mix(0.16, 0.85, f));
+          float a = mix(0.16, 0.85, f);
+          // Inside: the water's own colour, by height on the sphere.
+          float h = normalize(vW).y;
+          vec3 depth = h > 0.0 ? mix(uMid, uTop, smoothstep(0.0, 0.85, h)) : mix(uMid, uDeep, smoothstep(0.0, -0.8, h));
+          float sheen = pow(max(0.0, sin(vW.x * 0.35 + uTime * 0.6) * sin(vW.z * 0.3 - uTime * 0.45)), 3.0);
+          depth += vec3(0.9, 1.0, 1.0) * uSurface * smoothstep(0.55, 0.95, h) * (0.25 + 0.35 * sheen);
+          // No glint inside: its bands read as rings across the top of the picture.
+          gl_FragColor = gl_FrontFacing ? vec4(col, a) : vec4(depth, max(a, uHaze));
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
     });

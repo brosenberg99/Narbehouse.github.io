@@ -354,6 +354,15 @@ Checklist round 5 (Bryan, 2026-10-02): the Stars and Horns sit below 20 against 
 blue-teal water (12-18); lighter/deeper shades did not help and broke other pairs, and
 Bryan accepted it - the thick ink outline carries their shape. High Contrast is checked
 with the themes step (the game has no themes yet).
+The pool (M3, round 1 of the stadium/water step, Bryan's pick B of four): the inside of
+the sphere's skin is the water's own colour, so it is the backdrop of every play - a light
+haze (55%) that softens the stadium's striped tiers behind the swimmers (background
+detail about half of before) while still showing the stadium as soft shapes, teal rather
+than blue, bright toward the top and deeper below so up and down read. From outside the
+near skin stays glass and the far side is the same water, so the sphere reads as a ball
+of water. Teal measured better than blue for the kits: swimmers below 20 against the
+water behind them went from 5-7 of 27 kit/role combinations to 2 (Stars' forwards and
+defenders, 18-19). Review sheets in `Projects\Assets\SphereSplash\pool`.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in
