@@ -70,7 +70,7 @@ SS.main = (function () {
     try {
       init();
       await SS.models.load();
-      SS.world.build(scene);
+      SS.world.build(scene, SS.save.lastArena());
       SS.worldui.init(camera);
       SS.director.init(camera);
       SS.hud.build();

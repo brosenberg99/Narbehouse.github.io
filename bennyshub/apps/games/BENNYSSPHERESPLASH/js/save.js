@@ -9,7 +9,7 @@
 SS.save = (function () {
   'use strict';
 
-  const KEY_SETTINGS = 'ss-settings', KEY_MATCH = 'ss-match', VERSION = 1, SETTINGS_VERSION = 2;
+  const KEY_SETTINGS = 'ss-settings', KEY_MATCH = 'ss-match', KEY_ARENA = 'ss-arena', VERSION = 1, SETTINGS_VERSION = 2;
   const DEFAULTS = {
     stops: 'both',          // Decision stops: ours | both | key | coach (Bryan: defend by default)
     shotCam: 'cinematic',   // cinematic | steady: the camera's shot move (game.js shot moment)
@@ -19,6 +19,8 @@ SS.save = (function () {
     commentary: 'full',     // full | calls | captions | off
     uiSize: 1,              // 1 .. 2
     sfx: true,
+    stadium: 'random',      // random | towers | arches | lamps (world.js STADIUMS): a new pick every match
+    timeOfDay: 'random',    // random | day | sunset | night (world.js TIMES)
   };
 
   function read(key) {
@@ -54,6 +56,8 @@ SS.save = (function () {
     return m;
   }
   function clearMatch() { drop(KEY_MATCH); }
+  /** The last match's arena, so the menu behind the title is the stadium you just played in. */
+  function lastArena(a) { if (a) write(KEY_ARENA, a); return read(KEY_ARENA); }
 
   /** Reset Progress: the match in progress and this game's settings. Hub access
    *  settings are the player's, shared by every game, and are left alone. */
@@ -63,5 +67,5 @@ SS.save = (function () {
     listeners.forEach(fn => { try { fn('*'); } catch (e) { console.error(e); } });
   }
 
-  return { settings: settingsApi, saveMatch, loadMatch, clearMatch, resetAll, DEFAULTS };
+  return { settings: settingsApi, saveMatch, loadMatch, clearMatch, lastArena, resetAll, DEFAULTS };
 })();

@@ -73,6 +73,12 @@ SS.game = (function () {
     SS.save.settings.onChange(k => {
       if (m && (k === 'stops' || k === '*')) m.s.stops = SS.save.settings.get('stops');
       if (m && (k === 'difficulty' || k === '*')) m.setBoost(boostOf());
+      // A stadium or time of day chosen in Settings shows at once (Random waits for the next match).
+      if ((k === 'stadium' || k === 'timeOfDay') && SS.save.settings.get(k) !== 'random') {
+        const a = Object.assign({}, SS.world.arena, k === 'stadium' ? { stadium: SS.save.settings.get(k) } : { time: SS.save.settings.get(k) });
+        SS.world.setArena(a.stadium, a.time);
+        if (m && setup) { setup.arena = a; saveNow(); }
+      }
     });
   }
 
@@ -123,14 +129,19 @@ SS.game = (function () {
       const pool = U.shuffle(D().TEAMS.map(t => t.id));
       a = pool[0]; b = pool[1];
     }
-    setup = { mode: 'quick', teams: [a, b], seed: (Math.random() * 2 ** 31) >>> 0, half: RU().HALF_SHORT };
+    setup = { mode: 'quick', teams: [a, b], seed: (Math.random() * 2 ** 31) >>> 0, half: RU().HALF_SHORT, arena: newArena() };
     m = SS.sim.create({ teams: [teamById(a), teamById(b)], seed: setup.seed, halfLength: setup.half,
       overtime: false, human: 0, stops: SS.save.settings.get('stops'), aiCoach: true, boost: boostOf() });
     m.advance(RU().TICK);                      // one tick: everyone takes their kickoff places
     begin('kickoff');
   }
+  /** This match's stadium and time of day: what Settings asks for, else a random pick. */
+  const newArena = () => SS.world.pickArena(SS.save.settings.get('stadium'), SS.save.settings.get('timeOfDay'));
   function begin(kind) {
     SS.broadcast.reset();
+    setup.arena = setup.arena || newArena();               // a save from before arenas gets one now
+    SS.world.setArena(setup.arena.stadium, setup.arena.time);
+    SS.save.lastArena(setup.arena);
     buildScene();
     acc = 0; sinceSave = 0; frozen = false; preview = 0; previewPending = false; talk = { at: -99, done: {} }; gm = null; wipeFx = null; intro = null;
     rings.forEach(r => { r.visible = false; r.material.color.set(kits[0] ? kits[0].kit : 0xffffff); });

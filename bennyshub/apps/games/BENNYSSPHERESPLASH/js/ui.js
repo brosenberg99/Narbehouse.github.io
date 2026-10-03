@@ -416,6 +416,8 @@ SS.ui = (function () {
     key: 'Key moments. You choose only the big chances.', coach: 'Coach. Watch, and set tactics from the huddle.' };
   const SPEEDS = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
   const DIFFS = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+  // Stadium and time of day: Random, or one of world.js's.
+  const arenaChoices = o => Object.assign({ random: 'Random' }, ...Object.keys(o).map(k => ({ [k]: o[k].name })));
   const DIFFS_SAY = { easy: 'Easy. Your team is much stronger.', normal: 'Normal. Your team gets a little help.', hard: 'Hard. A real challenge.' };
   const COMMENTARY = { full: 'Full broadcast', calls: 'Big calls only', captions: 'Captions only', off: 'Off' };
   const cycle = (list, v) => list[(list.indexOf(v) + 1) % list.length];
@@ -614,6 +616,9 @@ SS.ui = (function () {
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
       const replays = setting('replays') !== false, shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
+      const STADIA = arenaChoices(SS.world.STADIUMS), TIMES = arenaChoices(SS.world.TIMES), stad = setting('stadium'), tod = setting('timeOfDay');
+      const stadSay = k => 'Stadium, ' + STADIA[k] + (k === 'random' ? '. A different stadium every match.' : '.');
+      const todSay = k => 'Time of day, ' + TIMES[k] + (k === 'random' ? '. A different time every match.' : '.');
       const list = [
         { icon: '🗣️', label: 'Text to Speech', value: tts ? 'On' : 'Off', speech: 'Text to Speech, ' + (tts ? 'On' : 'Off'),
           action: () => { if (v) { v.toggleTTS(); refresh(); if (v.getSettings().ttsEnabled) U.speak('Text to speech on'); } } },
@@ -628,6 +633,10 @@ SS.ui = (function () {
         { icon: '⏪', label: 'Goal Replays', value: replays ? 'On' : 'Off',
           speech: replays ? 'Goal replays, on. Every goal plays again in slow motion. Press to skip one.' : 'Goal replays, off.',
           action: () => set('replays', !replays, replays ? 'Goal replays, off.' : 'Goal replays, on. Every goal plays again in slow motion. Press to skip one.') },
+        { icon: '🏟️', label: 'Stadium', value: STADIA[stad] || 'Random', speech: stadSay(STADIA[stad] ? stad : 'random'),
+          action: () => { const n = cycle(Object.keys(STADIA), stad); set('stadium', n, stadSay(n)); } },
+        { icon: '🌅', label: 'Time of Day', value: TIMES[tod] || 'Random', speech: todSay(TIMES[tod] ? tod : 'random'),
+          action: () => { const n = cycle(Object.keys(TIMES), tod); set('timeOfDay', n, todSay(n)); } },
         { icon: '⏩', label: 'Play Speed', value: SPEEDS[play], speech: 'Play speed, ' + SPEEDS[play],
           action: () => { const n = cycle(Object.keys(SPEEDS), play); set('speed', n, 'Play speed, ' + SPEEDS[n]); } },
         { icon: '📢', label: 'Commentary', value: COMMENTARY[com], speech: 'Commentary, ' + COMMENTARY[com],

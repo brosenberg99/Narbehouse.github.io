@@ -368,6 +368,19 @@ frame is one thick rounded tube with the swimmers' ink outline, lit from within 
 stays bright in the haze, and the net has a visible diamond mesh. Each goal wears the
 match colours of the team that DEFENDS it (`world.setGoalKits`, from game.js), so you
 shoot at the goal in the other team's colours; a goal flashes the scorers' colour.
+The arena (round 3): Bryan chose variety over one pick - any stadium at any time of day,
+picked at random each match (Settings: Stadium and Time of Day, each Random or fixed; a
+fixed choice shows at once, Random waits for the next match). Three stadiums
+(`world.STADIUMS`: Floodlight Towers on a ringed cradle, Stone Arches with flags, Lamp
+Ring on a cup) x three times (`world.TIMES`: day with clouds, sunset, night with stars
+and phone lights). A time of day only shades the building and turns its lights on; the
+swimmers' lighting never changes, so the kit colour work holds in every arena. Fans sit
+at the end of the goal their team defends, in its colours. From inside the water the
+crowd melts into its seats (`uCalm`, from the camera's distance to the centre, so it
+changes while the kickoff sweep passes through the skin): the crowd was nearly all of
+the background busyness behind play, and every arena measures calmer than the old
+stadium (0.45-0.59 v 0.87, mean L* gradient of the swimmer-free frame). The arena is
+saved with the match (`setup.arena`) and the last one is the menu's backdrop.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in

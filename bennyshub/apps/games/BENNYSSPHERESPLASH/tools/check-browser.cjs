@@ -268,6 +268,9 @@ function findChrome() {
 
     /* ── a whole Quick Game to the results card, at 1024x768 ──────────── */
     await size(1024, 768);
+    // Each match is a new random one; a 0-0 has no goal to check, so play another (up to three).
+    let gl, gv, total = 0;
+    for (let tries = 0; tries < 3 && !total; tries++) {
     await evaluate('SS.game.startQuick(["summit", "mistwood"]); SS.game.kickoff(); true');
     await evaluate('window.__goals = { seen: 0, celebrated: 0, banner: 0, replayed: 0 }; true');
     await until(`(() => {
@@ -284,8 +287,9 @@ function findChrome() {
     })()`, 400000);
     await shot('results.png');
     check('a whole Quick Game plays to the results card', (await ui()).screen === 'results');
-    const gl = await evaluate('JSON.stringify(Object.assign({ score: SS.game.matchInfo().score }, __goals))'), gv = JSON.parse(gl);
-    const total = gv.score[0] + gv.score[1];
+    gl = await evaluate('JSON.stringify(Object.assign({ score: SS.game.matchInfo().score }, __goals))'); gv = JSON.parse(gl);
+    total = gv.score[0] + gv.score[1];
+    }
     check('every goal gets its moment: banner, celebration, replay, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total && gv.replayed === total, gl);
 
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');
