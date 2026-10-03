@@ -1,6 +1,12 @@
 # Release preparation — Benny's Hub Companion 1.0.5
 
-The packaging tools prepare this kit locally and do not push or submit to stores. The repository workflow automatically checks and deploys website changes pushed to main. Confirm any submission you made manually in the store dashboard; this kit does not establish approval. Target website: https://narbehouse.github.io/bennyshub/. Support: narbehousellc@gmail.com.
+This guide is for maintainers publishing website changes or Companion updates. Everyday users can open [Benny's Hub at bennyshub.com](https://bennyshub.com); local release preparation is not part of using the app.
+
+Store ZIPs, screenshots, and publisher copy are generated under `releases/1.0.5/`.
+
+The [Chrome Web Store listing is live](https://chromewebstore.google.com/detail/bennys-hub-companion/mgebpldbnicoldgheklaaocloplgmmkc). Use that existing listing for future Chrome updates. Edge Add-ons submissions remain separate; no Edge listing URL has been supplied.
+
+The packaging tools prepare this kit locally and do not push or submit to stores. The repository workflow automatically checks and deploys website changes pushed to main. Confirm each update's status in the store dashboard; rebuilding this kit does not establish approval. Target website: https://narbehouse.github.io/bennyshub/. Support: narbehousellc@gmail.com.
 
 ## Files to use
 
@@ -26,9 +32,9 @@ The packaging tools prepare this kit locally and do not push or submit to stores
 4. Check real one-/two-switch input in desktop Chrome and Edge, plus your intended PWA mode. Browser-level UI such as the address bar and permission dialogs cannot be forcibly controlled by an ordinary extension. Alt+Shift+B deliberately releases the player controls for sign-in.
 5. Test an optional calendar and news feed using a test account; never put a private calendar URL or credentials in reviewer notes. No subscription account is needed for the basic YouTube review path.
 6. Review the privacy declarations and publisher account identity. The supplied privacy page describes the actual local and third-party data flows; local-only processing still needs disclosure.
-7. Create/verify your Chrome Web Store developer account, pay any dashboard registration fee shown, and enable two-step verification. Create/verify your Microsoft Edge publisher account in Partner Center. These account tasks have not been performed for you.
-8. Upload the extension ZIP, paste the supplied copy/disclosures, upload the images, and submit each listing when ready. Store acceptance and timing are controlled by Google/Microsoft.
-9. The setup page currently offers a clearly marked developer/tester preview. See `PREVIEW-DISTRIBUTION.md`; developer mode is not advertised as general public distribution. After the stores assign listing URLs, replace the local-preview installation instructions on the Hub setup page with Chrome/Edge store links. A website button takes users to the store's install flow; it cannot silently install an extension. Do not invent extension IDs or store links.
+7. Use the existing Chrome publisher account and listing for updates. Set up and verify a Microsoft Edge publisher account in Partner Center if submitting to Edge Add-ons.
+8. Upload the extension ZIP to the appropriate existing listing, update copy/disclosures or images when needed, and submit the update. Store acceptance and timing are controlled by Google/Microsoft.
+9. The public setup page links to the Chrome Web Store and explains installation and connection. Developer ZIP instructions remain collapsed. See `PREVIEW-DISTRIBUTION.md`. Add an Edge Add-ons link only after its listing is available. A website button opens the store's install flow; it cannot silently install an extension.
 
 ## GitHub Pages preparation
 
@@ -37,6 +43,10 @@ The site uses static HTML/CSS/JS, browser storage and an optional companion. TMD
 Publish the **contents of dist/** at the root of the `narbehouse.github.io` repository's Pages artifact, preserving the `bennyshub/` subdirectory. Do not put the artifact inside another `dist/` directory and do not deploy this whole workspace. The PWA scope is `/bennyshub/`. Website storage is origin-specific: localhost data is not automatically copied to GitHub Pages.
 
 The deployment workflow is included at `.github/workflows/pages.yml`; `pages.yml.example` is a reference copy. With Settings > Pages > Source set to GitHub Actions, each push to `main` automatically runs **Publish reviewed website**. It publishes only the built `dist/` artifact after tests, the public-file audit and link checks pass. Failed build checks leave the live site unchanged. The commit receives GitHub Actions checks; open the check indicator or Actions tab for results. A manual Run workflow option remains available for retries. This does not submit or update an extension store listing.
+
+Local edits and commits alone do not publish. On GitHub, a yellow indicator means checks are running, a green check means the workflow succeeded, and a red X means it failed. Open the indicator or **Actions > Publish reviewed website** for details.
+
+For a clean source handoff, run `npm run build`, `npm run audit:release`, `npm run check:pages`, and `npm run prepare:github`. The result is `releases/1.0.5/github-ready/`. The [replacement guide](REPLACE-WEBSITE.md) covers preserving an old checkout and publishing only the built `dist/` website. This is a maintenance workflow, not a user installation step.
 
 `.nojekyll` is included in the website artifact so static filenames are served without Jekyll processing. The automated public-file audit also checks the Pages size target and large individual files. It is not a full accessibility or security certification.
 
@@ -50,6 +60,8 @@ The deployment workflow is included at `.github/workflows/pages.yml`; `pages.yml
 - Public company branding and intended publisher/support contact details remain. Automated scanning cannot prove that every image, free-text passage or imported historical file has no personal information.
 
 ## Rebuild locally
+
+Builds require Node.js and Python 3. `npm run build` also generates the production-origin Companion preview ZIP inside `dist/bennyshub/downloads/`. That download is for developer testing; public users install the Companion through the store. See [preview distribution guidance](PREVIEW-DISTRIBUTION.md).
 
 ```
 npm ci

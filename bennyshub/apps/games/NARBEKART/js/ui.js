@@ -15,9 +15,9 @@
  *   no card   → a race: NK.controls reads the raw NK.input layer instead.
  *
  * Fish Mystery's fixes are all here: ignoreUntilRelease is captured in EVERY
- * showOverlay(true); cards that arrive on the back of a press (pause, results,
- * standings, trophy) open with nothing focused, and their first press only
- * steps and reads; a time-based ghost-click guard; the hint follows the scheme.
+ * showOverlay(true); every card opens with nothing focused, the first step
+ * lights and reads a row, and choosing does nothing until a row is lit; a
+ * time-based ghost-click guard; the hint follows the scheme.
  *
  * Two players (DESIGN §2.6): on shared screens with Auto Scan on, either switch
  * chooses. On a player's own pick screens (racer, kart) the highlight always
@@ -63,6 +63,7 @@ NK.ui = (function () {
   let inRace = false;             // a race is running under the cards
   let ready = false;
   let autoScanTimer = null;
+  let menuTouching = false;
   let cardOpenedAt = 0;
   let resetArmed = 0;
   let settingsReturn = { screen: 'title', index: 3 };
@@ -183,6 +184,7 @@ NK.ui = (function () {
     ov.id = 'nkOverlay';
     ov.className = 'nkOverlay';
     ov.innerHTML =
+      '<div id="nkMobilePreview" aria-hidden="true"></div>' +
       '<div id="nkCard" class="nkCard" role="dialog" aria-live="polite">' +
         '<div class="nkCardBand" aria-hidden="true"></div>' +
         '<div id="nkPlayerTag" class="nkPlayerTag"></div>' +
@@ -194,6 +196,13 @@ NK.ui = (function () {
         '<p id="nkHint" class="nkHint"></p>' +
       '</div>';
     host.appendChild(ov);
+    ov.addEventListener('touchstart', () => { menuTouching = true; stopAutoScan(); }, { passive: true });
+    const touchDone = e => {
+      menuTouching = e.touches.length > 0;
+      if (!menuTouching) restartAutoScan();
+    };
+    ov.addEventListener('touchend', touchDone, { passive: true });
+    ov.addEventListener('touchcancel', touchDone, { passive: true });
 
     const btn = document.createElement('button');
     btn.id = 'nkPauseBtn';
@@ -206,6 +215,7 @@ NK.ui = (function () {
 
     window.addEventListener('resize', refitSoon);
     window.addEventListener('orientationchange', refitSoon);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', refitSoon);
   }
 
   function selectable(it) { return !!it && it.enabled !== false && !it.header; }
@@ -250,9 +260,10 @@ NK.ui = (function () {
         // Hovering moves focus like scanning does (no speech: a mouse sweeping
         // the list would machine-gun the voice).
         el.addEventListener('mouseenter', () => {
+          if (!window.matchMedia('(hover: hover)').matches) return;
           if (!selectable(it) || index === i) return;
           index = i;
-          updateFocus();
+          updateFocus(false);
           restartAutoScan();
         });
       }
@@ -260,7 +271,7 @@ NK.ui = (function () {
     });
   }
 
-  function updateFocus() {
+  function updateFocus(reveal = true) {
     const els = $('nkMenu').children;
     for (let i = 0; i < els.length; i++) els[i].classList.toggle('focused', i === index);
     // Nothing selected yet: the card is waiting for a step, which reads a row out.
@@ -268,6 +279,18 @@ NK.ui = (function () {
     const it = items[index];
     showStats(it && it.stats !== undefined ? it.stats : (meta.stats || ''));
     if (it && typeof it.onFocus === 'function') it.onFocus();
+    if (reveal) revealFocus();
+  }
+
+  // Scanning moves the viewport with the highlight. No extra switch or swipe
+  // is needed to reach a choice on a short screen.
+  function revealFocus() {
+    const card = $('nkCard'), el = $('nkMenu').children[index];
+    if (!el || !card.classList.contains('scrollable')) return;
+    const cr = card.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const top = cr.top + card.clientTop + 14, bottom = cr.bottom - card.clientTop - 14;
+    if (r.top < top) card.scrollTop -= top - r.top;
+    else if (r.bottom > bottom) card.scrollTop += r.bottom - bottom;
   }
 
   function showStats(html) {
@@ -284,11 +307,12 @@ NK.ui = (function () {
 
   /* Move to the next/previous selectable item — locked items and headers are
      skipped, matching how the other hub apps scan. From "nothing selected" a
-     step lands on the first item, whichever way it was pressed. */
+     step forward lands on the first item, a step back on the last. */
   function step(delta) {
     if (!items.length) return;
     if (index < 0) {
-      for (let n = 0; n < items.length; n++) if (selectable(items[n])) { index = n; break; }
+      if (delta > 0) { for (let n = 0; n < items.length; n++) if (selectable(items[n])) { index = n; break; } }
+      else { for (let n = items.length - 1; n >= 0; n--) if (selectable(items[n])) { index = n; break; } }
       if (index < 0) return;
     } else {
       let i = index;
@@ -311,43 +335,36 @@ NK.ui = (function () {
     if (t - lastActivate < ACTIVATE_DEBOUNCE) return;
     lastActivate = t;
     const i = at !== undefined && at >= 0 && at < items.length ? at : index;
-    // Nothing selected: the first press steps onto the first row and reads it,
-    // rather than acting on a choice nobody has made.
-    if (i < 0) { step(1); return; }
+    // Nothing selected: there is no choice to act on, so choosing does nothing.
+    if (i < 0) return;
     const it = items[i];
     if (!selectable(it)) { sfx('blocked'); return; }
     sfx('select');
     if (typeof it.action === 'function') it.action();
   }
 
-  /* ── Fitting: no card may ever need a scrollbar ──────────────────────────
-   * A player with two switches cannot scroll, so everything a card offers has
-   * to BE on the card. After every render: try the tight layout, then scale
-   * the whole card (never below a size that still reads across a room).
+  /* Fit without shrinking touch targets. Long cards scroll on small screens;
+   * switch focus reveals each choice automatically, including Back.
    */
   function fitCard() {
     const card = $('nkCard'), ov = $('nkOverlay');
     if (!card || !ov) return;
-    card.classList.remove('tight');
+    card.classList.remove('tight', 'scrollable');
     card.style.transform = '';
     card.style.marginBottom = '';
-    const cs = getComputedStyle(ov);
-    const room = ov.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) - 8;
-    let h = card.getBoundingClientRect().height;
-    if (h <= room) return;
-    card.classList.add('tight');
-    h = card.getBoundingClientRect().height;
-    if (h <= room) return;
-    const k = Math.max(0.6, room / h);
-    card.style.transformOrigin = 'center center';
-    card.style.transform = 'scale(' + k.toFixed(3) + ')';
-    card.style.marginBottom = Math.round(-h * (1 - k)) + 'px';
+    if (card.scrollHeight > card.clientHeight + 1) card.classList.add('tight');
+    card.classList.toggle('scrollable', card.scrollHeight > card.clientHeight + 1);
+    revealFocus();
   }
 
   let refitTimer = null;
   function refitSoon() {
     clearTimeout(refitTimer);
-    refitTimer = setTimeout(() => { if (overlayOn) fitCard(); }, 140);
+    refitTimer = setTimeout(() => {
+      if (!overlayOn) return;
+      if (screen === 'settings' && meta.phoneSplit !== !!call('usesPhoneLayout')) refresh();
+      else fitCard();
+    }, 140);
   }
 
   /* ── Overlay plumbing ────────────────────────────────────────────────── */
@@ -385,9 +402,10 @@ NK.ui = (function () {
     meta = builder(opts) || {};
     items = meta.items || [];
 
-    index = meta.startIndex !== undefined ? meta.startIndex : 0;
-    if (opts.index !== undefined) index = opts.index;
-    else if (meta.listenFirst) index = -1;
+    // Every card opens with nothing focused; the first step lights a row.
+    // Only refresh() (this same card redrawn) passes an index, so a value
+    // changed in place keeps its highlight. startIndex/listenFirst are unused.
+    index = opts.index !== undefined ? opts.index : -1;
     if (index >= items.length) index = items.length - 1;
     if (index >= 0 && !selectable(items[index])) {
       for (let n = 1; n <= items.length; n++) {
@@ -397,6 +415,7 @@ NK.ui = (function () {
     }
 
     const card = $('nkCard');
+    card.scrollTop = 0;
     const owned = meta.owner === 0 || meta.owner === 1;
     card.className = 'nkCard size-' + (meta.size || 'normal') + (meta.cardClass ? ' ' + meta.cardClass : '') +
                      (owned ? ' owned p' + (meta.owner + 1) : '');
@@ -470,7 +489,7 @@ NK.ui = (function () {
 
   function restartAutoScan() {
     stopAutoScan();
-    if (!overlayOn || !scanning()) return;
+    if (!overlayOn || !scanning() || menuTouching || document.hidden) return;
     // Paused while a switch that counts is held.
     if ((keyDown.Space && live('Space')) || (keyDown.Enter && live('Enter'))) return;
     autoScanTimer = setInterval(() => step(1), scanInterval());
@@ -635,7 +654,7 @@ NK.ui = (function () {
     clearTimeout(trophyTimer);
     call('quitToMenu');
     if (NK.hud) NK.hud.clear();
-    setScreen('title', { index: players() === 2 ? 1 : 0 });
+    setScreen('title');
   }
 
   /** Leave the finished race for a menu screen (choose another track, cup …). */
@@ -672,7 +691,12 @@ NK.ui = (function () {
   }
 
   function onVisibility() {
-    if (document.visibilityState === 'hidden' && inRace && !overlayOn) openPause(-1);
+    if (document.hidden) {
+      menuTouching = false;
+      clearKeys();
+      stopAutoScan();
+      if (inRace && !overlayOn) openPause(-1);
+    } else if (overlayOn) restartAutoScan();
   }
 
   /* ── Exit ────────────────────────────────────────────────────────────── */
@@ -694,7 +718,7 @@ NK.ui = (function () {
   }
 
   /** Leaving mid-session loses the race, so it asks first; Stay goes back to
-   *  exactly where the player was. */
+   *  the card the player was on, with nothing focused. */
   function confirmExit() {
     setScreen('confirmExit', { from: screen, fromOpts: screenOpts, fromIndex: index });
   }
@@ -708,7 +732,8 @@ NK.ui = (function () {
   function backFromSettings() {
     resetArmed = 0;
     const r = settingsReturn;
-    setScreen(r.screen, Object.assign({}, r.opts || {}, { index: r.index }));
+    // Going back is arriving: the card opens with nothing focused.
+    setScreen(r.screen, Object.assign({}, r.opts || {}, { index: undefined }));
   }
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -863,7 +888,7 @@ NK.ui = (function () {
           { icon: '🏁', label: 'Open', note: 'Real racing: walls, drops and spin-outs.',
             speech: 'Open. Real racing, with walls, drops and spin-outs.',
             action: () => { call('setMode', 'open'); setScreen('type'); } },
-          back(() => setScreen('title', { index: two ? 1 : 0 }))
+          back(() => setScreen('title'))
         ],
         startIndex: last === 'open' ? 1 : 0,
         speech: 'Choose the rules. No-Fail, or Open.' + (two ? ' Player 1 uses Space, Player 2 uses Enter.' : '')
@@ -881,7 +906,7 @@ NK.ui = (function () {
         { icon: '⏱️', label: 'Time Trial', note: two ? 'One player only' : 'Race the clock and your ghost',
           enabled: !two, speech: two ? 'Time Trial. One player only.' : 'Time Trial. Race the clock and your best-time ghost.',
           action: () => { call('setType', 'tt'); setScreen('speed'); }, id: 'tt' },
-        back(() => setScreen('rules', { index: sess().mode === 'open' ? 1 : 0 }))
+        back(() => setScreen('rules'))
       ];
       return {
         art: artHTML('🏁'),
@@ -908,7 +933,7 @@ NK.ui = (function () {
           action: () => { call('setClass', id); setScreen('racer', { player: 0 }); }
         };
       });
-      list.push(back(() => setScreen('type', { index: indexWhere(['gp', 'single', 'tt'], (t) => t === sess().type, 0) })));
+      list.push(back(() => setScreen('type')));
       return {
         art: artHTML('🔥'),
         title: 'Choose a Speed',
@@ -948,7 +973,7 @@ NK.ui = (function () {
       });
       list.push(back(() => {
         if (p === 1) setScreen('kart', { player: 0 });
-        else setScreen('speed', { index: Math.max(0, C.CLASS_ORDER.indexOf(sess().classId)) });
+        else setScreen('speed');
       }));
       const key = C.PLAYER_KEYS[p];
       return {
@@ -1115,7 +1140,7 @@ NK.ui = (function () {
             U.speak('Steering: ' + (stepMode ? 'hold to slide' : 'press to step'));
           } });
       }
-      list.push(back(() => setScreen('title', { index: 2 })));
+      list.push(back(() => setScreen('title')));
       return {
         art: artHTML(pg.art),
         title: '<span class="kicker">How to Play · ' + (page + 1) + ' of ' + pages.length + '</span>' + pg.title,
@@ -1139,6 +1164,7 @@ NK.ui = (function () {
       const music = setting('music', true) !== false;
       const sfxOn = setting('sfx', true) !== false;
       const split = setting('split', 'side');
+      const phoneSplit = !!call('usesPhoneLayout');
       const shake = setting('shake', true) !== false;
       const speedName = (C.STEER_SPEEDS[steerSpeed] || C.STEER_SPEEDS.normal).name;
       const nextSpeed = C.STEER_ORDER[(C.STEER_ORDER.indexOf(steerSpeed) + 1) % C.STEER_ORDER.length];
@@ -1171,9 +1197,15 @@ NK.ui = (function () {
           } },
         { icon: '🎵', label: 'Music', value: music ? 'On' : 'Off', speech: 'Music, ' + (music ? 'On' : 'Off'),
           action: () => { setSetting('music', !music); refresh(); U.speak('Music: ' + (music ? 'off' : 'on')); } },
-        { icon: '🖥️', label: 'Split Screen', value: split === 'stack' ? 'Top and Bottom' : 'Side by Side',
-          speech: 'Split Screen, ' + (split === 'stack' ? 'top and bottom' : 'side by side'),
+        { icon: '🖥️', label: 'Split Screen', value: phoneSplit ? 'Automatic' : split === 'stack' ? 'Top and Bottom' : 'Side by Side',
+          note: phoneSplit ? 'Follows your phone’s orientation' : '',
+          speech: phoneSplit ? 'Split Screen, automatic. Turn your phone to change the layout.'
+                            : 'Split Screen, ' + (split === 'stack' ? 'top and bottom' : 'side by side'),
           action: () => {
+            if (phoneSplit) {
+              U.speak('Turn your phone for side by side views, or hold it upright for top and bottom views.');
+              return;
+            }
             const next = split === 'stack' ? 'side' : 'stack';
             setSetting('split', next);
             refresh();
@@ -1215,6 +1247,7 @@ NK.ui = (function () {
       return {
         art: '',
         title: 'Settings',
+        phoneSplit,
         items: list,
         layout: 'cols2',
         size: 'wide',
@@ -1229,7 +1262,7 @@ NK.ui = (function () {
         title: 'Paused',
         sub: two && pausedBy >= 0 ? 'Player ' + (pausedBy + 1) + ' paused the race.' : '',
         // Nothing focused: releasing the switch that paused must not pick an
-        // option, and the first press only steps and reads.
+        // option.
         startIndex: -1,
         items: [
           { icon: '▶️', label: 'Continue', speech: 'Continue', action: resumeRace },
@@ -1404,7 +1437,7 @@ NK.ui = (function () {
         // The safe choice first: a mis-press lands on the way out of the dialog.
         items: [
           { icon: '↩', label: 'Stay', primary: true, speech: 'Stay',
-            action: () => setScreen(o.from || 'title', Object.assign({}, o.fromOpts || {}, { index: o.fromIndex })) },
+            action: () => setScreen(o.from || 'title', Object.assign({}, o.fromOpts || {}, { index: undefined })) },
           { icon: '🏠', label: 'Exit Game', speech: 'Exit Game', action: goToHub }
         ],
         startIndex: 0,
@@ -1440,7 +1473,7 @@ NK.ui = (function () {
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('narbe-input-cancelled', onInputCancelled);
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', () => { clearKeys(); if (overlayOn) restartAutoScan(); });
+    window.addEventListener('blur', () => { menuTouching = false; clearKeys(); if (overlayOn) restartAutoScan(); });
 
     if (NK.controls) NK.controls.onPause = openPause;
     const g = G();

@@ -15,11 +15,15 @@ window.appState = {
 };
 
 // --- Input State for Backward Scan ---
+// NOTE: All input debouncing is handled by scan-manager.js - do NOT add local debounce
 const inputState = {
-    spaceHeld: false,
-    spaceTime: 0,
-    timers: { space: null, spaceRepeat: null },
-    config: { longPress: 3000, repeatInterval: 2000 }
+    spacePressed: false,
+    enterPressed: false,
+    spaceHoldStartTime: 0,
+    spaceHoldTimeout: null,
+    backwardsScanInterval: null,
+    spaceLongTriggered: false,
+    config: { longPress: 3000 } // 3s for backward scan
 };
 // Expose for debugging
 window.inputState = inputState;
@@ -231,7 +235,7 @@ function startAutoScan() {
 
     autoScanTimer = setInterval(() => {
         // Pause auto scanning while user holds input
-        if (inputState.spaceHeld) return;
+        if (inputState.spacePressed) return;
 
         moveScan(1);
     }, scanSettings.scanInterval);
@@ -1181,7 +1185,11 @@ function setAppState(newState) {
     ui.style.display = 'none'; // Explicitly hide
 
     // Reset scan Index whenever we change screens
-    appState.scanIndex = 0;
+    // Menus open with nothing highlighted (-1) - the first Space highlights the first item.
+    // In-game controls still start on the first item.
+    appState.scanIndex = (newState === 'GAME') ? 0 : -1;
+    // Restart auto scan so its first tick comes a full interval after a menu opens
+    if (newState !== 'GAME') startAutoScan();
 
     if (newState === 'MENU') {
         // STOP GAME AND RESET
@@ -1379,6 +1387,10 @@ function handleMenuAction(action) {
         // Return to Main Menu
         setAppState('MENU');
     }
+    if (action === 'request-help') {
+        // Pause menu "Help" item - just speak the request, do not change state
+        speak("I need help");
+    }
 }
 
 // --- Scanning System ---
@@ -1489,6 +1501,12 @@ function refreshScanFocus(shouldSpeak = true) {
 
     if (targets.length === 0) return;
 
+    // Nothing highlighted yet (a menu just opened): show no focus and announce nothing
+    if (appState.scanIndex < 0) {
+        resetTableColor();
+        return;
+    }
+
     if (appState.scanIndex >= targets.length) appState.scanIndex = 0;
 
     const target = targets[appState.scanIndex];
@@ -1541,7 +1559,7 @@ function refreshScanFocus(shouldSpeak = true) {
 
 function activateFocused() {
     const targets = getFocusables();
-    if (appState.scanIndex >= targets.length) return;
+    if (appState.scanIndex < 0 || appState.scanIndex >= targets.length) return; // nothing highlighted
     const target = targets[appState.scanIndex];
 
     // Visual and audio feedback
@@ -1559,7 +1577,12 @@ function activateFocused() {
 function moveScan(direction) {
     const targets = getFocusables();
     if (targets.length === 0) return;
-    appState.scanIndex = (appState.scanIndex + direction + targets.length) % targets.length;
+    if (appState.scanIndex < 0) {
+        // Nothing highlighted yet: forward lands on the first item, backward on the last
+        appState.scanIndex = direction > 0 ? 0 : targets.length - 1;
+    } else {
+        appState.scanIndex = (appState.scanIndex + direction + targets.length) % targets.length;
+    }
     refreshScanFocus();
 }
 
@@ -1568,45 +1591,100 @@ function onSpaceShortPress() {
 }
 
 function onSpaceLongPress() {
-    moveScan(-1); // Move backward immediately
+    // Speak and move backward immediately
+    // if (window.NarbeVoiceManager) window.NarbeVoiceManager.speak('Backwards scanning');
+    moveScan(-1);
     // Get speed from manager if available
-    const speed = (window.NarbeScanManager) ? window.NarbeScanManager.getScanInterval() : inputState.config.repeatInterval;
-    inputState.timers.spaceRepeat = setInterval(() => {
-        moveScan(-1);
+    const speed = (window.NarbeScanManager) ? window.NarbeScanManager.getScanInterval() : 2000;
+    inputState.backwardsScanInterval = setInterval(() => {
+        if (inputState.spacePressed) {
+            moveScan(-1);
+        } else {
+            clearInterval(inputState.backwardsScanInterval);
+            inputState.backwardsScanInterval = null;
+        }
     }, speed);
 }
 
 // Input Listener
 window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
+    if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        if (!inputState.spaceHeld) {
-            inputState.spaceHeld = true;
-            inputState.spaceTime = Date.now();
-            inputState.timers.space = setTimeout(onSpaceLongPress, inputState.config.longPress);
-        }
+    }
+    if (e.repeat) return;
+
+    if (e.code === 'Space' && !inputState.spacePressed && !inputState.spaceHoldTimeout && !inputState.backwardsScanInterval) {
+        inputState.spacePressed = true;
+        inputState.spaceHoldStartTime = Date.now();
+        inputState.spaceLongTriggered = false;
+        inputState.spaceHoldTimeout = setTimeout(() => {
+            inputState.spaceLongTriggered = true;
+            onSpaceLongPress();
+            inputState.spaceHoldTimeout = null;
+        }, inputState.config.longPress);
+    }
+    if (e.code === 'Enter' && !inputState.enterPressed) {
+        inputState.enterPressed = true;
     }
 });
 
 window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') {
-        e.preventDefault(); 
-        clearTimeout(inputState.timers.space);
-        clearInterval(inputState.timers.spaceRepeat);
+    if (e.code === 'Space' && inputState.spacePressed) {
+        e.preventDefault();
+        inputState.spacePressed = false;
 
-        if (inputState.spaceHeld) {
-            const duration = Date.now() - inputState.spaceTime;
-            if (duration < inputState.config.longPress) {
-                onSpaceShortPress();
-            }
+        // Clear backwards scanning
+        if (inputState.spaceHoldTimeout) {
+            clearTimeout(inputState.spaceHoldTimeout);
+            inputState.spaceHoldTimeout = null;
         }
-        inputState.spaceHeld = false;
+        if (inputState.backwardsScanInterval) {
+            clearInterval(inputState.backwardsScanInterval);
+            inputState.backwardsScanInterval = null;
+        }
+
+        // Only forward scan if long press didn't trigger
+        if (!inputState.spaceLongTriggered) {
+            onSpaceShortPress();
+        }
+        inputState.spaceLongTriggered = false;
+        inputState.spaceHoldStartTime = 0;
     }
-    if (e.code === 'Enter') { 
+    if (e.code === 'Enter' && inputState.enterPressed) {
+        e.preventDefault();
+        inputState.enterPressed = false;
         activateFocused();
     }
     if (e.code === 'Escape') {
         if(appState.state === 'GAME') setAppState('MENU');
+    }
+});
+
+// Listen for cancelled inputs from scan-manager (e.g., too-short presses blocked by anti-tremor)
+document.addEventListener('narbe-input-cancelled', (e) => {
+    if (e.detail && (e.detail.key === ' ' || e.detail.code === 'Space')) {
+        const wasBackScanning = !!inputState.backwardsScanInterval;
+        inputState.spacePressed = false;
+        inputState.spaceHoldStartTime = 0;
+        if (inputState.spaceHoldTimeout) {
+            clearTimeout(inputState.spaceHoldTimeout);
+            inputState.spaceHoldTimeout = null;
+        }
+        if (inputState.backwardsScanInterval) {
+            clearInterval(inputState.backwardsScanInterval);
+            inputState.backwardsScanInterval = null;
+        }
+        // If cancelled due to 'too-short', still perform short press action - user intended to press
+        if (e.detail.reason === 'too-short' && !wasBackScanning) {
+            onSpaceShortPress();
+        }
+    }
+    if (e.detail && (e.detail.key === 'Enter' || e.detail.code === 'Enter' || e.detail.code === 'NumpadEnter')) {
+        inputState.enterPressed = false;
+        // Perform select for short Enter presses
+        if (e.detail.reason === 'too-short') {
+            activateFocused();
+        }
     }
 });
 

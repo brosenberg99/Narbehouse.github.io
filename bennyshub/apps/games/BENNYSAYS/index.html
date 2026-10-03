@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="../../../shared/usage-analytics.js" defer></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Benny Says</title>
@@ -458,7 +459,7 @@
     } else if (settingsHighlight === 4) {
       // Back
       phase = Phase.MAIN;
-      mainHighlight = 1; // Defaults back to Settings
+      mainHighlight = -1; // No highlight until spacebar is pressed
       startAutoScan();
     }
     updateSettingsItems();
@@ -536,10 +537,9 @@
              startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
-             settingsHighlight = 0;
+             settingsHighlight = -1;
              updateSettingsItems();
              speak('Settings');
-             speak(settingsItems[0]);
              startAutoScan();
           } else if (sel === 'Exit Game') {
              exitApp();
@@ -553,7 +553,7 @@
           const sel = DIFFICULTY_ITEMS[diffHighlight];
           if (sel === 'Back') {
              phase = Phase.MAIN;
-             mainHighlight = 0;
+             mainHighlight = -1;
              speak('Main Menu');
              startAutoScan();
           } else {
@@ -609,10 +609,9 @@
              startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
-             settingsHighlight = 0;
+             settingsHighlight = -1;
              updateSettingsItems();
              speak('Settings');
-             speak(settingsItems[0]);
              startAutoScan();
           } else if (sel === 'Exit Game') {
              exitApp();
@@ -627,7 +626,7 @@
            const sel = DIFFICULTY_ITEMS[i];
            if (sel === 'Back') {
              phase = Phase.MAIN;
-             mainHighlight = 0;
+             mainHighlight = -1;
              speak('Main Menu');
              startAutoScan();
            } else {
@@ -693,10 +692,10 @@
              startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
-             settingsHighlight = 0;
+             settingsHighlight = -1;
              updateSettingsItems();
              speak('Settings');
-             speak(settingsItems[0]);
+             startAutoScan();
           } else if (sel === 'Exit Game') {
              exitApp();
           }
@@ -710,7 +709,7 @@
           const sel = DIFFICULTY_ITEMS[i];
           if (sel === 'Back') {
              phase = Phase.MAIN;
-             mainHighlight = 0;
+             mainHighlight = -1;
              speak('Main Menu');
              startAutoScan();
           } else {
@@ -800,7 +799,11 @@
       }
       speak(DIFFICULTY_ITEMS[diffHighlight]);
     } else if (phase === Phase.SETTINGS) {
-      settingsHighlight = (settingsHighlight - 1 + settingsItems.length) % settingsItems.length;
+      if (settingsHighlight === -1) {
+        settingsHighlight = settingsItems.length - 1;
+      } else {
+        settingsHighlight = (settingsHighlight - 1 + settingsItems.length) % settingsItems.length;
+      }
       speak(settingsItems[settingsHighlight]);
     }
   }

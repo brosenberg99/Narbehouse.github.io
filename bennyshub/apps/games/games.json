@@ -5,7 +5,7 @@
       "title": "NARBE Racer",
       "description": "Pick your racer and vehicle, then race for trophies in Grand Prix, tackle a single race, or beat the clock in Time Trial. Automatic acceleration and one- or two-switch controls keep you in the race, with a two-player mode using one switch each.",
       "path": "apps/games/NARBEKART/index.html",
-      "image": "images/games/narbekart.png",
+      "image": "images/games/narberacer.png",
       "genres": [
         "Racing",
         "Arcade"
@@ -61,6 +61,17 @@
       "description": "Pick your team color and play a 16-game season of football! Call your plays, time your passes, and win 10 games to make the single-elimination playoffs - or go 16-0 for a straight shot at the championship.",
       "path": "apps/games/BENNYSFOOTBALL/index.html",
       "image": "images/games/bennysfootball.png",
+      "genres": [
+        "Sports",
+        "Strategy"
+      ]
+    },
+    {
+      "id": "robotfootball",
+      "title": "Robot Football",
+      "description": "Lead your robot team in 3D football with one or two switches. Call plays, pass, run, and defend in practice, exhibition games, or a 16-game season. Spoken guidance, adjustable pace, and optional scan-and-select movement let you play your way.",
+      "path": "apps/games/ROBOTFOOTBALL/index.html",
+      "image": "images/games/robotfootball.png",
       "genres": [
         "Sports",
         "Strategy"
@@ -136,20 +147,9 @@
       ]
     },
     {
-      "id": "bennysminigolf",
-      "title": "Benny's Mini Golf",
-      "description": "A top-down minigolf game you can play with up to four people. The balls have collision on so have fun smacking eachothers balls around! This game has a level editor to create your own golf courses.",
-      "path": "apps/games/BENNYSMINIGOLF/index.html",
-      "image": "images/games/bennysminigolf.png",
-      "genres": [
-        "Sports",
-        "Simulation"
-      ]
-    },
-    {
       "id": "bennyspeggle",
       "title": "Benny's P3GL Game",
-      "description": "A peggle style game with a campaign/level editor built in. Have fun making different kinds of peg blasting games!",
+      "description": "A glowing 3D peg shooter you play with one or two switches. Pick a mood: Cozy for relaxed play that never runs out of balls, Vivid for a steady climb, or Hyper for a wild neon space ride. Nine campaigns, 180 levels, powers, hazards, moving pegs, and a Campaign Editor for building your own.",
       "path": "apps/games/BENNYSPEGGLE/index.html",
       "image": "images/games/bennyspeggle.png",
       "genres": [
@@ -277,6 +277,17 @@
       "genres": [
         "Simulation",
         "Strategy"
+      ]
+    },
+    {
+      "id": "narbeminigolf",
+      "title": "NARBE Mini Golf",
+      "description": "3D mini golf you play with one or two switches. Hold Space to turn your aim and Enter to putt, or pick how hard to hit from a list. Three courses full of bridges, windmills, bumpers, ice, tunnels and a sneaky alligator, with cinematic replays, up to four players, and a Course Creator for building your own holes.",
+      "path": "apps/games/NARBEMINIGOLF/index.html",
+      "image": "images/games/narbeminigolf.png",
+      "genres": [
+        "Sports",
+        "Simulation"
       ]
     }
   ]

@@ -20,15 +20,16 @@ let genreData = {};
 let filteredData = [];
 let genres = [];
 
+// null means nothing highlighted; -1 remains the Back button in grid views.
 // Navigation Indices
-let mainIndex = 0;
-let settingsIndex = 0;
-let genreIndex = 0;
-let itemIndex = 0;
-let modalIndex = 0;
-let seasonIndex = 0;
-let episodeIndex = 0;
-let pauseIndex = 0;
+let mainIndex = null;
+let settingsIndex = null;
+let genreIndex = null;
+let itemIndex = null;
+let modalIndex = null;
+let seasonIndex = null;
+let episodeIndex = null;
+let pauseIndex = null;
 
 // Episode Data
 let currentEpisodesRaw = {};
@@ -94,9 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     setupInputListeners();
 
-    window.addEventListener('focus', refreshWebStreaming);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshWebStreaming(); });
-    window.addEventListener('storage', e => { if (e.key?.startsWith('benny-web:v1:streaming.')) refreshWebStreaming(); });
+    window.addEventListener('focus', () => refreshWebStreaming());
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) suspendStreamingInput();
+        else refreshWebStreaming();
+    });
+    window.addEventListener('storage', e => {
+        // Player heartbeats already saved progress. They must not reopen a menu.
+        if (e.key?.startsWith('benny-web:v1:streaming.')) refreshWebStreaming(false);
+    });
 
     // Small delay to ensure voice manager is ready before first speak
     setTimeout(() => {
@@ -198,8 +205,13 @@ function applySettings() {
 }
 
 // --- VOICE (uses shared NarbeVoiceManager - same pattern as keyboard/journal) ---
+let pendingSpeechTimeout = null;
+function streamingIsInteractive() {
+    return !document.hidden && document.hasFocus();
+}
+
 function speak(text) {
-    if (!text) return;
+    if (!text || !streamingIsInteractive()) return;
 
     // Clean text: removes arrows
     const spokenText = text.replace(/[←→]/g, '').trim();
@@ -207,11 +219,28 @@ function speak(text) {
 
     // Use shared voice manager (same pattern as keyboard and journal apps)
     if (window.NarbeVoiceManager) {
+        clearTimeout(pendingSpeechTimeout);
         window.NarbeVoiceManager.cancel();
-        setTimeout(() => {
-            window.NarbeVoiceManager.speak(spokenText);
+        pendingSpeechTimeout = setTimeout(() => {
+            pendingSpeechTimeout = null;
+            if (streamingIsInteractive()) window.NarbeVoiceManager.speak(spokenText);
         }, 50);
     }
+}
+
+function suspendStreamingInput() {
+    clearTimeout(scanTimer);
+    clearTimeout(pauseTimer);
+    clearTimeout(keyboardEnterTimer);
+    clearInterval(backwardScanInterval);
+    backwardScanInterval = null;
+    isLongPress = false;
+    spacePressedTime = 0;
+    pauseTriggered = false;
+    stopAutoScan();
+    clearTimeout(pendingSpeechTimeout);
+    pendingSpeechTimeout = null;
+    window.NarbeVoiceManager?.cancel();
 }
 
 // --- NAVIGATION CONTROLLERS ---
@@ -220,9 +249,9 @@ function speak(text) {
 function openMainMenu() {
     switchView('main-menu');
     currentState = STATE.MAIN;
-    mainIndex = 0;
-    highlightMain(0);
-    // Don't speak "Main Menu" - the highlighted button will be announced
+    mainIndex = null;
+    resetMenuFocus();
+    speak("Main Menu");
 }
 
 function highlightMain(idx) {
@@ -279,13 +308,14 @@ function openSettings() {
 
              document.getElementById('pause-menu').classList.remove('hidden');
              currentState = STATE.PAUSE;
+             resetMenuFocus();
         };
     }
 
     currentState = STATE.SETTINGS;
-    settingsIndex = 0;
+    settingsIndex = null;
     updateSettingsUI();
-    highlightSettings(0);
+    resetMenuFocus();
     speak("Settings");
 }
 
@@ -322,6 +352,7 @@ function updateSettingsUI() {
 
 function highlightSettings(idx) {
     clearHighlights();
+    if (idx === null) return;
     // Gather logic: Rows 0-N + Back Button
     const rows = document.querySelectorAll('.setting-row');
     const backBtn = document.querySelector('#settings-menu .back-btn-large');
@@ -348,8 +379,7 @@ function highlightSettings(idx) {
 
 // --- Menu Options specific functions ---
 
-async function openRecent() {
-    try {
+function recentItems() {
         const recent = WebStreaming.getLastWatched();
 
         // Normalize keys to lowercase and deduplicate (keep most recent)
@@ -369,17 +399,23 @@ async function openRecent() {
             .sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0))
             .map(entry => entry[0]);
 
-        filteredData = [];
+        const items = [];
         const seen = new Set(); // Track already-added titles to prevent duplicates
         titles.forEach(t => {
             // Find in allData (case-insensitive match)
             const found = allData.find(x => x.title.toLowerCase() === t.toLowerCase());
             if (found && !seen.has(found.title.toLowerCase())) {
-                filteredData.push(found);
+                items.push(found);
                 seen.add(found.title.toLowerCase());
             }
         });
 
+        return items;
+}
+
+async function openRecent() {
+    try {
+        filteredData = recentItems();
         lastBrowseTitle = "Recently Watched"; // Ensure back button logic works
         openItemsView("Recently Watched");
     } catch(e) {
@@ -436,7 +472,7 @@ function openBrowseInternal(title) {
     currentState = STATE.GENRES;
     currentGenrePage = 1;
     renderGenreGrid();
-    highlightGenre(-1); // Focus Header
+    resetMenuFocus();
     speak(title);
 }
 
@@ -465,7 +501,7 @@ function renderGenreGrid() {
         currentGenrePage--;
         if (currentGenrePage < 1) currentGenrePage = totalPages;
         renderGenreGrid();
-        highlightGenre(0);
+        resetMenuFocus();
     };
     grid.appendChild(navStart);
 
@@ -514,7 +550,7 @@ function renderGenreGrid() {
             currentGenrePage++;
             if (currentGenrePage > totalPages) currentGenrePage = 1; // Loop back
             renderGenreGrid();
-            highlightGenre(0);
+            resetMenuFocus();
         };
     } else {
         navEnd.textContent = "";
@@ -523,7 +559,7 @@ function renderGenreGrid() {
     grid.appendChild(navEnd);
 }
 
-function highlightGenre(localIdx) {
+function highlightGenre(localIdx, direction = 1) {
     clearHighlights();
     // -1 (Header Back) -> 0-8 (Grid)
     if (localIdx > 8) localIdx = -1;
@@ -542,9 +578,10 @@ function highlightGenre(localIdx) {
     // If hidden, find next visible slot
     if (!el || el.style.visibility === 'hidden') {
         let startIdx = genreIndex;
-        genreIndex++;
+        genreIndex += direction;
 
         while (genreIndex !== startIdx) {
+            if (genreIndex < -1) genreIndex = 8;
             if (genreIndex > 8) {
                 genreIndex = -1; // Wrap to header
             }
@@ -560,7 +597,7 @@ function highlightGenre(localIdx) {
             if (el && el.style.visibility !== 'hidden') {
                 break; // Found a visible slot
             }
-            genreIndex++;
+            genreIndex += direction;
         }
     }
 
@@ -637,7 +674,7 @@ function openItemsView(title) {
     currentState = STATE.ITEMS;
     currentPage = 1;
     renderItemsGrid();
-    highlightItem(-1); // Start at Header
+    resetMenuFocus();
     speak(title);
 }
 
@@ -665,10 +702,10 @@ function renderItemsGrid() {
         navStart.id = `item-0`;
         if (currentPage > 1) {
             navStart.textContent = "← Previous Page";
-            navStart.onclick = () => { currentPage--; renderItemsGrid(); highlightItem(0); };
+            navStart.onclick = () => { currentPage--; renderItemsGrid(); resetMenuFocus(); };
         } else {
             navStart.textContent = "← Last Page";
-            navStart.onclick = () => { currentPage = totalPages; renderItemsGrid(); highlightItem(0); };
+            navStart.onclick = () => { currentPage = totalPages; renderItemsGrid(); resetMenuFocus(); };
         }
         grid.appendChild(navStart);
 
@@ -690,10 +727,10 @@ function renderItemsGrid() {
         navEnd.id = `item-8`;
         if (currentPage < totalPages) {
             navEnd.textContent = "Next Page →";
-            navEnd.onclick = () => { currentPage++; renderItemsGrid(); highlightItem(0); };
+            navEnd.onclick = () => { currentPage++; renderItemsGrid(); resetMenuFocus(); };
         } else {
             navEnd.textContent = "First Page →";
-            navEnd.onclick = () => { currentPage = 1; renderItemsGrid(); highlightItem(0); };
+            navEnd.onclick = () => { currentPage = 1; renderItemsGrid(); resetMenuFocus(); };
         }
         grid.appendChild(navEnd);
     } else {
@@ -713,6 +750,7 @@ function createItemCard(item, slotIdx) {
     const card = document.createElement('div');
     card.className = 'card';
     card.id = `item-${slotIdx}`;
+    card.dataset.itemKey = String(item.id || item.title.toLowerCase());
     card.onclick = () => showModal(item);
 
     const img = document.createElement('img');
@@ -840,6 +878,7 @@ function openSearch() {
 
         window.keyboardController.open();
         currentState = STATE.KEYBOARD;
+        resetMenuFocus();
     }
 }
 
@@ -949,8 +988,8 @@ async function showModal(item) {
     actionContainer.appendChild(btnClose);
 
     currentState = STATE.MODAL;
-    modalIndex = -1;
-    highlightModal(-1);
+    modalIndex = null;
+    resetMenuFocus();
     speak(`${item.title}. ${StreamingServices.nameFor(item)}`);
 }
 
@@ -969,23 +1008,16 @@ function closeModal(suppressHighlight = false) {
     currentState = STATE.ITEMS; // Return to items
     currentModalItem = null;
 
-    // When launching content, don't highlight/speak anything
-    // Set itemIndex to -1 (no selection) so first spacebar will start scanning
-    if (suppressHighlight) {
-        itemIndex = -1;
-        clearHighlights();
-    } else {
-        highlightItem(itemIndex); // Restore focus
-    }
+    resetMenuFocus(!suppressHighlight);
 }
 
 function highlightModal(idx) {
     clearHighlights();
     const btns = document.querySelectorAll('#item-modal .modal-action-btn');
 
-    // Allow -1 state (No selection)
-    if (idx === -1) {
-        modalIndex = -1;
+    // null is unselected; negative indices still wrap when scanning backwards.
+    if (idx === null) {
+        modalIndex = null;
         return;
     }
 
@@ -1074,6 +1106,7 @@ async function launchContent(url, title, type="movies", season=null, episode=nul
     try {
         await WebStreaming.launch({url, show:saveTitle, season, episode, saveUrl, type});
     } catch(e) {
+        isLaunching = false;
         WebStreaming.status(e.message);
         speak('Could not open this video.');
         if (window.NarbeScanManager?.getSettings().autoScan) startAutoScan();
@@ -1201,7 +1234,7 @@ async function openSeasonSelector(title, episodesData) {
     // User requested consistency, so let's show season list even if 1.
 
     renderSeasonGrid();
-    highlightSeason(-1); // Header
+    resetMenuFocus();
     speak(`Select a season for ${title}`);
 }
 
@@ -1229,7 +1262,7 @@ function renderSeasonGrid() {
         if (currentModalItem) {
             showModal(currentModalItem);
         } else {
-            highlightItem(itemIndex);
+            resetMenuFocus();
         }
         speak("Back to show");
     };
@@ -1241,11 +1274,11 @@ function renderSeasonGrid() {
     if (totalPages > 1) {
         if (currentSeasonPage > 1) {
             navPrev.innerHTML = "<span>← Previous Page</span>";
-            navPrev.onclick = () => { currentSeasonPage--; renderSeasonGrid(); highlightSeason(0); };
+            navPrev.onclick = () => { currentSeasonPage--; renderSeasonGrid(); resetMenuFocus(); };
         } else {
             // On page 1 - loop to last page
             navPrev.innerHTML = "<span>← Last Page</span>";
-            navPrev.onclick = () => { currentSeasonPage = totalPages; renderSeasonGrid(); highlightSeason(0); };
+            navPrev.onclick = () => { currentSeasonPage = totalPages; renderSeasonGrid(); resetMenuFocus(); };
         }
     } else {
         navPrev.style.visibility = 'hidden';
@@ -1293,11 +1326,11 @@ function renderSeasonGrid() {
     if (totalPages > 1) {
         if (currentSeasonPage < totalPages) {
             navNext.innerHTML = "<span>Next Page →</span>";
-            navNext.onclick = () => { currentSeasonPage++; renderSeasonGrid(); highlightSeason(0); };
+            navNext.onclick = () => { currentSeasonPage++; renderSeasonGrid(); resetMenuFocus(); };
         } else {
             // On last page - loop to first
             navNext.innerHTML = "<span>First Page →</span>";
-            navNext.onclick = () => { currentSeasonPage = 1; renderSeasonGrid(); highlightSeason(0); };
+            navNext.onclick = () => { currentSeasonPage = 1; renderSeasonGrid(); resetMenuFocus(); };
         }
     } else {
         navNext.style.visibility = 'hidden';
@@ -1305,7 +1338,7 @@ function renderSeasonGrid() {
     grid.appendChild(navNext);
 }
 
-function highlightSeason(idx) {
+function highlightSeason(idx, direction = 1) {
     clearHighlights();
     // Range is -1 (header) to 8
     if (idx > 8) idx = -1;
@@ -1328,9 +1361,10 @@ function highlightSeason(idx) {
     // If hidden, find next visible slot
     if (!el || el.style.visibility === 'hidden') {
         let startIdx = seasonIndex;
-        seasonIndex++;
+        seasonIndex += direction;
 
         while (seasonIndex !== startIdx) {
+            if (seasonIndex < -1) seasonIndex = 8;
             if (seasonIndex > 8) {
                 seasonIndex = -1; // Wrap to header
             }
@@ -1349,7 +1383,7 @@ function highlightSeason(idx) {
             if (el && el.style.visibility !== 'hidden') {
                 break; // Found a visible slot
             }
-            seasonIndex++;
+            seasonIndex += direction;
         }
     }
 
@@ -1375,7 +1409,7 @@ function openSeasonEpisodes(seasonNum) {
     currentEpisodePage = 1;
 
     renderEpisodeGrid();
-    highlightEpisode(-1);
+    resetMenuFocus();
     speak(`Season ${seasonNum}. Select an episode.`);
 }
 
@@ -1409,11 +1443,11 @@ function renderEpisodeGrid() {
             if (currentModalItem) {
                 showModal(currentModalItem);
             } else {
-                highlightItem(itemIndex);
+                resetMenuFocus();
             }
             speak("Back to show");
         };
-        highlightSeason(-1);
+        resetMenuFocus();
         speak("Back to Seasons");
     };
 
@@ -1424,11 +1458,11 @@ function renderEpisodeGrid() {
     if (totalPages > 1) {
         if (currentEpisodePage > 1) {
             navPrev.innerHTML = "<span>← Previous Page</span>";
-            navPrev.onclick = () => { currentEpisodePage--; renderEpisodeGrid(); highlightEpisode(0); };
+            navPrev.onclick = () => { currentEpisodePage--; renderEpisodeGrid(); resetMenuFocus(); };
         } else {
             // On page 1 - loop to last page
             navPrev.innerHTML = "<span>← Last Page</span>";
-            navPrev.onclick = () => { currentEpisodePage = totalPages; renderEpisodeGrid(); highlightEpisode(0); };
+            navPrev.onclick = () => { currentEpisodePage = totalPages; renderEpisodeGrid(); resetMenuFocus(); };
         }
     } else {
         navPrev.style.visibility = 'hidden';
@@ -1474,11 +1508,11 @@ function renderEpisodeGrid() {
     if (totalPages > 1) {
         if (currentEpisodePage < totalPages) {
             navPage.innerHTML = "<span>Next Page →</span>";
-            navPage.onclick = () => { currentEpisodePage++; renderEpisodeGrid(); highlightEpisode(0); };
+            navPage.onclick = () => { currentEpisodePage++; renderEpisodeGrid(); resetMenuFocus(); };
         } else {
             // On last page - loop back to first
             navPage.innerHTML = "<span>First Page →</span>";
-            navPage.onclick = () => { currentEpisodePage = 1; renderEpisodeGrid(); highlightEpisode(0); };
+            navPage.onclick = () => { currentEpisodePage = 1; renderEpisodeGrid(); resetMenuFocus(); };
         }
     } else {
         // Only 1 page - hide this slot
@@ -1487,7 +1521,7 @@ function renderEpisodeGrid() {
     grid.appendChild(navPage);
 }
 
-function highlightEpisode(idx) {
+function highlightEpisode(idx, direction = 1) {
     clearHighlights();
     // Range is -1 (header) to 8
     if (idx > 8) idx = -1;
@@ -1510,9 +1544,10 @@ function highlightEpisode(idx) {
     // If hidden, find next visible slot
     if (!el || el.style.visibility === 'hidden') {
         let startIdx = episodeIndex;
-        episodeIndex++;
+        episodeIndex += direction;
 
         while (episodeIndex !== startIdx) {
+            if (episodeIndex < -1) episodeIndex = 8;
             if (episodeIndex > 8) {
                 episodeIndex = -1; // Wrap to header
             }
@@ -1531,7 +1566,7 @@ function highlightEpisode(idx) {
             if (el && el.style.visibility !== 'hidden') {
                 break; // Found a visible slot
             }
-            episodeIndex++;
+            episodeIndex += direction;
         }
     }
 
@@ -1568,7 +1603,7 @@ function handleGlobalBack() {
         if (currentModalItem) {
             showModal(currentModalItem);
         } else {
-            highlightItem(itemIndex);
+            resetMenuFocus();
         }
         speak("Back to show");
     } else if (currentState === STATE.EPISODES) {
@@ -1577,7 +1612,7 @@ function handleGlobalBack() {
         document.getElementById('season-grid').style.display = 'grid';
         document.getElementById('ep-show-title').textContent = "Select Season";
         currentState = STATE.SEASONS;
-        highlightSeason(-1);
+        resetMenuFocus();
         speak("Back to Seasons");
     } else if (currentState === STATE.ITEMS) {
         // Special case for Recently Watched
@@ -1749,80 +1784,8 @@ function setupInputListeners() {
         }
     });
 
-    // Safety: Stop scanning if window loses focus
-    window.addEventListener('blur', () => {
-        clearTimeout(scanTimer);
-        clearInterval(backwardScanInterval);
-        backwardScanInterval = null;
-        isLongPress = false;
-    });
-
-    // Refresh data when window regains focus (backup for nav-signal)
-    // This handles cases where the user returns from external apps
-    let lastFocusRefresh = 0;
-    window.addEventListener('focus', async () => {
-        const now = Date.now();
-        // Debounce: only refresh if at least 2 seconds since last refresh
-        if (now - lastFocusRefresh < 2000) return;
-        lastFocusRefresh = now;
-
-        console.log('[Streaming] Window regained focus, refreshing data');
-        await loadData();
-
-        // Check if any modal/overlay is visually open - don't refresh view if so
-        const itemModal = document.getElementById('item-modal');
-        const editorModal = document.getElementById('editor-modal');
-        const pauseMenu = document.getElementById('pause-menu');
-
-        const itemModalOpen = itemModal && !itemModal.classList.contains('hidden');
-        const editorModalOpen = editorModal && !editorModal.classList.contains('hidden');
-        const pauseMenuOpen = pauseMenu && !pauseMenu.classList.contains('hidden');
-
-        // If item modal is visually open, restore its state
-        if (itemModalOpen) {
-            console.log('[Streaming] Item modal is visible on focus, restoring STATE.MODAL');
-            currentState = STATE.MODAL;
-            highlightModal(0);
-            if (window.NarbeScanManager && window.NarbeScanManager.getSettings().autoScan) {
-                startAutoScan();
-            }
-            return;
-        }
-
-        // If editor modal is open, restore its state
-        if (editorModalOpen) {
-            console.log('[Streaming] Editor modal is visible on focus, restoring editor_confirm state');
-            currentState = 'editor_confirm';
-            highlightEditorModal(0);
-            if (window.NarbeScanManager && window.NarbeScanManager.getSettings().autoScan) {
-                startAutoScan();
-            }
-            return;
-        }
-
-        // If pause menu is open, restore its state
-        if (pauseMenuOpen) {
-            console.log('[Streaming] Pause menu is visible on focus, restoring STATE.PAUSE');
-            currentState = STATE.PAUSE;
-            highlightPause(0);
-            if (window.NarbeScanManager && window.NarbeScanManager.getSettings().autoScan) {
-                startAutoScan();
-            }
-            return;
-        }
-
-        // If on Recently Watched view, refresh it
-        const viewTitle = document.getElementById('view-title');
-        if (viewTitle && viewTitle.textContent === "Recently Watched") {
-            console.log('[Streaming] Refreshing Recently Watched view on focus');
-            await openRecent();
-        }
-
-        // Restart autoscan if enabled
-        if (window.NarbeScanManager && window.NarbeScanManager.getSettings().autoScan) {
-            startAutoScan();
-        }
-    });
+    // The player opens in another tab. Leave its controls and speech in charge.
+    window.addEventListener('blur', suspendStreamingInput);
 
     // Listen for cancelled inputs from scan-manager (e.g., too-short presses blocked by anti-tremor)
     // This ensures our timers are cleared even when keyup events are blocked
@@ -1864,32 +1827,49 @@ function setupInputListeners() {
     });
 }
 
+// New and returning screens start empty, with a full interval before Auto Scan.
+function resetMenuFocus(restart = true) {
+    mainIndex = settingsIndex = genreIndex = itemIndex = modalIndex = null;
+    seasonIndex = episodeIndex = pauseIndex = editorModalIndex = null;
+    clearHighlights();
+    document.activeElement?.blur();
+    stopAutoScan();
+    if (restart && window.NarbeScanManager?.getSettings().autoScan) startAutoScan();
+}
+
+function currentMenuIndex() {
+    return ({ main: mainIndex, settings: settingsIndex, genres: genreIndex,
+        items: itemIndex, modal: modalIndex, seasons: seasonIndex,
+        episodes: episodeIndex, pause: pauseIndex, editor_confirm: editorModalIndex })[currentState];
+}
+
 // State-Dependent Scanning
 function scanForward() {
-    if (currentState === 'editor_confirm') highlightEditorModal(editorModalIndex + 1);
-    else if (currentState === STATE.MAIN) highlightMain(mainIndex + 1);
-    else if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex + 1);
-    else if (currentState === STATE.GENRES) highlightGenre(genreIndex + 1);
-    else if (currentState === STATE.ITEMS) highlightItem(itemIndex + 1, 1);
-    else if (currentState === STATE.MODAL) highlightModal(modalIndex + 1);
-    else if (currentState === STATE.SEASONS) highlightSeason(seasonIndex + 1);
-    else if (currentState === STATE.EPISODES) highlightEpisode(episodeIndex + 1);
-    else if (currentState === STATE.PAUSE) highlightPause(pauseIndex + 1);
+    if (currentState === 'editor_confirm') highlightEditorModal(editorModalIndex === null ? 0 : editorModalIndex + 1);
+    else if (currentState === STATE.MAIN) highlightMain(mainIndex === null ? 0 : mainIndex + 1);
+    else if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex === null ? 0 : settingsIndex + 1);
+    else if (currentState === STATE.GENRES) highlightGenre(genreIndex === null ? -1 : genreIndex + 1);
+    else if (currentState === STATE.ITEMS) highlightItem(itemIndex === null ? -1 : itemIndex + 1, 1);
+    else if (currentState === STATE.MODAL) highlightModal(modalIndex === null ? 0 : modalIndex + 1);
+    else if (currentState === STATE.SEASONS) highlightSeason(seasonIndex === null ? -1 : seasonIndex + 1);
+    else if (currentState === STATE.EPISODES) highlightEpisode(episodeIndex === null ? -1 : episodeIndex + 1);
+    else if (currentState === STATE.PAUSE) highlightPause(pauseIndex === null ? 0 : pauseIndex + 1);
 }
 
 function scanBackward() {
-    if (currentState === 'editor_confirm') highlightEditorModal(editorModalIndex - 1);
-    else if (currentState === STATE.MAIN) highlightMain(mainIndex - 1);
-    else if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex - 1);
-    else if (currentState === STATE.GENRES) highlightGenre(genreIndex - 1);
-    else if (currentState === STATE.ITEMS) highlightItem(itemIndex - 1, -1);
-    else if (currentState === STATE.MODAL) highlightModal(modalIndex - 1);
-    else if (currentState === STATE.SEASONS) highlightSeason(seasonIndex - 1);
-    else if (currentState === STATE.EPISODES) highlightEpisode(episodeIndex - 1);
-    else if (currentState === STATE.PAUSE) highlightPause(pauseIndex - 1);
+    if (currentState === 'editor_confirm') highlightEditorModal(editorModalIndex === null ? -1 : editorModalIndex - 1);
+    else if (currentState === STATE.MAIN) highlightMain(mainIndex === null ? -1 : mainIndex - 1);
+    else if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex === null ? -1 : settingsIndex - 1);
+    else if (currentState === STATE.GENRES) highlightGenre(genreIndex === null ? 8 : genreIndex - 1, -1);
+    else if (currentState === STATE.ITEMS) highlightItem(itemIndex === null ? 8 : itemIndex - 1, -1);
+    else if (currentState === STATE.MODAL) highlightModal(modalIndex === null ? -1 : modalIndex - 1);
+    else if (currentState === STATE.SEASONS) highlightSeason(seasonIndex === null ? 8 : seasonIndex - 1, -1);
+    else if (currentState === STATE.EPISODES) highlightEpisode(episodeIndex === null ? 8 : episodeIndex - 1, -1);
+    else if (currentState === STATE.PAUSE) highlightPause(pauseIndex === null ? -1 : pauseIndex - 1);
 }
 
 function handleSelect() {
+    if (currentMenuIndex() == null) return;
     if (currentState === 'editor_confirm') {
         selectEditorModal();
     }
@@ -1994,13 +1974,17 @@ function toggleAutoScan() {
 
 let autoScanIntervalId = null;
 function startAutoScan() {
-    if(autoScanIntervalId) clearInterval(autoScanIntervalId);
+    stopAutoScan();
+    if (!streamingIsInteractive() || isLaunching) return;
 
     // Get scan interval from shared manager
     const scanInterval = window.NarbeScanManager ? window.NarbeScanManager.getScanInterval() : 2000;
 
     autoScanIntervalId = setInterval(() => {
-        if (!document.hidden && !document.querySelector('#companion-required[open]') && !isLongPress && currentState !== STATE.KEYBOARD) {
+        if (!streamingIsInteractive() || isLaunching || document.querySelector('#companion-required[open]') || isLongPress) return;
+        if (currentState === STATE.KEYBOARD && window.keyboardController?.isOpen) {
+            window.keyboardController.scanForward();
+        } else {
             scanForward();
         }
     }, scanInterval);
@@ -2070,8 +2054,8 @@ function openPauseMenu() {
     previousState = currentState;
     document.getElementById('pause-menu').classList.remove('hidden');
     currentState = STATE.PAUSE;
-    pauseIndex = 0;
-    highlightPause(0);
+    pauseIndex = null;
+    resetMenuFocus();
     speak('Paused.');
 }
 
@@ -2079,13 +2063,7 @@ function closePauseMenu(resume=true) {
     document.getElementById('pause-menu').classList.add('hidden');
     if (resume && previousState) {
         currentState = previousState;
-        // Re-highlight appropriate element based on state
-        if (currentState === STATE.ITEMS) highlightItem(itemIndex);
-        else if (currentState === STATE.GENRES) highlightGenre(genreIndex);
-        else if (currentState === STATE.MAIN) highlightMain(mainIndex);
-        else if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex);
-        else if (currentState === STATE.EPISODES) highlightEpisode(episodeIndex);
-
+        resetMenuFocus();
         speak('Resumed.');
     }
 }
@@ -2105,6 +2083,7 @@ function highlightPause(idx) {
 }
 
 function handlePauseSelect() {
+    if (pauseIndex === null) return;
     const btns = document.querySelectorAll('#pause-menu .pause-btn');
     const target = btns[pauseIndex];
 
@@ -2132,14 +2111,14 @@ function openEditorConfirm() {
     document.getElementById('editor-modal').classList.remove('hidden');
     previousState = currentState;
     currentState = 'editor_confirm';
-    highlightEditorModal(0);
+    resetMenuFocus();
     speak("Opening Editor. You are about to enter the Editor Mode. This requires a mouse and keyboard.");
 }
 
 function closeEditorModal() {
     document.getElementById('editor-modal').classList.add('hidden');
     currentState = previousState;
-    if (currentState === STATE.SETTINGS) highlightSettings(settingsIndex);
+    if (currentState === STATE.SETTINGS) resetMenuFocus();
 }
 
 function startEditor() {
@@ -2147,7 +2126,7 @@ function startEditor() {
     window.open('editor.html', '_blank', 'noopener');
 }
 
-let editorModalIndex = 0;
+let editorModalIndex = null;
 function highlightEditorModal(idx) {
     const btns = document.querySelectorAll('#editor-modal .modal-action-btn');
     if(idx >= btns.length) idx = 0;
@@ -2195,12 +2174,37 @@ function clearAllProgress() {
 let keyboardEnterTimer = null;
 
 
-async function refreshWebStreaming() {
-    await WebStreaming.syncProgress();
-    await loadData();
+// A storage notification is a data refresh, never a navigation action. Keep
+// the player's view/selection intact and leave inactive tabs completely quiet.
+let streamingRefreshPromise = null;
+let streamingRefreshPending = false;
+let streamingRefreshNeedsSync = false;
+
+function rebuildGridQuietly(kind, render, index) {
+    const before = index == null || index === -1 ? null : document.getElementById(`${kind}-${index}`);
+    const key = before?.dataset.itemKey;
+    const label = before?.textContent;
+    const navigation = before?.classList.contains('nav-card');
+    render();
+    let next = index;
+    if (index != null && index !== -1) {
+        const candidates = Array.from(document.querySelectorAll(`#${kind === 'item' ? 'items' : 'genre'}-grid [id^="${kind}-"]`));
+        const same = candidates.find(el => el.style.visibility !== 'hidden' && (navigation
+            ? el.id === `${kind}-${index}` && el.classList.contains('nav-card')
+            : key ? el.dataset.itemKey === key : el.textContent === label && !el.classList.contains('nav-card')));
+        next = same ? Number(same.id.slice(kind.length + 1)) : null;
+    }
+    clearHighlights();
+    if (next === -1) document.getElementById('global-back-btn').classList.add('highlighted');
+    else if (next != null) document.getElementById(`${kind}-${next}`)?.classList.add('highlighted');
+    return next;
+}
+
+function refreshStreamingViewQuietly() {
     if (currentState === STATE.ITEMS) {
         const title = document.getElementById('view-title').textContent;
-        if (title === 'Recently Watched') await openRecent();
+        const previous = JSON.stringify(filteredData);
+        if (title === 'Recently Watched') filteredData = recentItems();
         else {
             filteredData = allData.filter(item => item.type !== 'music');
             if (title === 'Search Results') {
@@ -2210,13 +2214,41 @@ async function refreshWebStreaming() {
                 filteredData = filteredData.filter(item => (item.genre || 'Other').split(',').map(g=>g.trim()).includes(title) && (!currentTypeFilter || currentTypeFilter(item.type)));
             }
             filteredData.sort((a,b)=>a.title.localeCompare(b.title));
-            renderItemsGrid();
         }
+        if (JSON.stringify(filteredData) !== previous) itemIndex = rebuildGridQuietly('item', renderItemsGrid, itemIndex);
     } else if (currentState === STATE.GENRES) {
         processGenres(currentTypeFilter ? allData.filter(item=>currentTypeFilter(item.type)) : allData);
-        renderGenreGrid();
+        genreIndex = rebuildGridQuietly('genre', renderGenreGrid, genreIndex);
     }
-    if (window.NarbeScanManager?.getSettings().autoScan && BennyExtension.supports('streaming')) startAutoScan();
+}
+
+function refreshWebStreaming(syncProgress = true) {
+    streamingRefreshPending = true;
+    streamingRefreshNeedsSync ||= syncProgress;
+    if (!streamingIsInteractive()) {
+        stopAutoScan();
+        return Promise.resolve();
+    }
+    if (streamingRefreshPromise) return streamingRefreshPromise;
+    streamingRefreshPromise = Promise.resolve().then(async () => {
+        const sync = streamingRefreshNeedsSync;
+        streamingRefreshNeedsSync = false;
+        streamingRefreshPending = false;
+        if (sync) await WebStreaming.syncProgress();
+        await loadData();
+        if (!streamingIsInteractive()) {
+            streamingRefreshPending = true;
+            return;
+        }
+        refreshStreamingViewQuietly();
+        if (!autoScanIntervalId && !isLaunching && window.NarbeScanManager?.getSettings().autoScan && BennyExtension.supports('streaming')) startAutoScan();
+    }).catch(error => {
+        console.error('[Streaming] Could not refresh saved data:', error);
+    }).finally(() => {
+        streamingRefreshPromise = null;
+        if (streamingRefreshPending && streamingIsInteractive()) refreshWebStreaming(streamingRefreshNeedsSync);
+    });
+    return streamingRefreshPromise;
 }
 window.addEventListener('benny-extension-change', () => {
     if (!BennyExtension.supports('streaming')) stopAutoScan();
