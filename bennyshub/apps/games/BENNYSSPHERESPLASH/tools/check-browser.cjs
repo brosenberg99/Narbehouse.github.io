@@ -91,8 +91,11 @@ function findChrome() {
   const load = async () => {
     await call('Page.navigate', { url: 'http://127.0.0.1:' + server.address().port + GAME });
     await until('!!(window.SS && SS.ui && SS.ui.screen === "title")', 60000);
-    // Record every commentary line the system voice is asked to say, and what was on screen.
-    await evaluate(`window.__said = JSON.parse(sessionStorage.getItem('__said') || '[]'); addEventListener('pagehide', () => sessionStorage.setItem('__said', JSON.stringify(__said))); (() => { const f = SS.util.speakAs; SS.util.speakAs = function (t, o) { __said.push({ t, ctx: SS.ui.context() }); return f.apply(this, arguments); }; })(); true`);
+    // Record every commentary line the system voice is asked to say, what was on screen, and which match.
+    await evaluate(`window.__said = JSON.parse(sessionStorage.getItem('__said') || '[]').map(s => Object.assign(s, { m: -1 })); addEventListener('pagehide', () => sessionStorage.setItem('__said', JSON.stringify(__said))); (() => { const f = SS.util.speakAs; SS.util.speakAs = function (t, o) { __said.push({ t, ctx: SS.ui.context(), m: __match }); return f.apply(this, arguments); }; })();
+      // The caption history starts again with each match, so the caption check counts this match's lines only
+      // (lines from before a reload are m -1: no match here).
+      window.__match = 0; (() => { const r = SS.broadcast.reset; SS.broadcast.reset = function () { __match++; return r.apply(this, arguments); }; })(); true`);
   };
 
   try {
@@ -285,10 +288,10 @@ function findChrome() {
     const total = gv.score[0] + gv.score[1];
     check('every goal gets its moment: banner, celebration, replay, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total && gv.replayed === total, gl);
 
-    const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length })');
+    const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');
     const sv = JSON.parse(said);
     check('commentary is never spoken while a choice or menu is up', sv.bad === 0, sv.n + ' lines spoken, ' + sv.bad + ' over a choice');
-    check('every commentary line reached the caption', sv.hist >= sv.n, sv.hist + ' captioned');
+    check('every commentary line reached the caption', sv.hist >= sv.now, sv.now + ' spoken this match, ' + sv.hist + ' captioned');
     check('no exceptions', exceptions.length === 0, exceptions.slice(0, 3).join(' | '));
   } catch (err) {
     console.error(err); fails++;
