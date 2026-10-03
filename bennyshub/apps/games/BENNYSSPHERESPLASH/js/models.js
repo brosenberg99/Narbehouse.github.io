@@ -448,6 +448,14 @@ SS.models = (function () {
       mesh.frustumCulled = false;                    // skinned bounds are the bind pose, not the pose
       if (mesh === body) mesh.parent.add(outlineFor(mesh, st), glowHull(mesh));
     });
+    // One skeleton per swimmer. The clone gives the eyes and brows a copy each of the body's,
+    // and every copy is posed and uploaded to the GPU every frame (36 for 12 swimmers, not 12).
+    meshes.forEach(mesh => {
+      const a = mesh.skeleton, b = body.skeleton;
+      if (a === b || a.bones.length !== b.bones.length || a.bones.some((bn, i) => bn !== b.bones[i]) ||
+        a.boneInverses.some((m, i) => !m.equals(b.boneInverses[i]))) return;
+      a.dispose(); mesh.bind(b, mesh.bindMatrix);
+    });
     const gearGeo = buildGear(body, hf, o);
     if (gearGeo) {
       const gear = new THREE.SkinnedMesh(gearGeo, toonMaterial());
@@ -549,7 +557,9 @@ SS.models = (function () {
       mixer.update(dt);
       if (lock > 0) lock -= dt;
       if (!move) settle(dt);
-      group.updateMatrixWorld(true);
+      // Fresh world matrices only for what reads them now (a move; the carry makes its own);
+      // the renderer updates everything once before it draws.
+      if (move) group.updateMatrixWorld(true);
       if (carrying) holdBall();
       if (move) { move.t += dt; if (SS.moves.apply(api, move)) move = null; }
     }

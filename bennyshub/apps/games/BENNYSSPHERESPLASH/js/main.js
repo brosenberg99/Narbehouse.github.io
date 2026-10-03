@@ -1,24 +1,43 @@
 /** Benny's Sphere Splash - renderer, adaptive quality, frame loop and boot.
- *  The quality loop is NARBE Racer's (NARBEKART/js/main.js): sample the frame rate,
- *  drop shadows then pixel ratio when it sags, step back up when there is headroom. */
+ *  Adaptive quality has one lever, the pixel ratio (how sharp the picture is): everything
+ *  else on screen is there for Ben to see, so nothing is switched off. Started from NARBE
+ *  Racer's loop (NARBEKART/js/main.js), made to settle: a step up that does not hold waits
+ *  1, then 2, 4, 8... minutes before another try, so the picture does not keep flicking. */
 SS.main = (function () {
   'use strict';
   let renderer, scene, camera, running = false, last = 0, t = 0;
   const frames = [], steps = [0.66, 0.8, 1, 1.25, 1.5, 2];
   let ratio = 3, sampleTime = 0, sampleFrames = 0, fps = 60, errors = 0, errorAt = 0;
+  let clock = 0, good = 0, raisedAt = -1;
+  const failed = {};                                           // step -> { at, n }: when it last failed to hold 60, how often
 
   function resize() {
     if (!renderer) return;
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   }
+  const cap = () => Math.min(window.devicePixelRatio || 1, 2);
+  function setRatio(i) { ratio = i; renderer.setPixelRatio(Math.min(cap(), steps[i])); resize(); }
+  /* Every 2 s: under 54 fps drops a step (two under 30); over 58 fps twice running steps
+     up, unless that step failed lately (it waits a minute after its first failure, then twice
+     as long after each one). A step that drops back within 6 s of being taken has failed. Under 10 fps is a stall (a hidden or throttled window), not
+     the device, and is ignored. */
   function quality(dt) {
-    sampleTime += dt; sampleFrames++;
-    if (sampleTime < 3) return;
+    clock += dt; sampleTime += dt; sampleFrames++;
+    if (sampleTime < 2) return;
     fps = sampleFrames / sampleTime; sampleTime = sampleFrames = 0;
-    const cap = Math.min(window.devicePixelRatio || 1, 2);
-    if (fps < 48 && ratio > 0) { ratio--; renderer.setPixelRatio(Math.min(cap, steps[ratio])); resize(); }
-    else if (fps > 59 && ratio < steps.length - 1 && steps[ratio] < cap) { ratio++; renderer.setPixelRatio(Math.min(cap, steps[ratio])); resize(); }
+    if (fps < 10) return;
+    if (fps < 54) {
+      good = 0;
+      if (raisedAt >= 0 && clock - raisedAt < 6) failed[ratio] = { at: clock, n: (failed[ratio] ? failed[ratio].n : 0) + 1 };
+      raisedAt = -1;
+      if (ratio > 0) setRatio(Math.max(0, ratio - (fps < 30 ? 2 : 1)));
+    } else if (fps > 58) {
+      const next = ratio + 1;
+      if (++good >= 2 && next < steps.length && steps[ratio] < cap() && !(failed[next] && clock - failed[next].at < 60 * 2 ** (failed[next].n - 1))) {
+        setRatio(next); raisedAt = clock; good = 0;
+      }
+    } else good = 0;
   }
   function fail(err) {
     console.error("Benny's Sphere Splash:", err && err.stack || err);
@@ -38,7 +57,7 @@ SS.main = (function () {
     if (!raw || document.hidden) return;
     try {
       if (now - errorAt > 4000) errors = 0;
-      quality(raw); const dt = Math.min(raw, 0.05); t += dt;
+      quality(Math.min(raw, 1)); const dt = Math.min(raw, 0.05); t += dt;
       frames.forEach(fn => fn(dt, t));
       renderer.info.reset(); renderer.render(scene, camera);
     } catch (err) {

@@ -389,6 +389,19 @@ play (mean frame-to-frame L* change 0.19 live, 0.27 in a shot close-up, against 
 without them), and a softened version still moved. None helped read the play - the
 water's own gradient already shows up and down - so all three are gone. Bubbles stay
 where they mark an event: the goal and technique bursts.
+Speed (round 5; target 60 fps on Ben's Surface Pro). Nothing that helps Ben see is ever
+turned down: the one lever is the pixel ratio (`js/main.js`, steps 0.66-2, capped at the
+screen's own). Every 2 s: under 54 fps drops a step (two under 30), over 58 fps twice
+running steps up. A step up that drops back within 6 s has failed and waits 1, then 2,
+4... minutes before another try, so the picture does not keep flicking sharp and soft;
+a sample under 10 fps is a stalled window and is ignored. Checked on a simulated
+fill-bound Surface (render cost per megapixel): it settles one step down and retries
+rarely. CPU: each swimmer's eyes and brows had their own copy of its skeleton (36
+posed and uploaded per frame for 12 swimmers, now 12), and each swimmer re-posed its
+whole body a second time every frame; with both fixed a frame costs ~7 ms of script at
+6x CPU throttle (was ~11). Testing on the device: open the game with `?perf` on the
+address (`index.html?perf`); the corner shows fps, draw calls, triangles and the pixel
+ratio (x2 = full sharpness on a Surface). Steady 60 at x1.25 or above is the goal.
 Characters are judged against a written checklist (team colour difference measured from
 rendered frames, outline thickness, squint test) kept with the review sheets in
 `Projects\Assets\SphereSplash\characters`. Custom motion is layered on the clips in

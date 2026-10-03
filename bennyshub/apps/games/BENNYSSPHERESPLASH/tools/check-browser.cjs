@@ -198,8 +198,10 @@ function findChrome() {
     check('the release that opened Pause is swallowed', u.screen === 'pause' && u.index === -1, u.screen + '/' + u.index);
     await press('Space'); await press('Enter'); u = await ui();
     check('Pause > Continue resumes play', u.ctx === 'live', u.ctx);
+    // A press during a goal's celebration or replay only skips it (by design), so wait for plain live play.
+    await until("SS.ui.context() === 'live' && !SS.game.goalMoment && SS.director.mode === 'broadcast'", 60000);
     await keyDown('Enter'); await wait(4000); await keyUp('Enter'); await wait(300); u = await ui();
-    check('a slow 4 s press is an ordinary press (Huddle, not Pause)', u.screen === 'huddle', u.screen);
+    check('a slow 4 s press is an ordinary press (Huddle, not Pause)', u.screen === 'huddle', JSON.stringify({ screen: u.screen, ctx: u.ctx }));
     await press('Enter');
 
     /* ── Pause from inside a decision comes back to the same choice ────── */
