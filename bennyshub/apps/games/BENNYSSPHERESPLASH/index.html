@@ -13,15 +13,22 @@
 <div id="overlay"></div>
 <div id="caption" aria-live="polite"></div>
 <div id="scanFrame"><i></i><i></i><i></i><i></i></div>
+<div id="worldStatus"></div>
 <button id="pauseBtn" type="button" aria-label="Pause"><span class="ic">⏸️</span><span class="tx">Pause</span></button>
 <div id="perf"></div>
 <div id="loading">Filling the sphere…</div>
 
-<!-- Hub shared modules first, in the hub's order. -->
+<!-- Hub shared modules first, in the hub's order (ACCESSIBILITY.md §5): the platform and the
+     choice scanner before the managers, the adapter before ui.js. -->
+<link rel="stylesheet" href="../../../shared/scan-status-badge.css">
 <script src="../../../shared/safe-audio.js" onerror="console.warn('safe-audio.js missing')"></script>
+<script src="../../../shared/platform.js"></script>
+<script src="../../../shared/scan-status-badge.js"></script>
+<script src="../../../shared/choice-scan.js"></script>
 <script src="../../../shared/voice-manager.js" onerror="console.warn('voice-manager.js missing')"></script>
 <script src="../../../shared/ios-audio-fix.js" onerror="console.warn('ios-audio-fix.js missing')"></script>
 <script src="../../../shared/scan-manager.js" onerror="console.warn('scan-manager.js missing')"></script>
+<script src="../../../shared/choice-scan-adapter.js"></script>
 
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/three-addons.js"></script>

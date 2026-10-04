@@ -178,8 +178,8 @@ function findChrome() {
     await keyDown('Space'); await wait(3400); await keyUp('Space'); await wait(300); u = await ui();
     check('holding Space with nothing lit starts at the last item', u.index === 2 && u.row === 'Back', u.row);
     await press('Enter'); u = await ui();
-    check('Back opens the menu with nothing highlighted', u.screen === 'title' && u.index === -1, u.screen + '/' + u.index);
-    await press('Space'); await press('Enter');
+    check('Back lands on the item that opened the screen (Quick Game)', u.screen === 'title' && u.row.startsWith('Quick Game'), u.screen + '/' + u.row);
+    await press('Enter');
     for (let i = 0; i < 5; i++) await press('Space');      // Start, Pick, Back, (blank), Start
     u = await ui();
     check('the list wraps through a blank step', u.row.startsWith('Start'), u.row);
@@ -269,10 +269,16 @@ function findChrome() {
     await toRow('Difficulty'); await press('Enter');
     check('changing a setting keeps its highlight', (await ui()).row.startsWith('Difficulty'), (await ui()).row);
     await toRow('Back'); await press('Enter');
-    check('Back from Settings opens Pause with nothing lit', (await ui()).index === -1);
+    check('Back from Settings lands on Settings in Pause', (await ui()).screen === 'pause' && (await ui()).row.startsWith('Settings'), (await ui()).row);
     await toRow('Continue'); await press('Enter');
     got = await platesNow();
     check('after Pause > Settings > Back > Continue every plate is back', (await ui()).ctx === 'world' && got === wantPlates, got + ' of ' + wantPlates);
+    // A nested decision: Pass > Back lands on Pass, not on the blank.
+    if ((await rowsNow()).split('|').some(r => r.startsWith('Pass'))) {
+      await toRow('Pass'); await press('Enter');
+      await toRow('Back'); await press('Enter'); u = await ui();
+      check('Pass > Back lands on Pass', u.ctx === 'world' && u.row.startsWith('Pass'), u.ctx + '/' + u.row);
+    }
 
     /* ── save mid-play, reload, Continue: exactly the same moment ─────── */
     await evaluate('SS.game.choose(SS.game.match.pending.options[0].id); true');
@@ -316,6 +322,27 @@ function findChrome() {
       oneSwitch++;
     }
     check('with Auto Scan on, Enter alone plays through menus and decisions', oneSwitch === 4, oneSwitch + ' decisions');
+
+    /* ── the hub's choice scanner: Space Brake and parking (Auto Scan, 1 s) ── */
+    await evaluate('SS.save.clearMatch(); SS.game.quitToMenu(); true');
+    const cs = () => evaluate('SS.ui.__dbg().choice');
+    await until('SS.ui.__dbg().index >= 0', 8000); await wait(200);
+    await keyDown('Space'); await wait(80);
+    let st = await cs(); const litAt = st.index;
+    const dotted = await evaluate('!!document.querySelector("#menu [data-narbe-scan-paused]")');
+    await keyUp('Space'); await wait(2400);
+    const held = await cs();
+    check('Space Brake: a press freezes the scan on the lit item, marked with a dotted outline', st.braked && dotted && held.braked && held.index === litAt, JSON.stringify({ st, dotted, held }));
+    await press('Space'); await wait(600);
+    const still = await cs(); await wait(1200); const moved = await cs();
+    check('a second Space resumes, after one full interval', !still.braked && still.index === litAt && moved.index !== litAt, still.index + ' -> ' + moved.index);
+    await evaluate('NarbeScanManager.updateSettings({ parking: "auto", loopsBeforeParking: 1 }); SS.ui.setScreen("title"); true');
+    await until('SS.ui.__dbg().choice.parked', 20000);
+    const parkedNow = await evaluate('JSON.stringify({ i: SS.ui.__dbg().index, badge: (document.querySelector("#cardStatus .narbe-scan-status-badge") || {}).hidden === false })');
+    check('Auto park: after one full loop the scan parks, nothing lit, Parked shown', /"i":-1/.test(parkedNow) && /"badge":true/.test(parkedNow), parkedNow);
+    await press('Enter'); u = await ui();
+    check('Enter while parked resumes on the first item without choosing it', u.screen === 'title' && u.index >= 0 && !(await cs()).parked, u.screen + '/' + u.row);
+    await evaluate('NarbeScanManager.updateSettings({ parking: "off", loopsBeforeParking: 2 }); true');
     await evaluate('(() => { const s = NarbeScanManager; if (s.getSettings().autoScan) s.toggleAutoScan(); while (s.getScanInterval() !== 2000) s.cycleScanSpeed(); })(); true');
 
     /* ── a whole Quick Game to the results card, at 1024x768 ──────────── */

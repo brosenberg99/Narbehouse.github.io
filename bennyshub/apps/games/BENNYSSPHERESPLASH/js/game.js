@@ -949,7 +949,9 @@ SS.game = (function () {
   const bestOf = list => list.slice().sort((a, b) => b.odds.p - a.odds.p)[0];
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 
-  function openTop(dec) {
+  /** `back` = the id of the plate to land on when Back returns here (ACCESSIBILITY.md §4:
+   *  Back within a nested task restores the parent item). */
+  function openTop(dec, back) {
     const s = S(), c = s.players[dec.carrier], opts = dec.options;
     const plain = opts.filter(o => !o.tech), techs = opts.filter(o => o.tech);
     const passes = plain.filter(o => o.kind === 'pass'), shot = plain.find(o => o.kind === 'shoot');
@@ -1000,7 +1002,7 @@ SS.game = (function () {
     frameOn([dec.carrier, ...dec.defenders, ...best], shot ? [goalPoint(c.team)] : null);
     SS.ui.openWorld({ title: head[0], sub: head[1], items, speech, anchor: swimmers[dec.carrier].head,
       onFocus: it => { const l = it && it.lane && it.lane(); showLane(l && l[0], l && l[1], l && l[2]); },
-      onLeave: () => showLane(null) });
+      onLeave: () => showLane(null) }, back);
   }
 
   function openPass(dec, tech, keeperBall) {
@@ -1015,7 +1017,7 @@ SS.game = (function () {
         lane: () => [curP[dec.carrier], curP[o.target], m.laneBlockers(dec.carrier, t.p)],
         action: () => choose(o.id) };
     });
-    if (!keeperBall) items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => tech ? openTech(dec) : openTop(dec) });
+    if (!keeperBall) items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => tech ? openTech(dec, techName) : openTop(dec, 'Pass') });
     items.push(pauseItem());
     const techName = tech ? D().TECHS[tech].name : null;
     const title = keeperBall ? 'Your keeper has it' : (techName ? techName + ' to…' : 'Pass to…');
@@ -1031,7 +1033,7 @@ SS.game = (function () {
       onLeave: () => { showLane(null); badges.forEach(b => { b.mark(null); b.onTap(null); }); } });
   }
 
-  function openTech(dec) {
+  function openTech(dec, back) {
     const s = S(), techs = dec.options.filter(o => o.tech);
     const seen = new Set(), items = [];
     techs.forEach(o => {
@@ -1048,10 +1050,10 @@ SS.game = (function () {
           speech: t.name + '. ' + (o.kind === 'shoot' ? 'A shot' : 'A dribble') + '. ' + o.odds.word + '.', action: () => choose(o.id) });
       }
     });
-    items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => openTop(dec) });
+    items.push({ label: 'Back', sub: 'Other choices', cls: 'back', speech: 'Back', action: () => openTop(dec, 'Tech') });
     items.push(pauseItem());
     SS.ui.openWorld({ title: 'Tech moves', sub: who(dec.carrier) + ' has ' + Math.round(s.players[dec.carrier].hp) + ' HP', items,
-      anchor: swimmers[dec.carrier].head, speech: 'Tech moves.', onLeave: () => showLane(null) });
+      anchor: swimmers[dec.carrier].head, speech: 'Tech moves.', onLeave: () => showLane(null) }, back);
   }
 
   /* Defending. Bryan's playtest: both stances read "Risky / Risky" - winning the ball back

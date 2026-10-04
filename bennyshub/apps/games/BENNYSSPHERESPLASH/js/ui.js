@@ -4,24 +4,25 @@
  * returning { title, sub, items, speech, startIndex, listenFirst, layout, size, stats },
  * rendered into one card and fitted so it never needs a scrollbar.
  *
- * Three input contexts:
- *   card   a menu card is up. Space released = next, Enter released = choose, hold
- *          Space = scan backwards at the player's scan speed, Auto Scan from
- *          NarbeScanManager. The hub's contract, exactly.
- *   world  a decision is on the scene: the SAME scanning, over the choice plates
- *          beside the carrier, the teammates themselves (pass targets) and the
- *          on-screen Pause button. Holding Enter opens Pause from here too.
- *   live   the match is playing. A short press of either switch opens the Huddle.
- *          Holding Enter opens Pause directly, with Racer's "keep holding" ring and
- *          rising ticks.
+ * Three input contexts (ACCESSIBILITY.md §4: "If Ben stops pressing, does anything keep
+ * happening?"):
+ *   card   CHOICE. A menu card is up.
+ *   world  CHOICE. A decision is on the scene and the match is frozen: the choice plates
+ *          beside the carrier, the teammates themselves (pass targets) and the on-screen
+ *          Pause button. Holding Enter opens Pause from here too (the native hold).
+ *   live   MECHANIC. The match is playing. A short press of either switch opens the
+ *          Huddle. Holding Enter opens Pause directly, with Racer's "keep holding" ring
+ *          and rising ticks.
+ * Both choice contexts run on the hub's shared choice scanner (NarbeChoiceScanAdapter):
+ * the blank stop on every lap, Auto Scan, parking, the Space brake and Wait for Speech
+ * all come from it and from the player's Hub Settings. This file owns the keys, the
+ * hold-to-scan-backwards and hold-to-pause gestures, and what each item does.
  * Everything fires on RELEASE. A press of any length short of the full pause hold
  * is an ordinary press - a player may hold a switch for seconds without meaning to.
  *
- * Every card and decision opens with nothing highlighted, Back included
- * (ACCESSIBILITY.md "Menus open with nothing highlighted"): the first Space finds the
- * first item, hold Space the last, and Enter waits for a choice. Only an in-place
- * change (a setting's value, arming Reset) keeps the highlight. Each list has a blank
- * step before it wraps, so Auto Scan leaves a beat between laps.
+ * Every new card and decision opens on the blank (nothing highlighted); Back from a
+ * nested screen lands on the item that opened it; an in-place change (a setting's
+ * value, arming Reset) keeps the highlight. Enter on the blank does nothing.
  * The focus marker (Fish Mystery's brackets) is the same on cards and in the world.
  */
 SS.ui = (function () {
@@ -35,19 +36,19 @@ SS.ui = (function () {
   const PAUSE_HOLD_SHOW = 2000;    // the ring appears, so the gesture is discoverable
   const PAUSE_HOLD_MS = 5000;      // Pause opens
   const GHOST_MS = 380;            // a new card ignores taps this soon (touch -> click echo)
-  const ACTIVATE_DEBOUNCE = 140;
   const RESET_ARM_MS = 6000;
 
   /* ── state ───────────────────────────────────────────────────────────── */
   let ctx = 'none';                // none | card | world | live
   let screen = null, screenOpts = {}, meta = {}, items = [], index = -1;
   let world = null;                // the open decision: { spec, index }
-  let autoTimer = null, openedAt = 0, lastActivate = 0, resetArmed = 0;
+  let openedAt = 0, resetArmed = 0;
   let settingsReturn = null, cardReturn = null;
   const down = { Space: false, Enter: false }, downAt = { Space: 0, Enter: 0 };
-  const pressIndex = { Space: -1, Enter: -1 };
   const ignore = { Space: false, Enter: false };
-  let backHold = null, backRepeat = null, didBack = false;
+  let backHold = null, backRepeat = null, didBack = false, braking = false;
+  let choice = null, lastLit = null;
+  const memory = new Map();        // card -> the item that was lit when it was left, for Back
   let pauseWatch = null, pauseTicks = 0;
 
   const G = () => SS.game;
@@ -58,7 +59,7 @@ SS.ui = (function () {
   /* ══ the card ═══════════════════════════════════════════════════════════ */
   function buildDom() {
     const ov = $('overlay');
-    ov.innerHTML = '<div id="card" class="card" role="dialog" aria-live="polite">' +
+    ov.innerHTML = '<div id="card" class="card" role="dialog" aria-live="polite"><div id="cardStatus"></div>' +
       '<div class="band" aria-hidden="true"></div><div id="cardArt" class="art"></div>' +
       '<h1 id="cardTitle"></h1><p id="cardSub"></p><div id="cardStats"></div>' +
       '<div id="menu" class="menu"></div><p id="hint"></p></div>';
@@ -92,9 +93,9 @@ SS.ui = (function () {
         U.addTap(el, () => {
           if (performance.now() - openedAt < GHOST_MS) return;     // the tail of the tap that opened this card
           if (it.enabled === false) { SS.audio.menu('blocked'); return; }
-          index = i; showFocus(); activate(i);
+          pick(i);
         });
-        el.addEventListener('mouseenter', () => { if (!selectable(it) || index === i) return; index = i; showFocus(); restartAuto(); });
+        el.addEventListener('mouseenter', () => { if (selectable(it) && index !== i) point(i); });
       }
       it.el = el;
       menu.appendChild(el);
@@ -131,18 +132,19 @@ SS.ui = (function () {
     openedAt = performance.now();
   }
 
+  /** opts.keep = the same card redrawn in place (a setting changed): the highlight stays on
+   *  the same item. opts.restore = Back: land on the item this card was left from. */
+  const memKey = (name, opts) => name + (opts && opts.side != null ? ':' + opts.side : '');
   function setScreen(name, opts) {
     const builder = SCREENS[name];
     if (!builder) return;
     opts = opts || {};
-    const wasCard = ctx === 'card';
+    const wasCard = ctx === 'card', keep = !!opts.keep && wasCard && screen === name;
+    if (wasCard && screen && choice && choice.active) memory.set(memKey(screen, screenOpts), choice.getState().id);
     screen = name; screenOpts = opts;
     meta = builder(opts) || {};
     items = meta.items || [];
-    index = meta.startIndex !== undefined ? meta.startIndex : (meta.listenFirst === false ? 0 : -1);
-    if (opts.index !== undefined) index = opts.index;
-    if (index >= items.length) index = items.length - 1;
-    if (index >= 0 && !selectable(items[index])) index = nextSelectable(index, 1, false);
+    index = -1;
 
     leaveWorld();
     ctx = 'card';
@@ -156,21 +158,23 @@ SS.ui = (function () {
     $('cardSub').innerHTML = meta.sub || '';
     $('hint').innerHTML = meta.hint || defaultHint();
     renderCard();
-    if (!wasCard || opts.announce !== false) swallowHeld();
+    if (!keep) swallowHeld();
     showChrome();
-    showFocus();
     fitCard();
     SS.broadcast.hush();
-    if (meta.announce !== false && opts.announce !== false) U.speak(meta.speech || U.stripTags((meta.title || '') + '. ' + (meta.sub || '')));
-    restartAuto();
+    syncChoice({ fresh: !keep, restoreId: opts.restore ? memory.get(memKey(name, opts)) : null });
+    showFocus();
+    if (!keep && meta.announce !== false && opts.announce !== false) {
+      announceOpen(opts.restore ? U.stripTags(meta.title || '') : meta.speech || U.stripTags((meta.title || '') + '. ' + (meta.sub || '')));
+    }
   }
-  function refresh() { setScreen(screen, Object.assign({}, screenOpts, { index, announce: false })); }
+  function refresh() { setScreen(screen, Object.assign({}, screenOpts, { keep: true, restore: false, announce: false })); }
 
   function closeCard() {
     $('overlay').classList.remove('on');
     screen = null; items = []; index = -1;
     SS.worldui.setFocus(null);
-    stopAuto();
+    if (choice) choice.sync(null);
   }
 
   function showChrome() {
@@ -181,21 +185,22 @@ SS.ui = (function () {
 
   /* ══ the world (a decision on the scene) ════════════════════════════════ */
   /** spec = { title, sub, items: [{ label, sub, odds, speech, action, focus?, el? }], anchor, speech } */
-  function openWorld(spec) {
-    closeCard();
+  /** `restoreId` = Back from a nested decision (Pass > Back lands on Pass). */
+  function openWorld(spec, restoreId) {
+    if (ctx === 'card') { $('overlay').classList.remove('on'); screen = null; }
     leaveWorld();
     world = { spec, index: -1 };
     ctx = 'world';
     items = spec.items;
+    index = -1;
     buildCluster(spec);
     if (spec.onOpen) spec.onOpen();
-    index = world.index;
     swallowHeld();
     showChrome();
+    syncChoice({ fresh: true, restoreId: restoreId || null });
     showFocus();
-    if (spec.speech) U.speak(spec.speech);
+    announceOpen(restoreId ? null : spec.speech);
     SS.broadcast.hush();
-    restartAuto();
   }
   function buildCluster(spec) {
     const el = document.createElement('div');
@@ -219,8 +224,8 @@ SS.ui = (function () {
         p.querySelector('.odds em').textContent = it.odds.word;
         p.dataset.odds = it.odds.word.toLowerCase().replace(/\s+/g, '-');
       } else p.querySelector('.odds').remove();
-      U.addTap(p, () => { if (performance.now() - openedAt < GHOST_MS) return; index = i; showFocus(); activate(i); });
-      p.addEventListener('mouseenter', () => { if (index === i) return; index = i; showFocus(); restartAuto(); });
+      U.addTap(p, () => { if (performance.now() - openedAt < GHOST_MS) return; pick(i); });
+      p.addEventListener('mouseenter', () => { if (index !== i) point(i); });
       it.el = p; it.plate = true;
       row.appendChild(p);
     });
@@ -240,7 +245,7 @@ SS.ui = (function () {
     if (world.spec.onLeave) world.spec.onLeave();
     world = null;
   }
-  function closeWorld() { leaveWorld(); items = []; index = -1; stopAuto(); }
+  function closeWorld() { leaveWorld(); items = []; index = -1; if (choice) choice.sync(null); }
 
   /* ══ focus and scanning (cards and world alike) ═════════════════════════ */
   function showFocus() {
@@ -257,57 +262,75 @@ SS.ui = (function () {
     if (ctx === 'world' && world && world.spec.onFocus) world.spec.onFocus(it || null);
     if (it && it.onFocus) it.onFocus();
   }
-  function speakItem() {
-    const it = items[index];
-    if (it) U.speak(it.speech !== undefined ? it.speech : U.stripTags(it.label) + (it.value !== undefined && it.value !== '' ? ', ' + it.value : ''));
-  }
-  /** The next selectable index from i in direction d. With `blank`, running off either
-   *  end returns -1 (nothing highlighted) - the beat between laps - and the step after
-   *  that starts the next lap. */
-  function nextSelectable(i, d, blank) {
-    const n = items.length;
-    for (let k = 0; k < n + 2; k++) {
-      i += d;
-      if (i < 0 || i >= n) {
-        if (blank) return -1;
-        i = d > 0 ? -1 : n;                 // wrap: the next step lands on the first or last item
-        continue;
-      }
-      if (selectable(items[i])) return i;
-    }
-    return -1;
-  }
-  function step(d) {
-    if (!items.length || (ctx !== 'card' && ctx !== 'world')) return;
-    const lap = items.filter(selectable).length > 1;
-    index = index < 0 ? nextSelectable(d > 0 ? -1 : items.length, d, false) : nextSelectable(index, d, lap);
-    showFocus();
-    if (index >= 0) { speakItem(); SS.audio.menu('move'); }
-    if (!didBack) restartAuto();
-  }
-  function activate(at) {
-    const t = performance.now();
-    if (t - lastActivate < ACTIVATE_DEBOUNCE) return;
-    lastActivate = t;
-    const i = at != null && at >= 0 && at < items.length ? at : index;
-    if (i < 0) { U.speak(isAuto() ? 'Wait for the highlight, then press Enter' : 'Press Space first to pick an item'); return; }
-    const it = items[i];
-    if (!selectable(it)) { SS.audio.menu('blocked'); return; }
-    SS.audio.menu('select');
-    if (typeof it.action === 'function') it.action();
-  }
+  const speechOf = it => it.speech !== undefined ? it.speech : U.stripTags(it.label) + (it.value !== undefined && it.value !== '' ? ', ' + it.value : '');
 
-  function restartAuto() {
-    stopAuto();
-    if ((ctx !== 'card' && ctx !== 'world') || !isAuto()) return;
-    if (down.Space || down.Enter) return;                  // the highlight waits while a switch is held
-    autoTimer = setInterval(() => step(1), interval());
+  /* ── the hub's choice scanner ───────────────────────────────────────────
+     One adapter for cards and decisions alike. It owns the highlight: where it is, the
+     blank stop, Auto Scan, parking, the brake and Wait for Speech. It tells us where the
+     highlight went (onHighlight) and what was chosen (onSelect); we draw and act. */
+  function choiceContext() {
+    if (ctx !== 'card' && ctx !== 'world') return null;
+    const seen = new Map(), list = [];
+    items.forEach((it, n) => {
+      if (!selectable(it)) return;
+      const base = String(it.id || U.stripTags(it.label || '') || 'item'), k = seen.get(base) || 0;
+      seen.set(base, k + 1);
+      // A teammate in the water has no element of its own: the bracket marker framing them
+      // carries the brake's dotted outline instead (the "equivalent outline" for 3D choices).
+      const el = it.el || (it.focus ? $('scanFrame') : null);
+      list.push({ id: k ? base + ':' + k : base, label: () => speechOf(it), element: el, labelElement: el, nativeIndex: n });
+    });
+    return ctx === 'card'
+      ? { key: 'card:' + memKey(screen, screenOpts), items: list, statusHost: $('cardStatus') }
+      : { key: 'world', items: list, statusHost: $('worldStatus') };
   }
-  function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
+  function syncChoice(opts) { if (choice) choice.sync(choiceContext(), opts); }
+  function initChoice() {
+    if (!window.NarbeChoiceScanAdapter || !U.sm()) return;      // shared files missing: nothing scans
+    choice = NarbeChoiceScanAdapter.create({
+      holdThreshold: SCAN_BACK_HOLD, stateHost: document.body,
+      speak: text => U.speak(text),
+      onHighlight(item, state, context) {
+        if (!context || state.suspended) return;
+        index = item ? item.nativeIndex : -1;
+        showFocus();
+        $('scanFrame').classList.toggle('paused', !!(item && state.braked));
+        const id = item ? item.id : null;
+        if (id !== null && id !== lastLit) SS.audio.menu('move');
+        lastLit = id;
+      },
+      onSelect(item) {
+        const it = items[item.nativeIndex];
+        if (!selectable(it)) { SS.audio.menu('blocked'); return; }
+        SS.audio.menu('select');
+        if (typeof it.action === 'function') it.action();
+      },
+    });
+  }
+  /** A card or decision opens: its title speech is the scanner's own, so Auto Scan's first
+   *  step waits for it under Wait for Speech; with parking on, "park" is said for the blank. */
+  function announceOpen(text) {
+    if (!choice || !choice.active) { if (text) U.speak(text); return; }
+    const st = choice.getState(), it = st.index >= 0 ? choice.context.items[st.index] : null;
+    const parking = !it && isAuto() && U.sm().isParkingEnabled();
+    const tail = it ? it.label() : parking ? 'Park.' : '';
+    const say = [text, tail].filter(Boolean).join('. ');
+    if (say) choice.announce(say, { parkingLabel: parking });
+  }
+  /** Mouse/touch: point at an item (hover), or point and choose (tap). */
+  function point(n) {
+    const it = choice && choice.context && choice.context.items.find(c => c.nativeIndex === n);
+    if (it) choice.align(it.id);
+  }
+  function pick(n) {
+    if (!choice || !choice.active) { const it = items[n]; if (selectable(it) && it.action) { SS.audio.menu('select'); it.action(); } return; }
+    point(n); choice.select();
+  }
 
   function defaultHint() {
     const touch = (() => { try { return matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { return false; } })();
-    const keys = isAuto() ? '<kbd>Enter</kbd> picks the highlighted item'
+    const brake = isAuto() && U.sm().getSettings().spaceBrake;
+    const keys = isAuto() ? '<kbd>Enter</kbd> picks the highlighted item' + (brake ? ' · <kbd>Space</kbd> pauses the scan' : '')
       : 'Tap <kbd>Space</kbd> = next · hold <kbd>Space</kbd> = back · <kbd>Enter</kbd> = choose';
     return (touch ? 'Tap an item to pick it · ' : '') + keys;
   }
@@ -319,8 +342,9 @@ SS.ui = (function () {
   function clearBack() { clearTimeout(backHold); backHold = null; clearInterval(backRepeat); backRepeat = null; didBack = false; }
   function clearPauseWatch() { clearInterval(pauseWatch); pauseWatch = null; pauseTicks = 0; if (SS.hud) SS.hud.ring(0); }
   function clearKeys() {
-    down.Space = down.Enter = false; pressIndex.Space = pressIndex.Enter = -1;
+    down.Space = down.Enter = false; braking = false;
     clearBack(); clearPauseWatch();
+    if (choice) choice.setInputHeld(false);
   }
 
   function onKeyDown(e) {
@@ -331,14 +355,16 @@ SS.ui = (function () {
     if (ignore[k]) ignore[k] = false;                     // a fresh press: that key was let go, even if we missed it
     if (down[k]) return;
     down[k] = true; downAt[k] = performance.now();
-    if (ctx === 'card' || ctx === 'world') {
-      pressIndex[k] = index;
-      stopAuto();
-      if (k === 'Space' && !backHold && !backRepeat) {
+    if ((ctx === 'card' || ctx === 'world') && choice && choice.active) {
+      // Auto Scan + Space Brake: Space freezes the scan on PRESS (the one act-on-press
+      // exception, so the label is not cut off). Otherwise the clock waits while a key is down.
+      if (k === 'Space') braking = choice.brakePress();
+      if (k !== 'Space' || !braking) choice.setInputHeld(true);
+      if (k === 'Space' && !braking && !backHold && !backRepeat) {
         didBack = false;
         backHold = setTimeout(() => {
-          backHold = null; didBack = true; step(-1);
-          backRepeat = setInterval(() => step(-1), interval());
+          backHold = null; didBack = true; choice.step(-1);
+          backRepeat = setInterval(() => choice.step(-1), interval());
         }, SCAN_BACK_HOLD);
       }
     }
@@ -368,19 +394,18 @@ SS.ui = (function () {
     if (k === 'Enter') clearPauseWatch();
     if (ctx === 'live') { G().openHuddle(); return; }
     if (ctx !== 'card' && ctx !== 'world') return;
+    if (!choice || !choice.active) return;
     if (k === 'Space') {
-      const wasBack = didBack;
-      clearBack();
-      if (wasBack) { pressIndex.Space = -1; restartAuto(); return; }
-      step(1);
-    } else {
-      const at = pressIndex.Enter; pressIndex.Enter = -1;
-      activate(at);
-    }
-    restartAuto();
+      const wasBack = didBack, wasBrake = braking;
+      clearBack(); braking = false;
+      if (wasBrake) choice.brakeRelease();
+      else if (!wasBack) choice.step(1);
+    } else choice.select();
+    choice.setInputHeld(down.Space || down.Enter);
   }
 
-  function onBlur() { clearKeys(); ignore.Space = ignore.Enter = false; if (ctx === 'card' || ctx === 'world') restartAuto(); }
+  /** Focus lost, or the hub's input guard dropped a press: no key may stay half-held. */
+  function onBlur() { clearKeys(); ignore.Space = ignore.Enter = false; if (choice) choice.cancelInput(); }
 
   /* ══ match lifecycle hooks (called by SS.game) ═════════════════════════ */
   function goLive() {
@@ -403,7 +428,8 @@ SS.ui = (function () {
   }
 
   function goToHub() {
-    stopAuto(); SS.audio.stopAll(); SS.broadcast.hush();
+    if (choice) choice.sync(null);
+    SS.audio.stopAll(); SS.broadcast.hush();
     if (G()) G().saveNow();
     U.speak('Exiting to hub');
     setTimeout(leave, 700);
@@ -413,7 +439,7 @@ SS.ui = (function () {
     else window.location.href = '../../../index.html';
   }
   function openSettings() { resetArmed = 0; settingsReturn = { screen, opts: screenOpts }; setScreen('settings'); }
-  function backFromSettings() { resetArmed = 0; const r = settingsReturn || { screen: 'title' }; setScreen(r.screen, Object.assign({}, r.opts, { index: undefined })); }
+  function backFromSettings() { resetArmed = 0; const r = settingsReturn || { screen: 'title' }; setScreen(r.screen, Object.assign({}, r.opts, { keep: false, restore: true, announce: undefined })); }
 
   /* ══ screen helpers ═════════════════════════════════════════════════════ */
   const back = fn => ({ icon: '↩', label: 'Back', speech: 'Back', wide: true, action: fn, cls: 'back' });
@@ -472,7 +498,7 @@ SS.ui = (function () {
       items: [
         { icon: '🎲', label: 'Start', note: 'Random teams', primary: true, speech: 'Start, with random teams.', action: () => G().startQuick(null) },
         { icon: '👕', label: 'Pick the Teams', speech: 'Pick the teams', action: () => setScreen('pickTeam', { side: 0 }) },
-        back(() => setScreen('title')),
+        back(() => setScreen('title', { restore: true })),
       ],
       speech: 'Quick Game. Start with random teams, or pick the teams.',
     }),
@@ -485,7 +511,7 @@ SS.ui = (function () {
         speech: t.name + '. ' + TEAM_WORD(t) + '. ' + t.blurb,
         action: () => side === 0 ? setScreen('pickTeam', { side: 1, ours: t.id }) : G().startQuick([o.ours, t.id]),
       }));
-      list.push(back(() => side === 0 ? setScreen('quick') : setScreen('pickTeam', { side: 0 })));
+      list.push(back(() => side === 0 ? setScreen('quick', { restore: true }) : setScreen('pickTeam', { side: 0, restore: true })));
       return { art: art(side === 0 ? '👕' : '🆚'), title: side === 0 ? 'Your Team' : 'Your Opponent',
         sub: side === 0 ? 'Pick the team you will play for.' : 'Pick who you will play against.',
         items: list, layout: 'grid2', size: 'wide', speech: side === 0 ? 'Pick your team.' : 'Pick your opponent.' };
@@ -526,9 +552,9 @@ SS.ui = (function () {
         const f = SS.DATA.FORMATIONS[id], open = g.formationsOpen() || wins >= f.wins;
         return { label: U.esc(f.name), note: open ? U.esc(f.blurb) : 'Win ' + f.wins + ' matches to unlock', value: id === cur ? 'Now' : '',
           enabled: open, speech: f.name + (id === cur ? ', current' : '') + '. ' + f.blurb,
-          action: () => { g.setFormation(id); U.speak('Formation: ' + f.name); setScreen(o.from || 'huddle'); } };
+          action: () => { g.setFormation(id); setScreen(o.from || 'huddle', { restore: true }); U.speak('Formation: ' + f.name); } };
       });
-      list.push(back(() => setScreen(o.from || 'huddle')));
+      list.push(back(() => setScreen(o.from || 'huddle', { restore: true })));
       const rec = g.formationRecord(), theirs = g.theirFormationName();
       return { art: art('🧭'), title: 'Formation',
         sub: 'Now: <b>' + U.esc(rec) + '</b><br>' + U.esc(g.matchInfo().teams[1].short) + ' play <b>' + U.esc(theirs) + '</b>.',
@@ -552,7 +578,7 @@ SS.ui = (function () {
     confirmRestart: () => ({
       art: art('🔄'), title: 'Restart the Match?', sub: 'The score goes back to <b>0 – 0</b>.',
       items: [
-        { icon: '↩', label: 'Keep Playing', primary: true, speech: 'Keep playing', action: () => setScreen('pause') },
+        { icon: '↩', label: 'Keep Playing', primary: true, speech: 'Keep playing', action: () => setScreen('pause', { restore: true }) },
         { icon: '🔄', label: 'Restart', speech: 'Restart', action: () => G().restartMatch() },
       ],
       speech: 'Restart the match? The score goes back to nil nil. Keep playing, or Restart.',
@@ -561,7 +587,7 @@ SS.ui = (function () {
     confirmExit: o => ({
       art: art('🚪'), title: 'Leave Sphere Splash?', sub: 'Go back to the hub. The match is saved, so you can continue it later.',
       items: [
-        { icon: '↩', label: 'Stay', primary: true, speech: 'Stay', action: () => setScreen(o.from || 'pause') },
+        { icon: '↩', label: 'Stay', primary: true, speech: 'Stay', action: () => setScreen(o.from || 'pause', { restore: true }) },
         { icon: '🏠', label: 'Exit Game', speech: 'Exit Game', action: goToHub },
       ],
       speech: 'Leave Sphere Splash and go back to the hub? The match is saved. Stay, or Exit Game.',
@@ -611,7 +637,7 @@ SS.ui = (function () {
       const list = [page < pages.length - 1
         ? { icon: '▶', label: 'Next: ' + pages[page + 1].t, speech: 'Next page. ' + pages[page + 1].t, action: () => setScreen('howto', { page: page + 1 }) }
         : { icon: '⏮', label: 'Back to the start', speech: 'Back to the first page', action: () => setScreen('howto', { page: 0 }) }];
-      list.push(back(() => setScreen('title')));
+      list.push(back(() => setScreen('title', { restore: true })));
       return { art: art(pg.e), title: '<span class="kicker">How to Play · ' + (page + 1) + ' of ' + pages.length + '</span>' + pg.t,
         sub: pg.s, cardClass: 'howto', items: list,
         speech: 'How to play, page ' + (page + 1) + ' of ' + pages.length + '. ' + pg.t + '. ' + U.stripTags(pg.s.replace(/<\/p>/g, ' ')) };
@@ -683,15 +709,26 @@ SS.ui = (function () {
   /* ══ boot ═══════════════════════════════════════════════════════════════ */
   function init() {
     buildDom();
+    initChoice();
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
+    document.addEventListener('narbe-input-cancelled', onBlur);
     const s = U.sm();
-    if (s && s.subscribe) s.subscribe(() => { if (ctx === 'card') { $('hint').innerHTML = meta.hint || defaultHint(); } restartAuto(); });
+    // A scan setting changed (here, in the hub, or another tab). The scanner follows on its
+    // own; the hint and an open Settings card show the new values, highlight kept.
+    if (s && s.subscribe) s.subscribe(() => {
+      if (ctx !== 'card') return;
+      if (screen === 'settings') refresh(); else $('hint').innerHTML = meta.hint || defaultHint();
+    });
     SS.save.settings.onChange(k => { if (k === 'uiSize' || k === '*') applySize(); if (k === 'motion' || k === '*') applyMotion(); if (k === 'theme' || k === '*') { SS.theme.apply(); refitSoon(); } });
     applySize(); applyMotion();
     U.onDeviceMotion(() => { applyMotion(); if (screen === 'settings') refresh(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden && (ctx === 'live' || ctx === 'world')) openPause(); });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) return;
+      onBlur();
+      if (ctx === 'live' || ctx === 'world') openPause();
+    });
   }
   function applyMotion() { document.body.dataset.motion = U.reducedMotion() ? 'reduced' : 'full'; }
   function applySize() { document.documentElement.style.setProperty('--ui', setting('uiSize') || 1); refitSoon(); }
@@ -702,6 +739,6 @@ SS.ui = (function () {
     get screen() { return screen; },
     /** For the browser checks, which cannot see focus state from the DOM. */
     __dbg: () => ({ ctx, screen, index, rows: items.map(it => String(it.speech || U.stripTags(it.label || ''))),
-      down: Object.assign({}, down), ignore: Object.assign({}, ignore), auto: !!autoTimer }),
+      down: Object.assign({}, down), ignore: Object.assign({}, ignore), choice: choice && choice.getState() }),
   };
 })();

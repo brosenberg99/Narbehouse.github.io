@@ -25,10 +25,12 @@ SS.util = (function () {
      interface having spoken - the voice manager defers each line by a tick, so
      "is anything speaking?" alone would let commentary supersede a menu line. */
   let lastUiSpeech = 0;
+  /** Returns the voice manager's ticket ({ started, finished, cancel }), or null: the shared
+   *  choice scanner waits on `finished` when the player has Wait for Speech on. */
   function speak(text) {
     const v = vm();
     lastUiSpeech = performance.now();
-    if (v && text) v.speak(sayable(String(text)));
+    return v && text ? v.speak(sayable(String(text))) || null : null;
   }
   function speaking() {
     try { const s = window.speechSynthesis; return !!(s && (s.speaking || s.pending)); } catch (e) { return false; }

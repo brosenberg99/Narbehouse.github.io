@@ -68,18 +68,25 @@ ordinary press (a player may hold a switch for seconds without meaning to).
 
 | Context | What is on screen | Space | Enter | Hold Enter |
 |---|---|---|---|---|
-| card | a menu card (NARBE Racer's card engine) | next (hold = scan back) | choose | — |
-| world | a decision, laid out on the scene | next (hold = scan back) | choose | Pause (ring + ticks) |
-| live | the match playing | Huddle | Huddle | Pause (ring + ticks) |
+| card | a menu card (NARBE Racer's card engine) — CHOICE | next (hold = scan back) | choose | — |
+| world | a decision, laid out on the scene, match frozen — CHOICE | next (hold = scan back) | choose | Pause (ring + ticks) |
+| live | the match playing — MECHANIC | Huddle | Huddle | Pause (ring + ticks) |
 
-- Every card and decision opens with nothing lit, Back and Continue included
-  (ACCESSIBILITY.md "Menus open with nothing highlighted"; Kickoff and the Huddle used to
-  open with their first item lit, changed 2026-10-03). First Space = first item, hold Space
-  = last, Enter with nothing lit only speaks a hint. Changing a setting's value keeps the
-  highlight. Lists wrap through a blank step, so Auto Scan leaves a beat between laps.
+- Cards and decisions run on the hub's shared choice scanner (`shared/choice-scan.js`
+  through `NarbeChoiceScanAdapter`, ACCESSIBILITY.md §4, adopted 2026-10-04 from Ari's scan
+  upgrade). It owns the highlight: the silent blank stop on every lap (both directions),
+  Auto Scan, Parking, the Space Brake (dotted outline on the lit plate, or round the bracket
+  frame for a teammate in the water; "Parked" badge bottom-right or in the card's corner) and
+  Wait for Speech. Those four live only in Hub Settings. `ui.js` owns the keys, the
+  scan-back and pause holds, and what each item does.
+- Every new card and decision opens on the blank. First Space = first item, hold Space =
+  last, Enter on the blank does nothing. Back from a nested screen lands on the item that
+  opened it (Quick Game > Back = Quick Game; Settings > Back = Settings; Pass > Back = Pass).
+  Changing a setting's value keeps the highlight.
 - The **Huddle**: Continue · Call it Now · Formation · (Coach: Skip to Full Time) ·
   Settings · Pause Menu. Pause is also the last stop of every decision scan and an on-screen
-  button. Continue from Pause asks the same choice again, with nothing lit.
+  button. Continue from Pause asks the same choice again, on the blank (a separate modal
+  return may start fresh, ACCESSIBILITY.md §4).
 - Hold thresholds (scan back 3 s, ring 2 s, pause 5 s) live in `ui.js` and are never quoted
   to the player.
 
