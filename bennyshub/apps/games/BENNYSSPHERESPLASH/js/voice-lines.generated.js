@@ -24,7 +24,7 @@ SS.VOICE_LINES = {
       { "id": "pa_ot_1", "speaker": "pa", "text": "Overtime! Next goal wins it!" }
     ],
     "pass": [
-      { "id": "pbp_pass_1", "speaker": "pbp", "text": "{player} finds {target}." },
+      { "id": "pbp_pass_1", "speaker": "pbp", "text": "{target} takes the pass." },
       { "id": "pbp_pass_2", "speaker": "pbp", "text": "Nice ball to {target}." },
       { "id": "pbp_pass_3", "speaker": "pbp", "text": "Over to {target}." },
       { "id": "pbp_pass_4", "speaker": "pbp", "text": "{target} has it now." }

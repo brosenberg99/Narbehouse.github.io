@@ -1,8 +1,12 @@
 /** Benny's Sphere Splash - the broadcast: an announcer, a play-by-play caller and an
  *  analyst, as captions from day one and live speech when the Commentary setting
- *  allows it. Recorded voices are a later, optional layer that slots in here with no
- *  game changes: a line whose id is listed in audio/vo/index.json plays that clip
- *  instead of the system voice.
+ *  allows it. Recorded voices (the voice pipeline, Projects/Assets/tools/voice) are a
+ *  layer on top: js/voice-index.generated.js (SS.VOICE_INDEX, the same list as
+ *  audio/vo/index.json, as a script so it loads from file:// too) maps a clip key to a
+ *  file in audio/vo/. A key is the line id, or "<line id>@<who>" for a line recorded once
+ *  per player/team/technique: the caller passes slots._keys (["benji-tide"], or
+ *  ["benji-tide", "spin-shot"]) and the clip is looked up with them joined, then one by
+ *  one. Anything without a clip is read by the system voice, so nothing ever goes silent.
  *
  *  say(family, slots, priority) picks a line from js/voice-lines.generated.js:
  *   - a no-repeat shuffle per family, so the same words never come twice running;
@@ -20,9 +24,10 @@ SS.broadcast = (function () {
   const COOLDOWN = { pa: 0, pbp: 2.4, color: 9 };   // seconds between lines, per speaker
   const PRI_OVERRIDE = 3;                           // this priority ignores the cooldown
   const CAPTION_MS = 3400;
+  const STALE_S = 2.5;                              // chatter that waited longer than this is about a moment now gone
 
   const bags = {}, lastAt = { pa: -99, pbp: -99, color: -99 };
-  let voIndex = null, clip = null, captionTimer = null, history = [];
+  let voIndex = null, clip = null, captionTimer = null, history = [], played = [];
 
   function lines() { return (SS.VOICE_LINES && SS.VOICE_LINES.families) || {}; }
   function speakers() { return (SS.VOICE_LINES && SS.VOICE_LINES.speakers) || {}; }
@@ -31,6 +36,7 @@ SS.broadcast = (function () {
   function loadIndex() {
     if (voIndex !== null) return;
     voIndex = {};
+    if (SS.VOICE_INDEX) { voIndex = SS.VOICE_INDEX.lines || {}; return; }
     try {
       const req = new XMLHttpRequest();
       req.open('GET', 'audio/vo/index.json', true);
@@ -82,7 +88,9 @@ SS.broadcast = (function () {
     const text = fill(line.text, slots);
     history.push({ id: line.id, speaker: line.speaker, family, text, at: now });
     if (history.length > 80) history.shift();
-    queue.push({ line, text, pri, family });
+    // A must-say moment (a goal, a period) makes waiting chatter stale: it never plays over the celebration.
+    if (pri >= PRI_OVERRIDE) for (let i = queue.length - 1; i >= 0; i--) if (queue[i].pri < PRI_OVERRIDE) queue.splice(i, 1);
+    queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], at: now });
     while (queue.length > 4) queue.splice(queue.findIndex(q => q.pri < PRI_OVERRIDE) >= 0 ? queue.findIndex(q => q.pri < PRI_OVERRIDE) : 0, 1);
     pump();
     return text;
@@ -91,26 +99,38 @@ SS.broadcast = (function () {
     if (pumpTimer || !queue.length) return;
     const now = performance.now(), talking = U.speaking() || (clip && !clip.paused && !clip.ended);
     if (now < busyUntil || (talking && now < busyUntil + 4000)) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
-    const q = queue.shift(), m = mode();
+    let q = queue.shift();
+    while (q && q.pri < PRI_OVERRIDE && performance.now() / 1000 - q.at > STALE_S) q = queue.shift();
+    if (!q) return;
+    const m = mode();
     caption(q.line.speaker, q.text);
     const audible = m === 'full' || (m === 'calls' && (q.line.speaker === 'pa' || q.family === 'goal'));
-    if (audible) voice(q.line, q.text, q.pri);
+    if (audible) voice(q.line, q.text, q.pri, q.keys);
     busyUntil = now + 500 + q.text.length * 60;             // roughly how long it takes to say
     if (queue.length) pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 200);
   }
 
-  function voice(line, text, pri) {
+  /** The recording for this line about these keys, or null: joined keys first, then each alone, then the bare line. */
+  function clipFile(line, keys) {
+    loadIndex();
+    if (!voIndex) return null;
+    const cands = keys.length ? [keys.join('-'), ...keys] : [];
+    for (const k of cands) if (k && voIndex[line.id + '@' + k]) return voIndex[line.id + '@' + k];
+    return voIndex[line.id] || null;
+  }
+  function voice(line, text, pri, keys) {
     const ctx = SS.ui && SS.ui.context ? SS.ui.context() : 'live';
     if (ctx !== 'live') return;                                // a choice is on screen: the interface has the floor
     if (U.uiSpokeRecently(1500)) return;
     if (pri < PRI_OVERRIDE && (U.speaking() || (clip && !clip.paused))) return;
-    loadIndex();
-    const file = voIndex && voIndex[line.id];
+    const file = clipFile(line, keys || []);
+    played.push({ id: line.id, file, at: performance.now() / 1000 });
+    if (played.length > 80) played.shift();
     if (file) {
       try {
         if (clip) clip.pause();
         clip = new Audio('audio/vo/' + file);
-        clip.play().catch(() => { clip = null; });
+        clip.play().catch(() => { clip = null; U.speakAs(text, (speakers()[line.speaker] || {}).tts); });
         return;
       } catch (e) { /* fall through to the system voice */ }
     }
@@ -137,11 +157,13 @@ SS.broadcast = (function () {
 
   function reset() {
     Object.keys(bags).forEach(k => delete bags[k]); Object.keys(lastAt).forEach(k => { lastAt[k] = -99; });
-    history = []; queue.length = 0; clearTimeout(pumpTimer); pumpTimer = null; busyUntil = 0; clearCaption(); hush();
+    history = []; played = []; queue.length = 0; clearTimeout(pumpTimer); pumpTimer = null; busyUntil = 0; clearCaption(); hush();
   }
 
   loadIndex();
   /** A commentary line is being heard right now (system voice or a recorded clip): the music and crowd duck. */
   const talking = () => U.speaking() || !!(clip && !clip.paused && !clip.ended);
-  return { say, hush, reset, clearCaption, talking, get history() { return history.slice(); } };
+  return { say, hush, reset, clearCaption, talking, clipFile, get history() { return history.slice(); },
+    /** What was voiced, and from which recording (null = the system voice): for the browser checks. */
+    get played() { return played.slice(); } };
 })();

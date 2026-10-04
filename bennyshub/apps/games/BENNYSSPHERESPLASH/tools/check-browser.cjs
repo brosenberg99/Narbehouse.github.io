@@ -372,6 +372,12 @@ function findChrome() {
     await wait(2000); const endSnd = await evaluate('SS.audio.__dbg()');
     check('full time: a sting, then the theme on the results card', endSnd.stingUntil > 0 && !!endSnd.music && endSnd.music.state === 'run', JSON.stringify(endSnd));
     check('every goal gets its moment: banner, celebration, replay, then play goes on', total > 0 && gv.seen === total && gv.celebrated === total && gv.banner === total && gv.replayed === total, gl);
+    // Recorded voices: Rip's goal call is a recording for every player (the voice pipeline's goal family).
+    const vo = await evaluate('JSON.stringify(SS.broadcast.played.filter(p => /^pbp_goal_/.test(p.id)))');
+    const goalCalls = JSON.parse(vo);
+    check('every goal call voiced plays its recording, not the system voice', goalCalls.length > 0 && goalCalls.every(p => p.file && /^goal\//.test(p.file)), vo.slice(0, 200));
+    const lookup = await evaluate(`JSON.stringify(['benji-tide', 'otto-shoal'].map(k => SS.broadcast.clipFile({ id: 'pbp_goal_1' }, [k])).concat(SS.broadcast.clipFile({ id: 'pbp_shot_1' }, ['benji-tide'])))`);
+    check('clip lookup: each player has a goal call file; an unrecorded line finds none', lookup === '["goal/pbp_goal_1__benji-tide.mp3","goal/pbp_goal_1__otto-shoal.mp3",null]', lookup);
 
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');
     const sv = JSON.parse(said);

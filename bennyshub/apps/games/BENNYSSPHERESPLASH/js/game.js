@@ -44,6 +44,10 @@ SS.game = (function () {
   const S = () => m && m.s;
   const numberOf = j => NUMBERS[S().players[j].pos] || j;
   const who = j => { const p = S().players[j]; return p ? FIRST(p.name) : ''; };
+  /* Recorded-voice keys (the voice pipeline's clip keys): a player is the slug of the full name, a team of
+     its short name, a technique or formation of its name. broadcast.js tries them joined, then one by one. */
+  const pk = j => { const p = S().players[j]; return p ? U.slug(p.name) : ''; };
+  const tk = i => U.slug(kits[i].short);
   const ours = j => S().players[j].team === 0;
 
   /* ══ building a match on the scene ══════════════════════════════════════ */
@@ -156,7 +160,7 @@ SS.game = (function () {
     if (S().phase === 'kickoff' && S().clock === 0 && S().period === 1) startIntro('full');
     else SS.director.setMode('broadcast', { follow: playFocus });
     const t = matchInfo().teams;
-    if (S().clock === 0 && S().period === 1) SS.broadcast.say('intro', { home: t[0].name, away: t[1].name }, 3);
+    if (S().clock === 0 && S().period === 1) SS.broadcast.say('intro', { home: t[0].name, away: t[1].name, _keys: [U.slug(t[0].short), U.slug(t[1].short)] }, 3);
   }
 
   function savedMatch() {
@@ -819,24 +823,24 @@ SS.game = (function () {
     switch (e.type) {
       case 'kickoff':
         SS.replay.clear();                               // everyone was just put in place: nothing before this replays
-        SS.audio.play('whistle'); say('kickoff', { team: kits[e.team].short }, 1);
+        SS.audio.play('whistle'); say('kickoff', { team: kits[e.team].short, _keys: [tk(e.team)] }, 1);
         if (SS.director.mode === 'wide' && phase === 'live') SS.director.setMode('broadcast', { follow: playFocus });   // after a goal's cut
         break;
       case 'pass': startPass(e); SS.audio.play('pass'); break;
       case 'shot':
         startShotMoment(e);                              // its sound plays on the release (shotBeat)
         SS.audio.crowd('swell');
-        say('shot', { player: who(e.player) }, 2);
+        say('shot', { player: who(e.player), _keys: [pk(e.player)] }, 2);
         break;
-      case 'catch': SS.audio.play('catch'); say('pass', { player: who(e.from), target: who(e.player) }, 1); break;
+      case 'catch': SS.audio.play('catch'); say('pass', { player: who(e.from), target: who(e.player), _keys: [pk(e.player)] }, 1); break;
       case 'intercept':
         SS.audio.play('catch');
         SS.hud.pop('Intercepted!', ours(e.player) ? 'good' : 'bad', 2);
-        say('intercept', { player: who(e.player), team: team(e.player) }, 2);
+        say('intercept', { player: who(e.player), team: team(e.player), _keys: [pk(e.player), tk(s.players[e.player].team)] }, 2);
         if (Math.random() < 0.35) say('interceptColor', {}, 1);
         break;
       case 'loose':
-        if (e.result === 'blocked' && e.by != null) { SS.audio.play('block'); if (cine) SS.audio.crowd('groan'); SS.hud.pop('Blocked!', ours(e.by) ? 'good' : 'bad', 2); say('blocked', { player: who(e.by) }, 2); }
+        if (e.result === 'blocked' && e.by != null) { SS.audio.play('block'); if (cine) SS.audio.crowd('groan'); SS.hud.pop('Blocked!', ours(e.by) ? 'good' : 'bad', 2); say('blocked', { player: who(e.by), _keys: [pk(e.by)] }, 2); }
         else if (e.result === 'short') say('short', {}, 1);
         else say('loose', {}, 1);
         break;
@@ -848,26 +852,26 @@ SS.game = (function () {
         }
         // Every tackler lunges at the carrier (moves.js); the one who won it rips the ball away.
         (e.hits || []).forEach(j => { if (swimmers[j] && swimmers[e.player]) swimmers[j].setMove('tackle', { at: swimmers[e.player].chest, win: j === e.by && e.result !== 'kept' }); });
-        if (e.result === 'kept') say('breakThrough', { player: who(e.player) }, 2);
+        if (e.result === 'kept') say('breakThrough', { player: who(e.player), _keys: [pk(e.player)] }, 2);
         else {
           SS.audio.play('tackle');
           const by = swimmers[e.by != null ? e.by : (e.hits || [])[0]];
           if (swimmers[e.player] && by) swimmers[e.player].setMove('knocked', { from: by.chest, lost: true });
           SS.hud.pop('Tackled!', ours(e.by) ? 'good' : 'bad', 2);
-          say('tackle', { player: who(e.by) }, 2);
+          say('tackle', { player: who(e.by), _keys: [pk(e.by)] }, 2);
         }
         break;
       case 'tech': {
         const t = D().TECHS[e.tech];
-        if (t) { techFlourish(e, t); SS.audio.play('tech'); say('tech', { player: who(e.player), tech: t.name }, 2); }
+        if (t) { techFlourish(e, t); SS.audio.play('tech'); say('tech', { player: who(e.player), tech: t.name, _keys: [pk(e.player), U.slug(t.name)] }, 2); }
         break;
       }
-      case 'status': say('status', { player: who(e.player) }, 1); break;
+      case 'status': say('status', { player: who(e.player), _keys: [pk(e.player)] }, 1); break;
       case 'goal': {
         SS.audio.play('goal'); SS.audio.crowd('roar'); SS.audio.sting('goal');
         SS.hud.hideTech();
         startGoalMoment(e);
-        say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, '') }, 3);
+        say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, ''), _keys: [pk(e.player)] }, 3);
         say('goalScore', { score: scoreWords() }, 3);
         say('goalColor', {}, 3);
         break;
@@ -875,7 +879,7 @@ SS.game = (function () {
       case 'save':
         SS.audio.play('save'); SS.audio.crowd('groan');
         SS.hud.pop('Saved!', ours(e.player) ? 'good' : 'bad', 2);
-        say(e.caught ? 'saveCatch' : 'saveParry', { player: who(e.player) }, 2);
+        say(e.caught ? 'saveCatch' : 'saveParry', { player: who(e.player), _keys: [pk(e.player)] }, 2);
         if (Math.random() < 0.3) say('saveColor', {}, 1);
         break;
       case 'halftime':
@@ -893,7 +897,7 @@ SS.game = (function () {
         if (e.by === 'coach' && e.formation !== e.was) {
           const f = D().FORMATIONS[e.formation];
           SS.hud.pop(kits[e.team].short + ': ' + f.name, 'info', 2);
-          say('theirFormation', { team: kits[e.team].short, formation: f.name, what: f.blurb }, 3);
+          say('theirFormation', { team: kits[e.team].short, formation: f.name, what: f.blurb, _keys: [tk(e.team), U.slug(f.name)] }, 3);
         }
         break;
       case 'fulltime': {
@@ -902,7 +906,7 @@ SS.game = (function () {
         SS.audio.sting(e.winner === 0 ? 'win' : 'lose');   // a draw gets the kind "nice try"
         SS.hud.pop('Full Time', 'info', 3);
         say('fulltime', { score: scoreWords() }, 3);
-        if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short }, 3);
+        if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short, _keys: [tk(e.winner)] }, 3);
         SS.save.clearMatch();
         SS.director.setMode('orbit');
         setTimeout(() => { if (phase === 'fulltime' && m) SS.ui.setScreen('results'); }, 1800);
@@ -1122,7 +1126,7 @@ SS.game = (function () {
     const pts = [];
     s.players.forEach((pl, j) => { if (pl.team === 0 && pl.pos !== 'GL') { pts.push(curP[j].clone()); const a = SS.ai.anchorOf(s, pl, attacking); pts.push(new THREE.Vector3(a.x, a.y, a.z)); } });
     SS.director.setMode('decision', { points: pts });
-    say('ourFormation', { team: kits[0].short, formation: f.name, what: f.blurb }, 3);
+    say('ourFormation', { team: kits[0].short, formation: f.name, what: f.blurb, _keys: [tk(0), U.slug(f.name)] }, 3);
   }
   function drawPreview(dt) {
     if (preview <= 0) { rings.forEach(r => { r.visible = false; }); ringLinks.visible = false; return; }
@@ -1153,7 +1157,7 @@ SS.game = (function () {
     for (const team of [0, 1]) {
       const st = m.stint(team), key = team + ':' + st.formation + ':' + Math.round(now - st.secs);
       if (talk.done[key] || st.secs < 45) continue;
-      const f = D().FORMATIONS[st.formation], slots = { team: kits[team].short, formation: f.name };
+      const f = D().FORMATIONS[st.formation], slots = { team: kits[team].short, formation: f.name, _keys: [tk(team), U.slug(f.name)] };
       let fam = null;
       if (st.goalsAgainst > st.goalsFor || st.shotsAgainst - st.shotsFor >= 2) fam = 'formationStruggling';
       else if (st.goalsFor > st.goalsAgainst || st.shotsFor - st.shotsAgainst >= 2) fam = 'formationWorking';

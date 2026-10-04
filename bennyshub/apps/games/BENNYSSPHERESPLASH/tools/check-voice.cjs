@@ -9,7 +9,9 @@
  *  - every line has an id, a known speaker and text, and ids are unique;
  *  - js/voice-lines.generated.js matches content/voice-lines.json (when the source is here);
  *  - every clip listed in audio/vo/index.json is a real line id and a real file, with the
- *    exact filename case (GitHub Pages is case-sensitive; Windows is not).
+ *    exact filename case (GitHub Pages is case-sensitive; Windows is not). A clip key is a line
+ *    id, or "<line id>@<who>" for one line recorded per player/team (pbp_goal_1@benji-tide);
+ *  - js/voice-index.generated.js (the same index as a script, for file://) matches index.json.
  */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -50,11 +52,22 @@ const dir = path.join(root, 'audio', 'vo');
 const listing = new Set(walk(dir).map(p => path.relative(dir, p).split(path.sep).join('/')));
 const problems = [];
 for (const [id, file] of Object.entries(clips)) {
-  if (!ids.has(id)) problems.push(id + ': not a line id');
+  if (!ids.has(id.split('@')[0])) problems.push(id + ': not a line id');
   if (!listing.has(file)) problems.push(id + ': ' + file + (fs.existsSync(path.join(dir, file)) ? ' (filename case differs)' : ' (missing)'));
 }
 check('every recorded clip is a real line and a real file (exact case)', problems.length === 0,
-  problems.join('; ') || Object.keys(clips).length + ' clips, ' + (ids.size - Object.keys(clips).length) + ' lines on captions + system voice');
+  problems.join('; ') || (() => {
+    const voiced = new Set(Object.keys(clips).map(k => k.split('@')[0]));
+    return Object.keys(clips).length + ' clips for ' + voiced.size + ' lines, ' + (ids.size - voiced.size) + ' lines on captions + system voice';
+  })());
+
+const jsIdx = path.join(root, 'js', 'voice-index.generated.js');
+if (fs.existsSync(jsIdx)) {
+  const c = { SS: {} };
+  vm.runInNewContext(fs.readFileSync(jsIdx, 'utf8'), c);
+  const same = JSON.stringify(c.SS.VOICE_INDEX) === JSON.stringify(idx);
+  check('js/voice-index.generated.js matches audio/vo/index.json', same, same ? '' : 'run the voice pipeline ship step again');
+}
 
 function walk(d) { return fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]); }
 

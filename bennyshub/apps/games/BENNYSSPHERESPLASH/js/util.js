@@ -55,6 +55,8 @@ SS.util = (function () {
   function esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  /** The voice pipeline's slug (produce.py slug()): "Benji Tide" -> "benji-tide". Recorded clips are keyed by it. */
+  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const hex = c => typeof c === 'number' ? '#' + ('000000' + c.toString(16)).slice(-6) : String(c || '');
   const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
   const numWord = n => NUMBER_WORDS[n] || String(n);
@@ -80,5 +82,5 @@ SS.util = (function () {
   function onDeviceMotion(fn) { if (motionQuery && motionQuery.addEventListener) motionQuery.addEventListener('change', fn); }
 
   return { $, vm, sm, clamp, addTap, speak, speakAs, speaking, uiSpokeRecently, stopSpeech, sayable,
-    stripTags, esc, hex, numWord, fmtClock, shuffle, reducedMotion, onDeviceMotion };
+    stripTags, esc, slug, hex, numWord, fmtClock, shuffle, reducedMotion, onDeviceMotion };
 })();
