@@ -248,9 +248,167 @@ SS.moves = (function () {
     return t >= C.end;
   }
 
-  const MOVES = { throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove, celebrate: celebrateMove };
+  /* ── the big technique kicks ───────────────────────────────────────────
+     Each family of technique shot gets its own body shape, big enough to tell apart at
+     match size (Bryan, 2026-10-03; refs flip-kick / spin-kick / scorpion in pose-refs):
+      - flip (Beamin' Blast): back to the goal, a backflip, and the ball struck over the
+        face at the top of it, then round the rest of the somersault;
+      - spin (Spin Shot): the ball tossed up, one full turn with the leg out, and a
+        sweeping side kick as it comes down, the body leaning away from the leg;
+      - scorpion (Ghost Shot): back to the goal, pitched forward, the heel curled over the
+        back, then whipped straight back at the goal.
+     The status shots keep the volley (kickMove). The clock waits until `release` (game.js
+     holds the shot that long), and the ball leaves from where the foot meets it: a spot
+     fixed in the pool when the move starts, so the foot reaches for the ball and not the
+     other way round. */
+  const FLIP = { release: 0.8, end: 1.7 }, SPIN = { release: 0.75, end: 1.4 }, SCORPION = { release: 0.75, end: 1.45 };
+  const _cq = V(), _rc = V(), _yawQ = new THREE.Quaternion(), _bodyQ = new THREE.Quaternion();
+  const Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+  /** Turn the whole body by `q` (group space, from the swimmer facing the goal) about a
+      point `up` metres above the pelvis, lifted by `rise`, blended in by w. */
+  function turn(sw, q, up, rise, w) {
+    _q.identity().slerp(q, w);
+    _cq.set(0, up, 0); _rc.copy(_cq).applyQuaternion(_q);
+    _shift.subVectors(_cq, _rc); _shift.y += rise * w;
+    sw.setTilt(_q, _shift, true);
+  }
+  /** One leg's foot to `target` (world), knee toward `pole`, blended by w from the clip. */
+  const _ft = V(), _kn = V();
+  function legTo(sw, side, target, pole, w) {
+    if (w <= 0.001) return;
+    const b = sw.bones, R = side === 'R';
+    const th = R ? b.thighR : b.thighL, ca = R ? b.calfR : b.calfL, ft = R ? b.footR : b.footL;
+    ft.getWorldPosition(_ft); ca.getWorldPosition(_kn);
+    _ft.lerp(target, w); _kn.lerp(pole, w);
+    SS.rig.twoBone(th, ca, ft, _ft, _kn);
+  }
+  /** Set up a kick the first frame: the aim, the world's own right, and the strike spot. */
+  function strikeSpot(sw, mv, up, aim, right) {
+    if (mv.spot) return;
+    const f = sw.frame;
+    SS.rig.bodyFrame(sw.bones, f);
+    mv.aim = V().subVectors(mv.opts.to, f.chest).setY(0).normalize();
+    mv.right = V().crossVectors(mv.aim, UP).normalize();       // the swimmer's right, facing the goal
+    mv.spot = sw.pelvis.getWorldPosition(V()).addScaledVector(UP, up).addScaledVector(mv.aim, aim).addScaledVector(mv.right, right);
+    mv.carry = sw.ballPoint.clone();
+  }
+  /** The kicking foot: its own path, pulled onto the ball for the strike. */
+  function strike(t, release) { return ramp(t, release - 0.2, release) * (1 - ramp(t, release + 0.05, release + 0.3)); }
+  const _hipR = V(), _hipL = V(), _fR = V(), _fL = V(), _kR = V(), _kL = V(), _u = V();
+  function hips(sw) { sw.bones.thighR.getWorldPosition(_hipR); sw.bones.thighL.getWorldPosition(_hipL); }
+  /** Both arms flung out wide, a little toward the head (balance, and a big shape). */
+  function armsWide(sw, w, toHead, toBelly) {
+    const f = sw.frame;
+    ['L', 'R'].forEach(side => {
+      shoulder(sw, side, _s);
+      _side.copy(f.right).multiplyScalar(side === 'R' ? 1 : -1);
+      _hand.copy(_s).addScaledVector(_side, 0.55).addScaledVector(f.forward, toHead).addScaledVector(f.belly, toBelly);
+      _pole.copy(_s).addScaledVector(f.forward, -0.4).addScaledVector(f.belly, -0.2).addScaledVector(_side, 0.2);
+      reach(sw, side, _hand, _pole, w);
+    });
+  }
+
+  function flipMove(sw, mv) {
+    const t = mv.t, f = sw.frame, R = FLIP.release;
+    // Where the foot meets the ball at the top of the flip (worked out from the pose: the
+    // body upside down past the horizontal, the leg up over the face).
+    strikeSpot(sw, mv, 1.25, 0.5, 0);
+    const w = ramp(t, 0, 0.15) * (1 - ramp(t, FLIP.end - 0.35, FLIP.end));
+    // Back to the goal, then over backwards: 115 degrees by the strike (hanging there a
+    // moment), on round the full somersault after it.
+    const theta = 2.0 * ramp(t, 0.2, R) + (Math.PI * 2 - 2.0) * ramp(t, R + 0.05, FLIP.end - 0.4);
+    _yawQ.setFromAxisAngle(Y, Math.PI * ramp(t, 0, 0.3));
+    _bodyQ.setFromAxisAngle(X, -theta);
+    turn(sw, _yawQ.multiply(_bodyQ), 0.35, 0.3 * ramp(t, 0.1, 0.5), w);
+    SS.rig.bodyFrame(sw.bones, f);
+    hips(sw);
+    const ext = ramp(t, 0.45, R), tuck = ramp(t, R + 0.15, R + 0.4) * (1 - ramp(t, FLIP.end - 0.6, FLIP.end - 0.3));
+    // Kicking leg: knee to the chest, then straight up over the face, then tucked for the turn.
+    _fR.copy(_hipR).addScaledVector(f.belly, 0.45).addScaledVector(f.forward, 0.15);
+    _u.copy(f.belly).multiplyScalar(0.8).addScaledVector(f.forward, 0.6).normalize();
+    _fR.lerp(_t.copy(_hipR).addScaledVector(_u, 0.95), ext);
+    _fR.lerp(mv.spot, strike(t, R));
+    _kR.copy(_hipR).addScaledVector(f.belly, 0.8).addScaledVector(f.forward, 0.4);
+    // The other leg trails low, then tucks with it.
+    _fL.copy(_hipL).addScaledVector(f.forward, -0.75).addScaledVector(f.belly, 0.25);
+    _kL.copy(_hipL).addScaledVector(f.belly, 0.6).addScaledVector(f.forward, -0.2);
+    _t.copy(_hipR).addScaledVector(f.belly, 0.35).addScaledVector(f.forward, -0.1); _fR.lerp(_t, tuck);
+    _t.copy(_hipL).addScaledVector(f.belly, 0.35).addScaledVector(f.forward, -0.1); _fL.lerp(_t, tuck);
+    legTo(sw, 'R', _fR, _kR, w);
+    legTo(sw, 'L', _fL, _kL, w);
+    armsWide(sw, w, 0.05, 0.1);
+    if (t < R + 0.02) sw.ballPoint.lerpVectors(mv.carry, mv.spot, ramp(t, 0.05, 0.45));
+    return t >= FLIP.end;
+  }
+
+  function spinMove(sw, mv) {
+    const t = mv.t, f = sw.frame, R = SPIN.release;
+    strikeSpot(sw, mv, 0.4, 0.22, 0.8);
+    const w = ramp(t, 0, 0.15) * (1 - ramp(t, SPIN.end - 0.35, SPIN.end));
+    // One full turn to the left (the right leg leads round), ending square to the goal on
+    // the strike; the body leans away from the leg as it comes up.
+    _yawQ.setFromAxisAngle(Y, Math.PI * 2 * ramp(t, 0.05, R));
+    _bodyQ.setFromAxisAngle(Z, -0.55 * ramp(t, 0.2, 0.55));
+    turn(sw, _yawQ.multiply(_bodyQ), 0.2, 0, w);
+    SS.rig.bodyFrame(sw.bones, f);
+    hips(sw);
+    // Kicking leg: out to the side through the turn, sweeping on through the ball.
+    const out = ramp(t, 0.12, 0.4), s = (-0.25 + 0.5 * ramp(t, R - 0.15, R) + 0.6 * ramp(t, R, R + 0.3));
+    _u.copy(f.right).multiplyScalar(Math.cos(s)).addScaledVector(f.belly, Math.sin(s));
+    _fR.copy(_hipR).addScaledVector(f.forward, -0.8);
+    _fR.lerp(_t.copy(_hipR).addScaledVector(_u, 0.85), out);
+    _fR.lerp(mv.spot, strike(t, R));
+    _kR.copy(_hipR).addScaledVector(f.belly, 0.5).addScaledVector(f.forward, 0.3);
+    // Standing leg straight down the body.
+    _fL.copy(_hipL).addScaledVector(f.forward, -0.85).addScaledVector(f.right, 0.05);
+    _kL.copy(_hipL).addScaledVector(f.belly, 0.6).addScaledVector(f.forward, -0.4);
+    legTo(sw, 'R', _fR, _kR, w);
+    legTo(sw, 'L', _fL, _kL, w);
+    armsWide(sw, w, 0.12, 0);
+    // The ball: tossed up over the head for the turn, dropping onto the foot for the strike.
+    if (t < R + 0.02) {
+      const toss = Math.sin(Math.PI * ramp(t, 0.05, R));
+      sw.ballPoint.lerpVectors(mv.carry, mv.spot, ramp(t, 0.05, 0.3)).addScaledVector(UP, 0.6 * toss);
+    }
+    return t >= SPIN.end;
+  }
+
+  function scorpionMove(sw, mv) {
+    const t = mv.t, f = sw.frame, R = SCORPION.release;
+    strikeSpot(sw, mv, 0.45, 0.75, 0);
+    const w = ramp(t, 0, 0.15) * (1 - ramp(t, SCORPION.end - 0.35, SCORPION.end));
+    // Back to the goal, then pitched forward, head down and away from it.
+    _yawQ.setFromAxisAngle(Y, Math.PI * ramp(t, 0.02, 0.3));
+    _bodyQ.setFromAxisAngle(X, 0.95 * ramp(t, 0.2, 0.6));
+    turn(sw, _yawQ.multiply(_bodyQ), 0, 0, w);
+    SS.rig.bodyFrame(sw.bones, f);
+    hips(sw);
+    // Both heels curled up over the back (the scorpion's tail, knees out behind), then the
+    // right leg whipped straight back at the goal while the left stays curled.
+    const curl = ramp(t, 0.25, 0.55), ext = ramp(t, R - 0.15, R);
+    _fR.copy(_hipR).addScaledVector(f.forward, -0.8);
+    _fR.lerp(_t.copy(_hipR).addScaledVector(f.belly, -0.55).addScaledVector(f.forward, 0.5), curl);
+    _u.copy(f.belly).multiplyScalar(-0.85).addScaledVector(f.forward, -0.5).normalize();
+    _fR.lerp(_t.copy(_hipR).addScaledVector(_u, 0.95), ext);
+    _fR.lerp(mv.spot, strike(t, R));
+    _kR.copy(_hipR).addScaledVector(f.forward, -0.25).addScaledVector(f.belly, -0.7).addScaledVector(f.right, 0.1);
+    _fL.copy(_hipL).addScaledVector(f.forward, -0.85).addScaledVector(f.belly, -0.15);
+    _fL.lerp(_t.copy(_hipL).addScaledVector(f.belly, -0.55).addScaledVector(f.forward, 0.45), curl);
+    _kL.copy(_hipL).addScaledVector(f.forward, -0.25).addScaledVector(f.belly, -0.7).addScaledVector(f.right, -0.1);
+    legTo(sw, 'R', _fR, _kR, w);
+    legTo(sw, 'L', _fL, _kL, w);
+    armsWide(sw, w, 0.35, 0.15);
+    if (t < R + 0.02) sw.ballPoint.lerpVectors(mv.carry, mv.spot, ramp(t, 0.05, 0.35));
+    return t >= SCORPION.end;
+  }
+
+  const MOVES = { throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove, celebrate: celebrateMove,
+    flip: flipMove, spin: spinMove, scorpion: scorpionMove };
+  /** The shooter's moves (the shooter treads through them), and when each lets the ball go. */
+  const RELEASE = { throw: 0.6, kick: 0.6, flip: FLIP.release, spin: SPIN.release, scorpion: SCORPION.release };
   /** Pose a swimmer for its move this frame (after the clip and the carry). True = finished. */
   function apply(sw, mv) { const fn = MOVES[mv.name]; return fn ? fn(sw, mv) : true; }
+  const isShot = mv => !!(mv && RELEASE[mv.name]);
 
-  return { apply, THROW, CELEBRATE };
+  return { apply, isShot, RELEASE, THROW, CELEBRATE };
 })();

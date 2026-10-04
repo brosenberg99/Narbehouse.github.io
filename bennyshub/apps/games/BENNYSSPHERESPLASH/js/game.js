@@ -255,7 +255,7 @@ SS.game = (function () {
       _v.lerpVectors(prevP[j], curP[j], a);
       sw.group.position.copy(_v);
       face(sw, pl, dt, live);
-      const winding = sw.move && (sw.move.name === 'throw' || sw.move.name === 'kick');   // shots are made treading
+      const winding = SS.moves.isShot(sw.move);   // shots are made treading
       if (!sw.busy) sw.play(live && sw.swimming && !winding ? 'swim' : 'tread');
       sw.setCarry(s.ball.owner === j || (!!cine && cine.hold > 0 && cine.shooter === j));
       sw.update(live ? dt : dt * 0.6);
@@ -295,13 +295,17 @@ SS.game = (function () {
      was taken, and nothing here changes what it decided (or the saved match). */
   const WINDUP = 0.6, SLOWMO = 0.4, SLOW_TAIL = 0.35, SHOT_HOLD = 1.1;
   const TECH_PRE = 0.5;               // a technique shot: the shooter holds this long first, so its name can be read
+  // Each family of technique shot has its own kick (moves.js); the status shots volley.
+  const TECH_MOVE = { beaminBlast: 'flip', beaminBlast2: 'flip', spinShot: 'spin', ghostShot: 'scorpion' };
+  const shotMove = e => e.tech ? TECH_MOVE[e.tech] || 'kick' : 'throw';
   let cine = null;                    // { t, hold, shooter, keeper, from, to, done, cross, stopAt }
   let drawA = 1;                      // this frame's blend between sim ticks
   const _prog = new THREE.Vector3();
   const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady' && !U.reducedMotion();   // reduced motion: always steady
   function startShotMoment(e) {
     const s = S(), sh = s.players[e.player];
-    cine = { t: 0, hold: WINDUP, pre: e.tech ? TECH_PRE : 0, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
+    const mv = shotMove(e);
+    cine = { t: 0, hold: SS.moves.RELEASE[mv] || WINDUP, pre: e.tech ? TECH_PRE : 0, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
       from: curP[e.player].clone(), to: vec(e.to), done: -1, offset: null, recAt: SS.replay.now };
     if (shotCinematic()) SS.director.setMode('shot', { shot: shotFrame });
     // The moves (moves.js): the shooter throws, the keeper or a blocker goes for it.
@@ -317,8 +321,8 @@ SS.game = (function () {
     const shooter = swimmers[e.player];
     if (shooter) {
       shooter.faceTarget = cine.to;
-      if (cine.pre > 0) cine.pendingMove = () => shooter.setMove('kick', { to: cine.to });   // after the technique's name is up
-      else shooter.setMove(e.tech ? 'kick' : 'throw', { to: cine.to });
+      if (cine.pre > 0) cine.pendingMove = () => shooter.setMove(mv, { to: cine.to });   // after the technique's name is up
+      else shooter.setMove(mv, { to: cine.to });
     }
     const keeper = swimmers[cine.keeper];
     if (keeper && (e.result === 'goal' || e.result === 'catch' || e.result === 'parry')) {
@@ -436,7 +440,7 @@ SS.game = (function () {
     if (!gm) return false;
     gm.t += dt;
     const sw = swimmers[gm.scorer];
-    if (sw && !gm.started && gm.t >= CELEBRATE_AT && !(sw.move && (sw.move.name === 'throw' || sw.move.name === 'kick'))) {
+    if (sw && !gm.started && gm.t >= CELEBRATE_AT && !SS.moves.isShot(sw.move)) {
       gm.started = true;
       sw.setMove('celebrate');
     }

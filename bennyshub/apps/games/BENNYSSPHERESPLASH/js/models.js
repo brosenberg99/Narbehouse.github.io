@@ -549,10 +549,15 @@ SS.models = (function () {
     root.updateMatrixWorld(true);
     const pivot = bones.pelvis.getWorldPosition(new THREE.Vector3());   // rest pose, group space
     const _tq = new THREE.Quaternion(), _tp = new THREE.Vector3(), _rest = new THREE.Quaternion();
-    function setTilt(q, shift) {
+    /* `pivot` is the pelvis of the bind pose, 1.3 m above where the clips hold it, so a
+       lean about it also slides the body. live = turn about the pelvis where the clip has
+       it this frame instead (the technique kicks; the older moves still use the bind pose). */
+    const _lp = new THREE.Vector3();
+    function setTilt(q, shift, live) {
+      const pv = live ? tilt.worldToLocal(bones.pelvis.getWorldPosition(_lp)) : pivot;
       tilt.quaternion.copy(q);
-      _tp.copy(pivot).applyQuaternion(q);
-      tilt.position.copy(pivot).sub(_tp).add(shift);
+      _tp.copy(pv).applyQuaternion(q);
+      tilt.position.copy(pv).sub(_tp).add(shift);
       tilt.updateMatrixWorld(true);
     }
     function settle(dt) {

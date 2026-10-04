@@ -119,7 +119,17 @@ exception: the cut to the wide view after a goal, below).
   1.5 m), so the keeper reaches for where the ball crosses them (`cine.cross`); a save stops
   the ball there; a goal bends round the keeper by at least 0.9 m (it flew through them);
   a ball above the shoulders turns the whole body to it (the arms had crossed the face).
-  **Later (Bryan):** more animation tuning and polish, and variety in the technique moves.
+  **Technique kicks (M3 animation step, Bryan 2026-10-03):** each family of technique shot
+  has its own big body shape, so they tell apart at match size: Beamin' Blast (and II) a
+  **backflip**, back to the goal, the ball struck over the face at the top of it; Spin Shot a
+  **full turn into a sweeping side kick**, the ball tossed up for the turn; Ghost Shot a
+  **scorpion**, back to the goal, both heels curled over the back, one whipped through. The
+  status shots (Sting, Snooze, Wilt) keep the volley. The clock waits until each move
+  strikes (`SS.moves.RELEASE`), and the foot goes to a strike spot fixed when the move starts.
+  These turn about the pelvis where the clip holds it (`setTilt(q, shift, true)`); the older
+  moves still turn about the bind-pose pelvis, 1.3 m higher, so their leans also slide the
+  body (a full keeper dive slides ~1.2 m away from the ball) - for the polish round.
+  **Later (Bryan):** more animation tuning and polish of the everyday actions.
 - **A goal is a moment (M3).** The shot moment flows into it. A banner sweeps right across
   the screen in the scorers' kit (edged in ink and their accent), GOAL! in giant white type
   with an ink stroke (reads on any kit), and under it the scorer and the new score
