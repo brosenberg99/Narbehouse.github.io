@@ -88,6 +88,7 @@ SS.main = (function () {
   async function boot() {
     try {
       init();
+      SS.theme.apply();                      // the colour profile, before anything is painted
       await SS.models.load();
       SS.world.build(scene, SS.save.lastArena());
       SS.worldui.init(camera);

@@ -233,6 +233,37 @@ Football's offline-generated files were the model, P3GL's gapless loop player pl
   Browsers hold sound until the first press, sometimes silently (Firefox pauses an element that
   turns audible), so every press or tap restarts anything that should be playing.
 
+## Motion and themes (M3)
+
+Bryan's picks (2026-10-03), after a look at Ari's games (Fish Mystery's themes, Ballista's
+and Robot Football's motion settings):
+
+- **Motion: Full / Reduced** (Settings). Until the player picks, it follows the device's own
+  reduce-motion setting, live (`util.reducedMotion()`; Ballista's way). Reduced:
+  - the shot camera is always Steady (Shot Camera shows locked, "Motion is Reduced"), so no
+    shot or goal camera moves;
+  - no kickoff sweep: the wide view holds while the team plates show, then cuts in; no camera
+    travel to the menu, halftime or wide views (cuts), and the menu and halftime views stay
+    still instead of circling;
+  - the goal net does not shudder and flashes half as bright; the crowd neither sways nor
+    jumps; bubble bursts have a third of the bubbles, slower;
+  - cards, banners, plates and the tech flourish appear without sliding, bouncing or
+    spinning, and the highlight frame does not breathe (`body[data-motion="reduced"]` in
+    ss.css); the replay wipe fades instead of sweeping.
+  - Kept: live play's camera following the ball, the ball trail, the shot's slow motion, the
+    swimmers' own moves. They are the information, not decoration.
+- **Colour Profile: Standard / High Contrast** (Settings), High Contrast covering the whole
+  game. Fish Mystery's way: `body[data-theme]` picks a block of CSS tokens in ss.css; the cards
+  use them directly, and the 3D world reads the `--w-*` ones through `js/theme.js` (palette(),
+  repainted on change: world.js water/fog/sky/stadium/goals, models.js outlines, game.js ball,
+  trail, pass lane). Role tokens (`--hi`, `--dark`, `--stroke`, `--on-focus`) let a profile
+  recolour by meaning. High Contrast is Bryan's pick D of four picture options: black behind
+  everything, white lines and text, pure yellow highlight with black text, no gradients or
+  soft shadows; no stadium or crowd behind the water (the water is opaque black, a touch lighter
+  above); swimmers keep their cartoon shading inside a thicker white outline (flat, unshaded
+  swimmers merged into one shape where bodies overlapped); white ball on a yellow trail.
+  Round sheet: `Projects\Assets\SphereSplash	hemesound1`.
+
 ## Saves (`js/save.js`)
 
 `ss-settings` (this game's settings) and `ss-match` (the sim snapshot, saved at every

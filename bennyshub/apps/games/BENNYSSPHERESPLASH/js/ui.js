@@ -104,17 +104,22 @@ SS.ui = (function () {
   /** No card may ever need a scrollbar: try the tight layout, then scale (never below 0.6). */
   function fitCard() {
     const card = $('card'), ov = $('overlay');
-    card.classList.remove('tight'); card.style.transform = ''; card.style.marginBottom = '';
+    card.classList.remove('tight'); card.style.transform = ''; card.style.maxHeight = '';
     const cs = getComputedStyle(ov);
     const room = ov.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) - 8;
-    let h = card.getBoundingClientRect().height;
+    // The card's whole content, not its box: max-height caps the box and lets the content spill
+    // out of it unseen (Settings' last row and hint hung below the card at 1368x840).
+    const natural = () => Math.max(card.getBoundingClientRect().height, card.scrollHeight + 10);
+    let h = natural();
     if (h <= room) return;
     card.classList.add('tight');
-    h = card.getBoundingClientRect().height;
+    h = natural();
     if (h <= room) return;
+    card.style.maxHeight = 'none';
+    h = card.getBoundingClientRect().height;
     const k = Math.max(0.6, room / h);
+    // Scaled about its centre, it stays centred in the overlay: no margin to make up.
     card.style.transform = 'scale(' + k.toFixed(3) + ')';
-    card.style.marginBottom = Math.round(-h * (1 - k)) + 'px';
   }
   let refitTimer = null;
   function refitSoon() { clearTimeout(refitTimer); refitTimer = setTimeout(() => { if (ctx === 'card') fitCard(); }, 140); }
@@ -419,6 +424,7 @@ SS.ui = (function () {
     key: 'Key moments. You choose only the big chances.', coach: 'Coach. Watch, and set tactics from the huddle.' };
   const SPEEDS = { slow: 'Slow', normal: 'Normal', fast: 'Fast' };
   const DIFFS = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+  const MOTION_SAY = { full: 'Motion, full.', reduced: 'Motion, reduced. The camera stays steady, and nothing shakes or slides.' };
   // Stadium and time of day: Random, or one of world.js's.
   const arenaChoices = o => Object.assign({ random: 'Random' }, ...Object.keys(o).map(k => ({ [k]: o[k].name })));
   const DIFFS_SAY = { easy: 'Easy. Your team is much stronger.', normal: 'Normal. Your team gets a little help.', hard: 'Hard. A real challenge.' };
@@ -616,6 +622,7 @@ SS.ui = (function () {
       const tts = v ? v.getSettings().ttsEnabled : true;
       const voiceName = v && v.getVoiceDisplayName ? v.getVoiceDisplayName(v.getCurrentVoice()) : 'Default';
       const auto = s ? s.getSettings().autoScan : false, speed = s ? s.getScanInterval() : 2000;
+      const calm = U.reducedMotion(), hc = setting('theme') === 'contrast';
       const replays = setting('replays') !== false, shotCam = setting('shotCam'), diff = setting('difficulty'), stops = setting('stops'), play = setting('speed'), com = setting('commentary'), ui = setting('uiSize'), sfx = setting('sfx') !== false, music = setting('music') !== false, crowd = setting('crowd') !== false;
       const set = (k, val, say) => { SS.save.settings.set(k, val); refresh(); U.speak(say); };
       const STADIA = arenaChoices(SS.world.STADIUMS), TIMES = arenaChoices(SS.world.TIMES), stad = setting('stadium'), tod = setting('timeOfDay');
@@ -629,6 +636,11 @@ SS.ui = (function () {
           action: () => { const n = cycle(Object.keys(DIFFS), diff); set('difficulty', n, 'Difficulty. ' + DIFFS_SAY[n]); } },
         { icon: '🛑', label: 'Decision Stops', value: STOPS[stops], speech: 'Decision stops. ' + STOPS_SAY[stops],
           action: () => { const n = cycle(Object.keys(STOPS), stops); set('stops', n, 'Decision stops. ' + STOPS_SAY[n]); } },
+        { icon: '🎨', label: 'Colour Profile', value: hc ? 'High Contrast' : 'Standard', speech: 'Colour profile, ' + (hc ? 'high contrast' : 'standard'),
+          action: () => set('theme', hc ? 'standard' : 'contrast', 'Colour profile, ' + (hc ? 'standard' : 'high contrast')) },
+        { icon: '🌊', label: 'Motion', value: calm ? 'Reduced' : 'Full', speech: calm ? MOTION_SAY.reduced : MOTION_SAY.full,
+          action: () => { const n = calm ? 'full' : 'reduced'; set('motion', n, MOTION_SAY[n]); } },
+        calm ? { icon: '🎥', label: 'Shot Camera', value: 'Steady', note: 'Motion is Reduced', enabled: false } :
         { icon: '🎥', label: 'Shot Camera', value: shotCam === 'steady' ? 'Steady' : 'Cinematic',
           speech: shotCam === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.',
           action: () => { const n = shotCam === 'steady' ? 'cinematic' : 'steady'; set('shotCam', n, n === 'steady' ? 'Shot camera, steady. The camera stays put for shots.' : 'Shot camera, cinematic. The camera follows every shot in close.'); } },
@@ -676,10 +688,12 @@ SS.ui = (function () {
     window.addEventListener('blur', onBlur);
     const s = U.sm();
     if (s && s.subscribe) s.subscribe(() => { if (ctx === 'card') { $('hint').innerHTML = meta.hint || defaultHint(); } restartAuto(); });
-    SS.save.settings.onChange(k => { if (k === 'uiSize' || k === '*') applySize(); });
-    applySize();
+    SS.save.settings.onChange(k => { if (k === 'uiSize' || k === '*') applySize(); if (k === 'motion' || k === '*') applyMotion(); if (k === 'theme' || k === '*') { SS.theme.apply(); refitSoon(); } });
+    applySize(); applyMotion();
+    U.onDeviceMotion(() => { applyMotion(); if (screen === 'settings') refresh(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && (ctx === 'live' || ctx === 'world')) openPause(); });
   }
+  function applyMotion() { document.body.dataset.motion = U.reducedMotion() ? 'reduced' : 'full'; }
   function applySize() { document.documentElement.style.setProperty('--ui', setting('uiSize') || 1); refitSoon(); }
 
   return {

@@ -60,6 +60,8 @@ SS.game = (function () {
     lane = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]), laneMat);
     lane.renderOrder = 20; lane.visible = false; lane.frustumCulled = false;
     scene.add(lane);
+    // Colour profiles (theme.js): the ball, its trail and the pass lane.
+    SS.theme.onChange(p => { ball.material.color.set(p.ball); trail.setColours(p.trail, p.trailCore); lane.material.color.set(p.lane); });
     // The formation preview: a ring at each fielder's new spot, facing the camera.
     const ringGeo = new THREE.RingGeometry(1.0, 1.45, 40);
     for (let i = 0; i < 5; i++) {
@@ -296,7 +298,7 @@ SS.game = (function () {
   let cine = null;                    // { t, hold, shooter, keeper, from, to, done, cross, stopAt }
   let drawA = 1;                      // this frame's blend between sim ticks
   const _prog = new THREE.Vector3();
-  const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady';
+  const shotCinematic = () => SS.save.settings.get('shotCam') !== 'steady' && !U.reducedMotion();   // reduced motion: always steady
   function startShotMoment(e) {
     const s = S(), sh = s.players[e.player];
     cine = { t: 0, hold: WINDUP, pre: e.tech ? TECH_PRE : 0, shooter: e.player, keeper: s.players.findIndex(p => p.team !== sh.team && p.pos === 'GL'),
@@ -559,6 +561,8 @@ SS.game = (function () {
     intro = { kind, t: 0, dur: INTRO[kind] };
     SS.hud.clearPops();                                  // (a halftime formation pop would sit on the plate)
     const it = intro;
+    // Reduced motion: no sweep. The wide view holds while the plates show, then cuts in.
+    if (U.reducedMotion()) { intro.still = true; SS.director.setMode('wide'); return; }
     SS.director.setMode('intro', { kind, at: () => easeIO(it.t / it.dur) });
   }
   function introBeat(dt) {
@@ -581,9 +585,10 @@ SS.game = (function () {
     return false;
   }
   function endIntro() {
+    const still = intro && intro.still;
     intro = null;
     SS.hud.teamPlate(null);
-    SS.director.setMode('broadcast', { follow: playFocus });
+    SS.director.setMode('broadcast', { follow: playFocus, cut: still });
   }
 
   /* ══ a technique's flourish ═══════════════════════════════════════════

@@ -13,7 +13,7 @@ SS.world = (function () {
 
   const R = 20;                         // sphere radius in metres; the whole pool
   const GOAL_Z = R - 2.2;               // goals hang just inside the skin at the poles
-  const uniforms = { uTime: { value: 0 }, uCheer: { value: 0 }, uCalm: { value: 0 } };
+  const uniforms = { uTime: { value: 0 }, uCheer: { value: 0 }, uCalm: { value: 0 }, uSway: { value: 1 } };
   let scene, crowd, bubbleTex, goals = [], bursts = [], cheer = 0;
 
   /* ── the sphere's skin ─────────────────────────────────────────────────── */
@@ -68,8 +68,8 @@ SS.world = (function () {
      it stays bright in the haze, and a net with a visible mesh. Each goal is in the colour
      of the team that DEFENDS it (Bryan's pick, M3): you shoot at the goal in their colours.
      The -z goal is ours (team 0 attacks +z) and nobody changes ends. */
-  const GOAL_TUBE = 0.42, NET_OPACITY = 0.7, GOAL_DEFAULT = [0xff4f9a, 0xff8a3d];      // -z, +z when no match is on
-  let goalKits = null, netTex = null;
+  const GOAL_TUBE = 0.42, GOAL_DEFAULT = [0xff4f9a, 0xff8a3d];      // -z, +z when no match is on
+  let goalKits = null, netTex = null, netOpacity = 0.7;            // the net's opacity is the colour profile's (--w-net)
   /** A net you can see: diamond mesh lines over a light fill (white; the material tints it). */
   function makeNetTex() {
     const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -89,14 +89,14 @@ SS.world = (function () {
     const curve = new THREE.CatmullRomCurve3(path, true, 'centripetal');
     const frameMat = new THREE.MeshToonMaterial({ color: colour, emissive: new THREE.Color(colour).multiplyScalar(0.35) });
     g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE, 14, true), frameMat));
-    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE + 0.08, 10, true),
-      new THREE.MeshBasicMaterial({ color: 0x10202a, side: THREE.BackSide })));
+    const shellMat = new THREE.MeshBasicMaterial({ color: 0x10202a, side: THREE.BackSide });
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, GOAL_TUBE + 0.08, 10, true), shellMat));
     netTex = netTex || makeNetTex();
     const net = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(pts.map(p => new THREE.Vector2(p.x, p.y)))), new THREE.MeshBasicMaterial({
-      color: colour, map: netTex, transparent: true, opacity: NET_OPACITY, side: THREE.DoubleSide, depthWrite: false }));
+      color: colour, map: netTex, transparent: true, opacity: netOpacity, side: THREE.DoubleSide, depthWrite: false }));
     g.add(net);
     g.position.z = z;
-    goals.push({ group: g, net, z, colour: new THREE.Color(colour), flash: 0, shake: 0, frameMat });
+    goals.push({ group: g, net, z, colour: new THREE.Color(colour), flash: 0, shake: 0, frameMat, shellMat });
     return g;
   }
   /** The match's kit colours, ours (the -z goal) and theirs (+z); null between matches. */
@@ -120,12 +120,14 @@ SS.world = (function () {
   function goalBurst(at, colour, opts) {
     const gl = goals.reduce((a, b) => Math.abs(b.z - at.z) < Math.abs(a.z - at.z) ? b : a, goals[0]);
     const into = Math.sign(gl.z) || 1;                              // the pool is the other way: -into
-    gl.flash = 1; gl.shake = 1; gl.net.material.color.set(colour);
+    // Reduced motion: a softer flash, no shudder, the crowd stays seated, fewer and slower bubbles.
+    const calm = SS.util.reducedMotion();
+    gl.flash = calm ? 0.5 : 1; gl.shake = calm ? 0 : 1; gl.net.material.color.set(colour);
     // Out of the net into the pool: a wide cone, mostly away from the goal. A replay's
     // camera is right at the net, so its burst has no ring (it would fill the view).
     burst(at, colour, { n: 140, cone: new THREE.Vector3(0, 0, -into), spread: 1.15, speed: [4, 11], size: 0.5,
       ring: !(opts && opts.ring === false), ringAt: new THREE.Vector3(at.x, at.y, at.z - into * 0.3), ringGrow: 2.6 });
-    cheer = 4;
+    cheer = calm ? 0 : 4;
   }
   /* ── a technique: a sparkle burst round the player who used it ─────────────
      Its colour (game.js picks it: violet stings, blue snoozes, gold blasts...), all
@@ -135,12 +137,13 @@ SS.world = (function () {
   }
   /** Bubbles flying out of `at` (a cone round o.cone, or every way), and a spreading ring. */
   function burst(at, colour, o) {
-    const n = o.n, fx = new THREE.Color(colour), white = new THREE.Color(0xffffff), c = new THREE.Color();
+    const calm = SS.util.reducedMotion(), slow = calm ? 0.6 : 1;
+    const n = calm ? Math.max(8, Math.round(o.n * 0.35)) : o.n, fx = new THREE.Color(colour), white = new THREE.Color(0xffffff), c = new THREE.Color();
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), vel = [];
     const q = o.cone ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), o.cone) : null;
     for (let i = 0; i < n; i++) {
       pos[i * 3] = at.x; pos[i * 3 + 1] = at.y; pos[i * 3 + 2] = at.z;
-      const sp = o.speed[0] + Math.random() * (o.speed[1] - o.speed[0]);
+      const sp = (o.speed[0] + Math.random() * (o.speed[1] - o.speed[0])) * slow;
       const v = new THREE.Vector3();
       if (q) {
         const a = Math.random() * Math.PI * 2, spread = Math.random() * o.spread;
@@ -168,7 +171,7 @@ SS.world = (function () {
     goals.forEach(g => {
       if (g.flash > 0) {
         g.flash = Math.max(0, g.flash - dt / 1.5);
-        g.net.material.opacity = Math.min(1, NET_OPACITY + 0.6 * g.flash);
+        g.net.material.opacity = Math.min(1, netOpacity + 0.6 * g.flash);
         if (!g.flash) g.net.material.color.copy(g.colour);
       }
       if (g.shake > 0) {
@@ -199,6 +202,7 @@ SS.world = (function () {
     }
     if (cheer > 0) cheer = Math.max(0, cheer - dt);
     uniforms.uCheer.value = Math.min(1, cheer / 1.2);
+    uniforms.uSway.value = SS.util.reducedMotion() ? 0 : 1;          // reduced motion: the crowd sits still
   }
 
   /* ── a bubble: the ring the goal and technique bursts are made of ───────── */
@@ -341,15 +345,15 @@ SS.world = (function () {
     const mat = new THREE.MeshToonMaterial({ color: shade, map: fanTexture(), alphaTest: 0.5, side: THREE.DoubleSide, fog: false });
     const seat = new THREE.Color(S.riser).multiply(shade);
     mat.onBeforeCompile = shader => {
-      shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uCheer = uniforms.uCheer;
+      shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uCheer = uniforms.uCheer; shader.uniforms.uSway = uniforms.uSway;
       shader.uniforms.uCalm = uniforms.uCalm; shader.uniforms.uSeat = { value: seat };
       shader.fragmentShader = 'uniform float uCalm; uniform vec3 uSeat;\n' + shader.fragmentShader.replace('#include <color_fragment>',
         '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, uSeat, uCalm * ' + CROWD_CALM.toFixed(2) + ');');
       // A slow sway all match; on a goal everyone jumps.
-      shader.vertexShader = 'uniform float uTime; uniform float uCheer;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+      shader.vertexShader = 'uniform float uTime; uniform float uCheer; uniform float uSway;\n' + shader.vertexShader.replace('#include <begin_vertex>',
         `#include <begin_vertex>
          float ph = instanceMatrix[3].x * 0.37 + instanceMatrix[3].z * 0.23;
-         transformed.x += sin(uTime * 1.1 + ph) * 0.06 * transformed.y;
+         transformed.x += sin(uTime * 1.1 + ph) * 0.06 * transformed.y * uSway;
          transformed.y += max(0.0, sin(uTime * 9.0 + ph)) * 0.8 * uCheer;`);
     };
     const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.1, 1.6), mat, n);
@@ -502,6 +506,24 @@ SS.world = (function () {
     if (skyMesh) { scene.remove(skyMesh); disposeTree(skyMesh); }
     skyMesh = sky(TIMES[time]); stadiumGroup = buildStadium(STADIUMS[stadium], TIMES[time]);
     scene.add(skyMesh, stadiumGroup);
+    if (themed) applyTheme(SS.theme.palette());
+  }
+
+  /* ── colour profiles (theme.js): the water, sky, stadium and goals repaint ── */
+  let themed = false;
+  function applyTheme(p) {
+    themed = true;
+    skinU.uTop.value.set(p.top); skinU.uMid.value.set(p.mid); skinU.uDeep.value.set(p.deep);
+    skinU.uHaze.value = p.haze; skinU.uSurface.value = p.surface;
+    skinU.uTint.value.set(p.glass); skinU.uRim.value.set(p.rim);
+    scene.fog.color.set(p.fog); scene.fog.density = p.fogDensity; scene.background.set(p.sky);
+    // High Contrast: nothing behind the water - the plain background is the sky.
+    if (stadiumGroup) stadiumGroup.visible = p.stadium > 0;
+    if (skyMesh) skyMesh.visible = p.stadium > 0;
+    if (crowd) crowd.visible = p.crowd > 0;
+    if (phones) phones.userData.themeOff = !(p.crowd > 0);
+    netOpacity = p.net;
+    goals.forEach(g => { g.shellMat.color.set(p.goalInk); if (!g.flash) g.net.material.opacity = netOpacity; });
   }
   /** A random stadium and time of day, or the ones asked for ('random' or missing = any). */
   function pickArena(stadium, time) {
@@ -520,6 +542,7 @@ SS.world = (function () {
     scene.add(waterSkin());
     scene.add(goal(-GOAL_Z, GOAL_DEFAULT[0]), goal(GOAL_Z, GOAL_DEFAULT[1]));
     bubbleTex = bubbleTexture();
+    SS.theme.onChange(applyTheme);
   }
 
   function update(dt, t) {
@@ -527,7 +550,7 @@ SS.world = (function () {
     const cam = SS.main && SS.main.camera;
     if (cam) {                                        // the camera is in the water: calm the crowd
       uniforms.uCalm.value = 1 - THREE.MathUtils.smoothstep(cam.position.length(), R - 1, R + 3);
-      if (phones) { phones.material.opacity = 1 - uniforms.uCalm.value; phones.visible = uniforms.uCalm.value < 1; }
+      if (phones) { phones.material.opacity = 1 - uniforms.uCalm.value; phones.visible = uniforms.uCalm.value < 1 && !phones.userData.themeOff; }
     }
     updateGoals(dt);
   }
@@ -556,6 +579,7 @@ SS.world = (function () {
     let budget = 0;
     const t = new THREE.Vector3(), side = new THREE.Vector3(), view = new THREE.Vector3();
     function clear() { pts.length = 0; budget = 0; geo.setDrawRange(0, 0); }
+    function setColours(a, b) { base.set(a); hot.set(b); }
     function update(dt, ball, camera, free) {
       if (pts.length && pts[0].distanceTo(ball) > 4) clear();           // teleported
       if (!pts.length || pts[0].distanceTo(ball) > STEP) pts.unshift(ball.clone());
@@ -588,7 +612,7 @@ SS.world = (function () {
       geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
       geo.setDrawRange(0, (n - 1) * 6);
     }
-    return { update, clear, mesh };
+    return { update, clear, setColours, mesh };
   }
 
   return { build, update, setGoalKits, setArena, pickArena, STADIUMS, TIMES, get arena() { return arena; }, goalBurst, techBurst, makeTrail, R, GOAL_Z };

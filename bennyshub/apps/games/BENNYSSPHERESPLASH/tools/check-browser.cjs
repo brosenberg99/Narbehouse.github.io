@@ -116,7 +116,9 @@ function findChrome() {
       await size(w, h); await wait(250);
       const bad = await evaluate(`(async () => {
         const bad = [], screens = ['title', 'quick', 'settings', 'howto', 'pickTeam'];
-        const fit = n => { const r = document.getElementById('card').getBoundingClientRect(); if (r.top < -1 || r.bottom > innerHeight + 1 || r.left < -1 || r.right > innerWidth + 1) bad.push(n); };
+        const fit = n => { const c = document.getElementById('card'), r = c.getBoundingClientRect();
+          // On screen, and nothing spilling out of the card's own box (max-height hides that from the rect).
+          if (r.top < -1 || r.bottom > innerHeight + 1 || r.left < -1 || r.right > innerWidth + 1 || c.scrollHeight > c.clientHeight + 2) bad.push(n); };
         for (const s of screens) { SS.ui.setScreen(s, { page: 0, side: 0 }); await new Promise(r => setTimeout(r, 60)); fit(s); }
         for (const p of [1, 2]) { SS.ui.setScreen('howto', { page: p }); await new Promise(r => setTimeout(r, 60)); fit('howto' + p); }
         SS.game.startQuick(['beamers', 'harbor']);
@@ -150,6 +152,22 @@ function findChrome() {
     await evaluate('SS.save.settings.set("crowd", true); SS.save.settings.set("music", false); SS.save.settings.set("speed", "normal"); SS.game.quitToMenu(); SS.save.clearMatch(); SS.ui.setScreen("title"); true'); await wait(1500); a = await snd();
     check('Music off: no theme on the menus', !a.music || a.music.state !== 'run' || a.music.vol < 0.01, JSON.stringify(a));
     await evaluate('SS.save.settings.set("music", true); true');
+
+    /* ── Motion: Reduced (Bryan's picks) ──────────────────────────────── */
+    await evaluate('SS.save.settings.set("motion", "reduced"); SS.ui.setScreen("settings"); true'); await wait(300);
+    const mo = await evaluate('JSON.stringify({ body: document.body.dataset.motion, lockedShotCam: [...document.querySelectorAll("#menu .item.locked")].some(e => /Shot Camera/.test(e.textContent)) })');
+    check('Motion Reduced: the page knows, and Shot Camera is locked to Steady', /"body":"reduced"/.test(mo) && /"lockedShotCam":true/.test(mo), mo);
+    await evaluate('SS.game.startQuick(["reef", "beamers"]); SS.game.kickoff(); true'); await wait(600);
+    check('Motion Reduced: no kickoff sweep, the wide view holds', await evaluate('SS.director.mode === "wide" && !!SS.game.intro'), await evaluate('SS.director.mode'));
+    await evaluate('SS.save.settings.set("motion", "full"); SS.game.quitToMenu(); SS.save.clearMatch(); SS.ui.setScreen("title"); true'); await wait(300);
+    check('Motion Full: back to full', await evaluate('document.body.dataset.motion === "full"'));
+
+    /* ── Colour Profile: High Contrast (Bryan's pick D) ─────────────────── */
+    await evaluate('SS.save.settings.set("theme", "contrast"); true'); await wait(200);
+    const hc = await evaluate('JSON.stringify({ body: document.body.dataset.theme, haze: SS.theme.palette().haze, outline: SS.theme.palette().outline, bg: getComputedStyle(document.getElementById("card")).backgroundColor })');
+    check('High Contrast: the cards and the 3D world switch (black card, opaque water, white outlines)', /"body":"contrast"/.test(hc) && /"haze":1/.test(hc) && /"outline":"#fff"/.test(hc) && /rgb\(0, 0, 0\)/.test(hc), hc);
+    await evaluate('SS.save.settings.set("theme", "standard"); true'); await wait(200);
+    check('Standard: back to the teal pool', await evaluate('document.body.dataset.theme === "standard" && SS.theme.palette().haze < 1'));
 
 
     /* ── two switches, real keys, from the menu into a match ───────────── */

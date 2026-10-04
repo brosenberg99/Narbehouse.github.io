@@ -18,6 +18,8 @@ SS.save = (function () {
     speed: 'normal',        // Play speed: slow | normal | fast
     commentary: 'full',     // full | calls | captions | off
     uiSize: 1,              // 1 .. 2
+    theme: 'standard',      // standard | contrast (Settings > Colour Profile; theme.js)
+    motion: 'auto',         // auto (follow the device) | full | reduced (util.reducedMotion)
     sfx: true,              // Sound Effects
     music: true,            // the menu theme and the goal / full-time stings
     crowd: true,            // the crowd's murmur and its reactions

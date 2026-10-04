@@ -74,10 +74,19 @@ SS.models = (function () {
     bodies = { male: male.scene, female: female.scene };
     anim.animations.forEach(a => { clips[a.name] = a; });
     gradient = makeGradient();
+    SS.theme.onChange(applyTheme);
   }
 
   function toonMaterial() {
     return new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient });
+  }
+  /* Colour profiles (theme.js): every ink outline wears the profile's line colour (white on
+     High Contrast's black pool) and its extra thickness, one shared uniform. (Flat, unshaded
+     swimmers were tried for High Contrast and lost: overlapping bodies merged into one shape.) */
+  const inkMats = new Set(), outlineAdd = { value: 0 };
+  function applyTheme(p) {
+    outlineAdd.value = p.outlineAdd;
+    inkMats.forEach(m => m.color.set(p.outline));
   }
 
   const get = ['getX', 'getY', 'getZ', 'getW'];       // r155 has no getComponent()
@@ -399,15 +408,17 @@ SS.models = (function () {
   // so the silhouette, unchanged, and sinks the hull behind any crease shallower than
   // three outline widths.
   // `extraPx` / `colour` make a wider hull behind the ink one: the ball carrier's glow.
-  function outlineFor(mesh, st, geometry = mesh.geometry, extraPx = 0, colour = INK) {
-    const mat = new THREE.MeshBasicMaterial({ color: colour, side: THREE.BackSide });
+  function outlineFor(mesh, st, geometry = mesh.geometry, extraPx = 0, colour = null) {
+    // No colour: the ink line, in the colour profile's line colour. A colour: the carrier's glow.
+    const mat = new THREE.MeshBasicMaterial({ color: colour == null ? SS.theme.palette().outline : colour, side: THREE.BackSide });
+    if (colour == null) inkMats.add(mat);
     mat.onBeforeCompile = shader => {
       shader.uniforms.uOutlineMin = { value: st.outlineMin * (extraPx ? 1.6 : 1) }; shader.uniforms.uOutlinePx = { value: st.outlinePx + extraPx };
-      shader.uniforms.uViewH = viewH;
-      shader.vertexShader = 'uniform float uOutlineMin, uOutlinePx, uViewH;\n' + shader.vertexShader.replace(
+      shader.uniforms.uViewH = viewH; shader.uniforms.uOutlineAdd = outlineAdd;
+      shader.vertexShader = 'uniform float uOutlineMin, uOutlinePx, uViewH, uOutlineAdd;\n' + shader.vertexShader.replace(
         '#include <begin_vertex>', `#include <begin_vertex>
   float oDist = distance(cameraPosition, (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
-  float oWidth = max(uOutlineMin, uOutlinePx * oDist * 2.0 / (projectionMatrix[1][1] * uViewH));
+  float oWidth = max(uOutlineMin, (uOutlinePx + uOutlineAdd) * oDist * 2.0 / (projectionMatrix[1][1] * uViewH));
   transformed += normal * oWidth;`).replace('#include <project_vertex>', `#include <project_vertex>
   mvPosition.xyz += normalize(mvPosition.xyz) * oWidth * 3.0;
   gl_Position = projectionMatrix * mvPosition;`);
@@ -567,7 +578,9 @@ SS.models = (function () {
     function dispose() {
       mixer.stopAllAction();
       root.traverse(n => {
-        if (n.isSkinnedMesh) { n.geometry.dispose(); if (n.material) n.material.dispose(); }   // an outline may share its body's: disposing twice is harmless
+        if (!n.isSkinnedMesh) return;
+        n.geometry.dispose();                                // an outline may share its body's: disposing twice is harmless
+        if (n.material) { inkMats.delete(n.material); n.material.dispose(); }
       });
     }
     const api = { group, root, play, once, update, dispose, setOpacity, mixer, bones, frame, ballPoint,

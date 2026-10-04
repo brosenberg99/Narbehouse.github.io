@@ -40,7 +40,7 @@ SS.director = (function () {
   let star = null, starT = 0;                                 // () => the scorer's chest (world), after a goal
   const REPLAY_HALF = 4.2, repSide = new THREE.Vector3();      // replay: tighter, lower, behind the attack
   let intro = null;                                           // { at: () => 0..1, pos: Curve, aim: Curve } while a kickoff sweep plays
-  let orbitA = 0;                                             // the orbit's angle round the pool
+  let orbitA = 0, menuA = 0;                                  // the orbit's and the menu's angle round the pool
   const ORBIT_R = 34, ORBIT_Y = 10, ORBIT_SPEED = 0.05;        // metres, metres, radians a second (a lap every two minutes)
   const _g = new THREE.Vector3(), _side = new THREE.Vector3(), POOL_R = 20;
   // Live play. TIGHT_HALF is how much pool shows either side of the ball: tune by feel.
@@ -63,6 +63,9 @@ SS.director = (function () {
       repSide.set(-1, 0.14, -0.5 * ((opts && opts.dir) || 1)).normalize();
     }
     if (opts && opts.cut) first = true;
+    // Reduced motion: no camera travel between views - a cut to the menu, the halftime
+    // view or the wide kickoff view. (Live play still follows the ball, gently.)
+    if ((m === 'menu' || m === 'orbit' || m === 'wide') && SS.util.reducedMotion()) first = true;
   }
 
   /** Where live play's camera starts, looking at the centre spot: broadcast's own framing. */
@@ -97,12 +100,13 @@ SS.director = (function () {
     let rate = 2.2;
     switch (mode) {
       case 'menu': {
-        const a = t * 0.06;
+        if (!SS.util.reducedMotion()) menuA += dt * 0.06;       // reduced motion: a still view
+        const a = menuA;
         wantPos.set(Math.sin(a) * 50, 14, Math.cos(a) * 50); wantAim.set(0, -2, 0); rate = 1.2;
         break;
       }
       case 'orbit':
-        orbitA += dt * ORBIT_SPEED;
+        if (!SS.util.reducedMotion()) orbitA += dt * ORBIT_SPEED;
         wantPos.set(Math.sin(orbitA) * ORBIT_R, ORBIT_Y, Math.cos(orbitA) * ORBIT_R); wantAim.set(0, -1, 0); rate = 0.9;
         break;
       case 'wide':

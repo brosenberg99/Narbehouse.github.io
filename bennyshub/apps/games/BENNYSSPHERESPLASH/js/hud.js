@@ -135,12 +135,11 @@ SS.hud = (function () {
   /** The REPLAY tag (and the score bug's info row makes way for it). */
   function replayTag(on) { el.replay.classList.toggle('on', !!on); root.classList.toggle('replaying', !!on); }
   /** The wipe: p 0..1 across the screen (it covers it all for the middle third), or null. */
-  const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function wipe(p, kit, accent) {
     if (p == null) { el.wipe.classList.remove('on'); return; }
     if (kit != null) { el.wipe.style.setProperty('--kit', U.hex(kit)); el.wipe.style.setProperty('--accent', U.hex(accent)); }
     el.wipe.classList.add('on');
-    if (REDUCED) { el.wipeBand.style.transform = 'none'; el.wipeBand.style.opacity = Math.min(1, 3 - Math.abs(p - 0.5) * 6).toFixed(2); return; }
+    if (U.reducedMotion()) { el.wipeBand.style.transform = 'none'; el.wipeBand.style.opacity = Math.min(1, 3 - Math.abs(p - 0.5) * 6).toFixed(2); return; }
     el.wipeBand.style.transform = 'translateX(' + (-200 + 300 * p).toFixed(2) + 'vw) skewX(-12deg)';
   }
   /** A kickoff plate: { name, sub, kit, accent, side: 'left' | 'right' | 'centre', round } or null to hide. */

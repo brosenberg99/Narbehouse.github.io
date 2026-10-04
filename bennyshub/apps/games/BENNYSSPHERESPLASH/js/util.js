@@ -66,6 +66,17 @@ SS.util = (function () {
     return a;
   }
 
+  /* ── motion ──────────────────────────────────────────────────────────────
+     Settings > Motion: Full or Reduced. Until the player picks one it follows the
+     device's own reduce-motion setting (Ballista's way), live if that changes. */
+  const motionQuery = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function reducedMotion() {
+    const m = SS.save && SS.save.settings.get('motion');
+    return m === 'reduced' || (m !== 'full' && !!(motionQuery && motionQuery.matches));
+  }
+  /** Calls fn() now and whenever the device's own setting changes. */
+  function onDeviceMotion(fn) { if (motionQuery && motionQuery.addEventListener) motionQuery.addEventListener('change', fn); }
+
   return { $, vm, sm, clamp, addTap, speak, speakAs, speaking, uiSpokeRecently, stopSpeech, sayable,
-    stripTags, esc, hex, numWord, fmtClock, shuffle };
+    stripTags, esc, hex, numWord, fmtClock, shuffle, reducedMotion, onDeviceMotion };
 })();
