@@ -126,9 +126,24 @@ exception: the cut to the wide view after a goal, below).
   **scorpion**, back to the goal, both heels curled over the back, one whipped through. The
   status shots (Sting, Snooze, Wilt) keep the volley. The clock waits until each move
   strikes (`SS.moves.RELEASE`), and the foot goes to a strike spot fixed when the move starts.
-  These turn about the pelvis where the clip holds it (`setTilt(q, shift, true)`); the older
-  moves still turn about the bind-pose pelvis, 1.3 m higher, so their leans also slide the
-  body (a full keeper dive slides ~1.2 m away from the ball) - for the polish round.
+  **Polish round (Bryan's picks, 2026-10-03):** every move now turns the body about the
+  pelvis where the clip holds it this frame. It used to be the bind pose's pelvis, 1.3 m
+  higher, so every lean also slid the body: a keeper's full dive slid back inside the post.
+  **Tackles** are a move, not the stock dive clip (whose own motion drove the defender at the
+  camera): each tackler lunges head first at the carrier, arms wrapping round their chest
+  (`aimBody` aims from whatever pose the swim clip has them in); the winner may start a
+  couple of metres off, so the lunge goes all the way and the ball stays on the carrier until
+  the hands close on it; the carrier is knocked back, reaching after the ball. A carrier who
+  **breaks a tackle** barrel-rolls out of it, swerving away from the nearest tackler. A **pass**
+  is a one-arm push (the ball drawn leaving the hand, eased out over its flight, `passFx`);
+  the teammate, or a defender **intercepting**, reaches for it with both hands and pulls it in
+  (`catch`; an interception lunges too); a defender who blocks a pass gets an arm to it.
+  **Crowds** (Bryan: "a defender stood on a passer"): each body is a head-to-feet line;
+  two closer than 1.05 m *as the camera sees them* (flattened onto the view, so one in front
+  of the other counts) are nudged apart, eased, at most 1 m, display only (`separate`).
+  The ball's player, its catcher, and a shot's shooter and keeper hold still; anyone in a
+  contact move keeps their nudge; nothing moves while play is frozen. Left for now: the
+  technique banner covers the shot at broadcast size.
   **Later (Bryan):** more animation tuning and polish of the everyday actions.
 - **A goal is a moment (M3).** The shot moment flows into it. A banner sweeps right across
   the screen in the scorers' kit (edged in ink and their accent), GOAL! in giant white type
@@ -272,7 +287,8 @@ and Robot Football's motion settings):
   soft shadows; no stadium or crowd behind the water (the water is opaque black, a touch lighter
   above); swimmers keep their cartoon shading inside a thicker white outline (flat, unshaded
   swimmers merged into one shape where bodies overlapped); white ball on a yellow trail.
-  Round sheet: `Projects\Assets\SphereSplash	hemesound1`.
+  Round sheet: `Projects\Assets\SphereSplash	hemes
+ound1`.
 
 ## Saves (`js/save.js`)
 

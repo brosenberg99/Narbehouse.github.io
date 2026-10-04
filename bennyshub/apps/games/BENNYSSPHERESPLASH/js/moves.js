@@ -270,7 +270,7 @@ SS.moves = (function () {
     _q.identity().slerp(q, w);
     _cq.set(0, up, 0); _rc.copy(_cq).applyQuaternion(_q);
     _shift.subVectors(_cq, _rc); _shift.y += rise * w;
-    sw.setTilt(_q, _shift, true);
+    sw.setTilt(_q, _shift);
   }
   /** One leg's foot to `target` (world), knee toward `pole`, blended by w from the clip. */
   const _ft = V(), _kn = V();
@@ -402,7 +402,186 @@ SS.moves = (function () {
     return t >= SCORPION.end;
   }
 
-  const MOVES = { throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove, celebrate: celebrateMove,
+  /* ── tackle: a defender lunges at the carrier ──────────────────────────
+     Bryan's round-3 pick (2026-10-03), in place of the stock dive clip. A tackler is
+     usually swimming flat out, so the lunge aims the body from wherever the clip has it
+     (aimBody), not from upright. Wind up (arms cocked), then the whole body shoots at the
+     carrier, head first, both arms wrapping round their chest; a winner rips the ball
+     away and pulls it in to their own chest, a loser grabs at water and sags back.
+     opts: { at: the carrier's chest bone, win: true if this tackler took the ball }. */
+  const TACKLE = { lunge: [0.12, 0.4], end: 1.0 };
+  const _fl = V(), _nl = V(), _dl = V(), _grab = V(), _ct = V();
+  /** Turn the body so its head (pelvis -> neck, as the clip has it) points along `dir`
+      (world), moved by `shift` (world), by w. Works from swimming or treading alike. */
+  function aimBody(sw, dir, shift, w) {
+    const tilt = sw.root.parent;
+    tilt.worldToLocal(sw.pelvis.getWorldPosition(_fl));
+    tilt.worldToLocal(sw.bones.neck.getWorldPosition(_nl));
+    _nl.sub(_fl).normalize();                                        // the clip's own head direction, group space
+    _qi.copy(sw.group.quaternion).invert();
+    _dl.copy(dir).applyQuaternion(_qi).normalize();
+    _q.setFromUnitVectors(_nl, _dl);
+    _q.slerp(_qid.identity(), 1 - w);
+    _shift.copy(shift).applyQuaternion(_qi).multiplyScalar(w);
+    sw.setTilt(_q, _shift);
+  }
+  function tackleMove(sw, mv) {
+    const t = mv.t, o = mv.opts, f = sw.frame, T = TACKLE;
+    const w = ramp(t, 0, 0.12) * (1 - ramp(t, T.end - 0.35, T.end));
+    // The carrier's chest: followed until the arms close on it, then where it was (a
+    // carrier who broke free swims out of the grab).
+    if (t < T.lunge[1] || o.win) o.at.getWorldPosition(_ct); else _ct.copy(mv.last || o.at.getWorldPosition(_ct));
+    if (t < T.lunge[1]) mv.last = _ct.clone();
+    sw.chest.getWorldPosition(_k);
+    _dir.subVectors(_ct, _k); const dist = _dir.length(); _dir.divideScalar(dist || 1);
+    const lunge = ramp(t, T.lunge[0], T.lunge[1]);
+    const back = o.win ? ramp(t, 0.5, 0.85) : ramp(t, 0.45, 0.9);
+    const reachK = lunge * (1 - back * (o.win ? 0.7 : 1));
+    // Head first at the carrier, the body thrown all the way there (a winner can start a
+    // couple of metres off: the match hands them the ball at once, so they must go and get it).
+    _shift.copy(_dir).multiplyScalar(Math.max(0, Math.min(3.0, dist - 0.55)) * reachK);
+    aimBody(sw, _dir, _pel.copy(_shift), w * (0.35 + 0.65 * lunge));
+    SS.rig.bodyFrame(sw.bones, f);
+    ['L', 'R'].forEach(side => {
+      shoulder(sw, side, _s);
+      _side.copy(f.right).multiplyScalar(side === 'R' ? 1 : -1);
+      // Cocked: elbows back, hands by the shoulders.
+      _hand.copy(_s).addScaledVector(f.belly, 0.2).addScaledVector(f.forward, -0.1).addScaledVector(_side, 0.15);
+      _pole.copy(_s).addScaledVector(f.forward, -0.4).addScaledVector(_side, 0.3);
+      // The grab: round either side of the carrier's chest.
+      _grab.copy(_ct).addScaledVector(_side, 0.2).addScaledVector(_dir, -0.05);
+      _hand.lerp(_grab, reachK);
+      _pole.lerp(_t.copy(_s).addScaledVector(_side, 0.45).addScaledVector(f.forward, -0.15), reachK);
+      // A winner pulls the ball in to their own chest.
+      if (o.win) _hand.lerp(_t.copy(f.chest).addScaledVector(f.belly, 0.28).addScaledVector(_side, 0.12), back);
+      reach(sw, side, _hand, _pole, w);
+    });
+    if (o.win) {
+      // The ball stays on the carrier until the hands close on it, comes away in both hands,
+      // then settles into the carry.
+      _t.lerpVectors(sw.handL.getWorldPosition(_hand), sw.handR.getWorldPosition(_s), 0.5);
+      _t.lerp(_ct, 1 - ramp(t, T.lunge[1] - 0.05, T.lunge[1] + 0.05));
+      sw.ballPoint.lerp(_t, 1 - ramp(t, 0.75, T.end));
+    }
+    return t >= T.end;
+  }
+
+  /* ── knocked: the carrier hit by a tackle ───────────────────────────────
+     Thrown back away from the tackler, arms flung up, then swimming again; one who lost
+     the ball reaches after it. opts: { from: the tackler's chest bone, lost }. */
+  const KNOCKED = { end: 0.9 };
+  function knockedMove(sw, mv) {
+    const t = mv.t, o = mv.opts, f = sw.frame;
+    if (!mv.from) mv.from = o.from.getWorldPosition(V());
+    sw.chest.getWorldPosition(_k);
+    _dir.subVectors(_k, mv.from).setY(0); if (_dir.lengthSq() < 1e-6) _dir.set(1, 0, 0); _dir.normalize();   // away from the hit
+    const hit = ramp(t, 0, 0.12) * (1 - ramp(t, 0.35, KNOCKED.end));
+    // The head snaps back away from the tackler: tilt the body's own head direction away.
+    const tilt = sw.root.parent;
+    tilt.worldToLocal(sw.pelvis.getWorldPosition(_fl)); tilt.worldToLocal(sw.bones.neck.getWorldPosition(_nl));
+    _nl.sub(_fl).normalize().applyQuaternion(sw.group.quaternion);  // head direction, world
+    _d.copy(_nl).addScaledVector(_dir, 0.9).normalize();
+    aimBody(sw, _d, _pel.copy(_dir).multiplyScalar(0.45), hit);
+    SS.rig.bodyFrame(sw.bones, f);
+    ['L', 'R'].forEach(side => {
+      shoulder(sw, side, _s);
+      _side.copy(f.right).multiplyScalar(side === 'R' ? 1 : -1);
+      _hand.copy(_s).addScaledVector(_side, 0.45).addScaledVector(f.forward, 0.3).addScaledVector(f.belly, 0.1);
+      if (o.lost && side === 'R') _hand.copy(_s).addScaledVector(_dir, -0.6).addScaledVector(f.forward, 0.1);   // after the ball
+      _pole.copy(_s).addScaledVector(_side, 0.4).addScaledVector(f.forward, -0.3);
+      reach(sw, side, _hand, _pole, hit);
+    });
+    return t >= KNOCKED.end;
+  }
+
+  /* ── pass: a one-arm push at the teammate ──────────────────────────────
+     The match lets the ball go the instant the pass is made, so this is quick: the right
+     arm punches out along the line of the pass with the ball (game.js draws the ball
+     leaving from the hand), holds there a beat so it reads, and comes back; the left arm
+     swings back for balance. opts: { to: where the ball is going (world) }. */
+  const PASS = { end: 0.75 };
+  function passMove(sw, mv) {
+    const t = mv.t, f = sw.frame;
+    SS.rig.bodyFrame(sw.bones, f);
+    _aim.subVectors(mv.opts.to, f.chest).normalize();
+    const w = ramp(t, 0, 0.06) * (1 - ramp(t, 0.4, PASS.end));
+    shoulder(sw, 'R', _s);
+    _hand.copy(_s).addScaledVector(_aim, 0.62).addScaledVector(f.forward, 0.05);
+    _pole.copy(_s).addScaledVector(f.right, 0.35).addScaledVector(f.belly, -0.2).addScaledVector(_aim, -0.2);
+    reach(sw, 'R', _hand, _pole, w);
+    shoulder(sw, 'L', _s);
+    _hand.copy(_s).addScaledVector(_aim, -0.35).addScaledVector(f.right, -0.35).addScaledVector(f.forward, -0.1);
+    _pole.copy(_s).addScaledVector(f.right, -0.3).addScaledVector(f.forward, -0.3);
+    reach(sw, 'L', _hand, _pole, w * 0.7);
+    return t >= PASS.end;
+  }
+
+  /* ── catch: a teammate (or an intercepting defender) takes the ball ─────────
+     Hands come up to meet it as it comes in, palms to it; on arrival both hands close on
+     it and bring it in to the carry. An interception lunges a little at it as well.
+     opts: { ball: the drawn ball (live), progress: () => 0..1 (1 = it has arrived), lunge }. */
+  const _bm = V(), _cy = V();
+  function catchMove(sw, mv) {
+    const o = mv.opts, f = sw.frame, p = o.progress();
+    if (p >= 1 && mv.arrived == null) mv.arrived = mv.t;
+    const ta = mv.arrived == null ? -1 : mv.t - mv.arrived;
+    const reachK = ease((p - 0.4) / 0.6), pull = ramp(ta, 0, 0.3);
+    const w = ramp(mv.t, 0, 0.2) * (1 - ramp(ta, 0.35, 0.65));
+    sw.chest.getWorldPosition(_k);
+    _dir.subVectors(o.ball, _k); const dist = _dir.length(); _dir.divideScalar(dist || 1);
+    if (o.lunge) {
+      _shift.copy(_dir).multiplyScalar(Math.max(0, Math.min(0.8, dist - 0.6)) * reachK * (1 - pull));
+      aimBody(sw, _dir, _pel.copy(_shift), w * reachK * 0.6);
+    }
+    SS.rig.bodyFrame(sw.bones, f);
+    _cy.copy(f.chest).addScaledVector(f.belly, 0.3).addScaledVector(f.forward, -0.1).addScaledVector(f.right, 0.08);   // the carry
+    ['L', 'R'].forEach(side => {
+      shoulder(sw, side, _s);
+      _side.copy(f.right).multiplyScalar(side === 'R' ? 1 : -1);
+      // Toward the ball, as far as the arm goes; the hands a ball's width apart.
+      _d.subVectors(o.ball, _s); const reachD = Math.min(0.62, _d.length()); _d.normalize();
+      _hand.copy(_s).addScaledVector(_d, reachD).addScaledVector(_side, 0.11);
+      _hand.lerp(_t.copy(_cy).addScaledVector(_side, 0.13), pull);
+      _pole.copy(_s).addScaledVector(_side, 0.4).addScaledVector(f.forward, -0.3).addScaledVector(f.belly, -0.1);
+      reach(sw, side, _hand, _pole, w * Math.max(reachK, pull));
+    });
+    if (ta >= 0) {
+      // Caught: the ball sits between the hands, then settles into the carry.
+      _bm.lerpVectors(sw.handL.getWorldPosition(_hand), sw.handR.getWorldPosition(_t), 0.5);
+      sw.ballPoint.lerp(_bm, 1 - ramp(ta, 0.3, 0.6));
+    }
+    return ta > 0.65 || mv.t > 6;
+  }
+
+  /* ── dodge: the carrier breaks a tackle ──────────────────────────────────
+     A barrel roll along the body, swerving away from the tackler and back, the ball held
+     tight through it. opts: { from: the nearest tackler's chest bone }. */
+  const DODGE = { roll: [0.05, 0.6], end: 0.8 };
+  const _ax = V();
+  function dodgeMove(sw, mv) {
+    const t = mv.t, o = mv.opts, f = sw.frame;
+    sw.chest.getWorldPosition(_k);
+    if (!mv.away) { mv.away = V().subVectors(_k, o.from.getWorldPosition(V())); if (mv.away.lengthSq() < 1e-6) mv.away.set(1, 0, 0); mv.away.normalize(); }
+    // The roll: about the body's own long axis, as the clip has it (swimming or upright).
+    const tilt = sw.root.parent;
+    tilt.worldToLocal(sw.pelvis.getWorldPosition(_fl)); tilt.worldToLocal(sw.bones.neck.getWorldPosition(_nl));
+    _ax.subVectors(_nl, _fl).normalize();
+    _q.setFromAxisAngle(_ax, Math.PI * 2 * ramp(t, DODGE.roll[0], DODGE.roll[1]));
+    const swerve = Math.sin(Math.PI * ramp(t, 0, DODGE.end));
+    _qi.copy(sw.group.quaternion).invert();
+    _shift.copy(mv.away).applyQuaternion(_qi).multiplyScalar(0.6 * swerve);
+    sw.setTilt(_q, _shift);
+    // The ball stays tucked in the carry as the body turns over.
+    SS.rig.bodyFrame(sw.bones, f);
+    sw.ballPoint.copy(f.chest).addScaledVector(f.belly, 0.3).addScaledVector(f.forward, -0.1).addScaledVector(f.right, 0.08);
+    _hand.copy(sw.ballPoint).addScaledVector(f.right, 0.17).addScaledVector(f.belly, 0.05);
+    shoulder(sw, 'R', _s);
+    _pole.copy(_s).addScaledVector(f.right, 0.5).addScaledVector(f.forward, -0.35);
+    reach(sw, 'R', _hand, _pole, 1);
+    return t >= DODGE.end;
+  }
+
+  const MOVES = { pass: passMove, catch: catchMove, dodge: dodgeMove, tackle: tackleMove, knocked: knockedMove, throw: throwMove, keeper: keeperMove, block: blockMove, kick: kickMove, celebrate: celebrateMove,
     flip: flipMove, spin: spinMove, scorpion: scorpionMove };
   /** The shooter's moves (the shooter treads through them), and when each lets the ball go. */
   const RELEASE = { throw: 0.6, kick: 0.6, flip: FLIP.release, spin: SPIN.release, scorpion: SCORPION.release };

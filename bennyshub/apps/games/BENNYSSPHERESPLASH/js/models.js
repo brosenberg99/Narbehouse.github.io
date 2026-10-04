@@ -546,15 +546,13 @@ SS.models = (function () {
     /* A move (moves.js): a throw, a save, a block, re-posed over the clip every frame.
        The lean pivots at the pelvis; with no move the body eases back to the clip's. */
     let move = null;
-    root.updateMatrixWorld(true);
-    const pivot = bones.pelvis.getWorldPosition(new THREE.Vector3());   // rest pose, group space
     const _tq = new THREE.Quaternion(), _tp = new THREE.Vector3(), _rest = new THREE.Quaternion();
-    /* `pivot` is the pelvis of the bind pose, 1.3 m above where the clips hold it, so a
-       lean about it also slides the body. live = turn about the pelvis where the clip has
-       it this frame instead (the technique kicks; the older moves still use the bind pose). */
+    /* The turn is about the pelvis where the clip has it this frame. (It was the bind
+       pose's pelvis, 1.3 m higher than the clips hold it, so every lean also slid the body:
+       a keeper's full dive slid back into the post. Bryan's round-3 fix, 2026-10-03.) */
     const _lp = new THREE.Vector3();
-    function setTilt(q, shift, live) {
-      const pv = live ? tilt.worldToLocal(bones.pelvis.getWorldPosition(_lp)) : pivot;
+    function setTilt(q, shift) {
+      const pv = tilt.worldToLocal(bones.pelvis.getWorldPosition(_lp));
       tilt.quaternion.copy(q);
       _tp.copy(pv).applyQuaternion(q);
       tilt.position.copy(pv).sub(_tp).add(shift);

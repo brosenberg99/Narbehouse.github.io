@@ -249,16 +249,18 @@ SS.game = (function () {
     if (gm && gm.replay && gm.replay.on) { drawReplay(dt); return; }
     const a = live ? Math.min(1, acc / RU().TICK) : 1;
     drawA = a;
+    separate(a, live ? dt : 0);                        // a frozen choice: nobody drifts
     s.players.forEach((pl, j) => {
       const sw = swimmers[j];
       if (!sw) return;
-      _v.lerpVectors(prevP[j], curP[j], a);
+      _v.lerpVectors(prevP[j], curP[j], a).add(sepOff[j]);
       sw.group.position.copy(_v);
       face(sw, pl, dt, live);
       const winding = SS.moves.isShot(sw.move);   // shots are made treading
       if (!sw.busy) sw.play(live && sw.swimming && !winding ? 'swim' : 'tread');
       sw.setCarry(s.ball.owner === j || (!!cine && cine.hold > 0 && cine.shooter === j));
       sw.update(live ? dt : dt * 0.6);
+      noteBody(j, sw);
       badges[j].carrier(s.ball.owner === j);
     });
     if (s.ball.owner != null && swimmers[s.ball.owner]) ball.position.copy(swimmers[s.ball.owner].ballPoint);
@@ -279,11 +281,102 @@ SS.game = (function () {
       ball.position.addScaledVector(cine.offset, 1 - Math.min(1, s.ball.flight.t / s.ball.flight.dur));
     }
     else if (gm && s.ball.owner == null && !s.ball.flight) ball.position.copy(gm.net);   // a goal stays in the net
+    else if (passFx && s.ball.flight === passFx.flight) {
+      // A pass leaves from the passer's hand, not their middle.
+      ball.position.lerpVectors(prevBall, curBall, a);
+      ball.position.addScaledVector(passFx.offset, 1 - Math.min(1, (s.ball.flight.t - (1 - a) * RU().TICK) / s.ball.flight.dur));
+    }
     else ball.position.lerpVectors(prevBall, curBall, a);
     if (lane.visible) lane.material.dashOffset -= dt * 1.2;
     drawPreview(dt);
     fadeBlockers(dt);
     if (live) SS.replay.record(dt, ball.position, s.ball.owner);
+  }
+
+  /* ══ room to see everyone ════════════════════════════════════════════
+     The match lets players share the same water; on screen that was a defender standing
+     on a passer (Bryan, 2026-10-03). Each body is a line from head to feet (as it was drawn
+     last frame, relative to where it stands, so a nudge never feeds back into itself); any
+     two lines closer than SEP_MIN as the camera sees them (arms and legs reach ~0.5 m off the line) are nudged apart, eased so nobody jumps, never
+     more than SEP_MAX. The ball's player, whoever the ball is flying to, and a shot's
+     shooter and keeper hold still (the ball is drawn to them); the other one moves the
+     whole way. A player in a move that is meant to touch (a tackle, a catch, a save) keeps
+     the nudge they had and is left out. Display only: the match never sees it. */
+  const CONTACT = new Set(['tackle', 'knocked', 'catch', 'dodge', 'block', 'keeper']);
+  const SEP_MIN = 1.05, SEP_MAX = 1.0, sepOff = [], sepWant = [], _sepP = [], segH = [], segF = [];
+  const _sd = new THREE.Vector3(), _a0 = new THREE.Vector3(), _a1 = new THREE.Vector3(), _b0 = new THREE.Vector3(), _b1 = new THREE.Vector3();
+  const _view = new THREE.Vector3(), _ca = new THREE.Vector3(), _cb = new THREE.Vector3(), _u1 = new THREE.Vector3(), _u2 = new THREE.Vector3(), _r = new THREE.Vector3();
+  /** Closest points of segments p0-p1 and q0-q1 into _ca, _cb (the standard clamp method). */
+  function closest(p0, p1, q0, q1) {
+    _u1.subVectors(p1, p0); _u2.subVectors(q1, q0); _r.subVectors(p0, q0);
+    const a = _u1.lengthSq(), e = _u2.lengthSq(), f = _u2.dot(_r), c = _u1.dot(_r), b = _u1.dot(_u2), den = a * e - b * b;
+    let sN = den > 1e-8 ? THREE.MathUtils.clamp((b * f - c * e) / den, 0, 1) : 0;
+    let tN = e > 1e-8 ? (b * sN + f) / e : 0;
+    if (tN < 0) { tN = 0; sN = a > 1e-8 ? THREE.MathUtils.clamp(-c / a, 0, 1) : 0; }
+    else if (tN > 1) { tN = 1; sN = a > 1e-8 ? THREE.MathUtils.clamp((b - c) / a, 0, 1) : 0; }
+    _ca.copy(p0).addScaledVector(_u1, sN); _cb.copy(q0).addScaledVector(_u2, tN);
+  }
+  /** After drawing: remember each body's head and feet relative to where it stands. */
+  function noteBody(j, sw) {
+    if (!segH[j]) { segH[j] = new THREE.Vector3(); segF[j] = new THREE.Vector3(); }
+    sw.head.getWorldPosition(segH[j]);
+    sw.pelvis.getWorldPosition(segF[j]);
+    segF[j].addScaledVector(_sd.subVectors(segF[j], segH[j]), 0.8);   // the feet: on past the hips
+    segH[j].sub(sw.group.position); segF[j].sub(sw.group.position);
+  }
+  function separate(a, dt) {
+    const s = S(), n = s.players.length, k = 1 - Math.exp(-dt * 6), f = s.ball.flight;
+    const held = j => j === s.ball.owner || (f && j === f.catcher) || (!!cine && (j === cine.shooter || j === cine.keeper));
+    const touching = j => !!(swimmers[j] && swimmers[j].move && CONTACT.has(swimmers[j].move.name));
+    for (let i = 0; i < n; i++) {
+      (_sepP[i] || (_sepP[i] = new THREE.Vector3())).lerpVectors(prevP[i], curP[i], a);
+      (sepWant[i] || (sepWant[i] = new THREE.Vector3())).set(0, 0, 0);
+      if (!sepOff[i]) sepOff[i] = new THREE.Vector3();
+    }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      if (_sepP[i].distanceToSquared(_sepP[j]) > 9) continue;                 // 3 m: bodies can't touch
+      if (!segH[i] || !segH[j] || touching(i) || touching(j)) continue;
+      // Measured as the camera sees them, not through the water: both bodies flattened onto
+      // the plane across the view, so two a metre apart along the line of sight, or lying
+      // head to feet along the screen, still count as touching.
+      _view.addVectors(_sepP[i], _sepP[j]).multiplyScalar(0.5).sub(camera.position).normalize();
+      const flat = (v, from, off) => v.addVectors(from, off).addScaledVector(_view, -_r.subVectors(v.addVectors(from, off), camera.position).dot(_view));
+      closest(flat(_a0, _sepP[i], segH[i]), flat(_a1, _sepP[i], segF[i]), flat(_b0, _sepP[j], segH[j]), flat(_b1, _sepP[j], segF[j]));
+      _sd.subVectors(_cb, _ca);
+      let d = _sd.length();
+      if (d >= SEP_MIN) continue;
+      if (d < 1e-3) _sd.set(Math.cos(i * 2.4 + j), 0, Math.sin(i * 2.4 + j)); else _sd.divideScalar(d);
+      const push = SEP_MIN - d, hi = held(i), hj = held(j);
+      if (hi && hj) continue;
+      const wi = hi ? 0 : hj ? 1 : 0.5;
+      sepWant[i].addScaledVector(_sd, -push * wi);
+      sepWant[j].addScaledVector(_sd, push * (1 - wi));
+    }
+    for (let i = 0; i < n; i++) {
+      if (touching(i)) continue;
+      if (sepWant[i].length() > SEP_MAX) sepWant[i].setLength(SEP_MAX);
+      sepOff[i].lerp(sepWant[i], k);
+    }
+  }
+
+  /* ══ a pass ═══════════════════════════════════════════════════════════
+     The passer pushes it out with one arm (moves.js pass), the ball leaving from the hand;
+     whoever it is going to reaches for it: the teammate, or a defender lunging to pick it
+     off; a defender who blocks it gets an arm to it. All display. */
+  let passFx = null;                  // { flight, offset }: the ball's start, eased out over the flight
+  function startPass(e) {
+    const s = S(), f = s.ball.flight, sw = swimmers[e.player];
+    if (!f) return;
+    if (sw) {
+      sw.setMove('pass', { to: vec(e.to) });
+      passFx = { flight: f, offset: sw.ballPoint.clone().sub(prevBall) };
+    }
+    const progress = () => (S() && S().ball.flight === f ? Math.min(1, f.t / f.dur) : 1);
+    if ((e.result === 'caught' || e.result === 'intercepted') && e.by != null && swimmers[e.by]) {
+      swimmers[e.by].setMove('catch', { ball: ball.position, progress, lunge: e.result === 'intercepted' });
+    } else if (e.result === 'blocked' && e.by != null && swimmers[e.by]) {
+      swimmers[e.by].setMove('block', { to: vec(e.to), ball: ball.position, result: 'blocked', progress });
+    }
   }
 
   /* ══ a shot, as a moment ═════════════════════════════════════════════
@@ -729,7 +822,7 @@ SS.game = (function () {
         SS.audio.play('whistle'); say('kickoff', { team: kits[e.team].short }, 1);
         if (SS.director.mode === 'wide' && phase === 'live') SS.director.setMode('broadcast', { follow: playFocus });   // after a goal's cut
         break;
-      case 'pass': if (swimmers[e.player]) swimmers[e.player].once('throw'); SS.audio.play('pass'); break;
+      case 'pass': startPass(e); SS.audio.play('pass'); break;
       case 'shot':
         startShotMoment(e);                              // its sound plays on the release (shotBeat)
         SS.audio.crowd('swell');
@@ -748,11 +841,18 @@ SS.game = (function () {
         else say('loose', {}, 1);
         break;
       case 'dribble':
-        (e.hits || []).forEach(j => { if (swimmers[j]) swimmers[j].once(Math.random() < 0.5 ? 'tackleA' : 'tackleB'); });
+        // A carrier who breaks free rolls out of it, away from the nearest tackler.
+        if (e.result === 'kept' && swimmers[e.player] && (e.hits || []).length) {
+          const near = e.hits.slice().sort((a, b) => curP[a].distanceTo(curP[e.player]) - curP[b].distanceTo(curP[e.player]))[0];
+          if (swimmers[near]) swimmers[e.player].setMove('dodge', { from: swimmers[near].chest });
+        }
+        // Every tackler lunges at the carrier (moves.js); the one who won it rips the ball away.
+        (e.hits || []).forEach(j => { if (swimmers[j] && swimmers[e.player]) swimmers[j].setMove('tackle', { at: swimmers[e.player].chest, win: j === e.by && e.result !== 'kept' }); });
         if (e.result === 'kept') say('breakThrough', { player: who(e.player) }, 2);
         else {
           SS.audio.play('tackle');
-          if (swimmers[e.player]) swimmers[e.player].once('hitChest');
+          const by = swimmers[e.by != null ? e.by : (e.hits || [])[0]];
+          if (swimmers[e.player] && by) swimmers[e.player].setMove('knocked', { from: by.chest, lost: true });
           SS.hud.pop('Tackled!', ours(e.by) ? 'good' : 'bad', 2);
           say('tackle', { player: who(e.by) }, 2);
         }
