@@ -31,10 +31,12 @@ SS.broadcast = (function () {
   const CAPTION_MS = 3400;
   const PART_GAP_MS = 180;                          // the pause between the parts of a split line
   const STALE_S = 2.5;                              // chatter that waited longer than this is about a moment now gone
+  const STALE_CALL_S = 6;                           // ...and a must-say call (a goal, a score) that waited this long
 
   const bags = {}, lastAt = { pa: -99, pbp: -99, color: -99 };
   let voIndex = null, clip = null, captionTimer = null, history = [], played = [];
   let seq = 0, seqOn = false;                       // the clips of a split line still to come
+  let nowFamily = null;                             // the family of the line last voiced (talking() says if it still is)
 
   function lines() { return (SS.VOICE_LINES && SS.VOICE_LINES.families) || {}; }
   function speakers() { return (SS.VOICE_LINES && SS.VOICE_LINES.speakers) || {}; }
@@ -81,7 +83,9 @@ SS.broadcast = (function () {
   const queue = [];
   let pumpTimer = null, busyUntil = 0;
 
-  /** @param priority 1 chatter, 2 a real moment, 3 must be said (goals, periods) */
+  /** @param priority 1 chatter, 2 a real moment, 3 must be said (goals, intercepts, techniques), 4 the whistle
+   *  (half time, full time): ends whatever commentary is talking and goes straight on, so the score is heard
+   *  before the card comes up. The interface voice is never cut. */
   function say(family, slots, priority) {
     const m = mode();
     if (m === 'off') return null;
@@ -95,6 +99,10 @@ SS.broadcast = (function () {
     const text = fill(line.text, slots);
     history.push({ id: line.id, speaker: line.speaker, family, text, at: now });
     if (history.length > 80) history.shift();
+    if (pri >= 4) {
+      queue.length = 0; hush(); busyUntil = 0; clearTimeout(pumpTimer); pumpTimer = null;
+      if (!U.uiSpokeRecently(4000)) U.stopSpeech();           // commentary read by the system voice, not the interface
+    }
     // A must-say moment (a goal, a period) makes waiting chatter stale: it never plays over the celebration.
     if (pri >= PRI_OVERRIDE) for (let i = queue.length - 1; i >= 0; i--) if (queue[i].pri < PRI_OVERRIDE) queue.splice(i, 1);
     queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], k: (slots && slots._k) || {}, at: now });
@@ -105,16 +113,33 @@ SS.broadcast = (function () {
   function pump() {
     if (pumpTimer || !queue.length) return;
     const now = performance.now(), talking = U.speaking() || seqOn || (clip && !clip.paused && !clip.ended);
-    if (now < busyUntil || (talking && now < busyUntil + 4000)) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
+    // Wait while anything is speaking - the system voice reading a long line, or the interface still finishing a
+    // label - not just for our own estimate of the last line: past that estimate a must-say call used to start on
+    // top of the voice. A line that waits too long goes stale below, so the wait always ends.
+    const head = queue[0], waited = now / 1000 - head.at;
+    if (now < busyUntil || (talking && waited <= (head.pri < PRI_OVERRIDE ? STALE_S : STALE_CALL_S))) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
     let q = queue.shift();
-    while (q && q.pri < PRI_OVERRIDE && performance.now() / 1000 - q.at > STALE_S) q = queue.shift();
+    while (q && performance.now() / 1000 - q.at > (q.pri < PRI_OVERRIDE ? STALE_S : STALE_CALL_S)) q = queue.shift();
     if (!q) return;
-    const m = mode();
+    // The interface has the floor (a card is up, or its voice is still speaking): the line waits its turn rather than
+    // being dropped. A choice's own consequences (the technique just picked, an intercept of that pass) are called
+    // the moment play resumes; the staleness rule above still lets go of a moment that has passed.
+    if (audibleIn(q.line, q.family) && interfaceHasFloor()) { queue.unshift(q); pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
     caption(q.line.speaker, q.text);
-    const audible = m === 'full' || (m === 'calls' && (q.line.speaker === 'pa' || q.family === 'goal'));
-    if (audible) voice(q.line, q.text, q.pri, q.keys, q.k);
+    if (audibleIn(q.line, q.family)) voice(q.line, q.text, q.pri, q.keys, q.k, q.family);
     busyUntil = now + 500 + q.text.length * 60;             // roughly how long it takes to say
     if (queue.length) pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 200);
+  }
+
+  function interfaceHasFloor() {
+    const ctx = SS.ui && SS.ui.context ? SS.ui.context() : 'live';
+    return ctx !== 'live' || (U.uiSpokeRecently(1500) && U.speaking());
+  }
+
+  /** Is this line spoken aloud under the Commentary setting? (Captions always show.) */
+  function audibleIn(line, family) {
+    const m = mode();
+    return m === 'full' || (m === 'calls' && (line.speaker === 'pa' || family === 'goal'));
   }
 
   /** The recording for this line about these keys, or null: joined keys first, then each alone, then the bare line. */
@@ -147,16 +172,20 @@ SS.broadcast = (function () {
     };
     next(0);
   }
-  function voice(line, text, pri, keys, k) {
-    const ctx = SS.ui && SS.ui.context ? SS.ui.context() : 'live';
-    if (ctx !== 'live') return;                                // a choice is on screen: the interface has the floor
-    if (U.uiSpokeRecently(1500)) return;
+  // pump() has already waited for the interface (a card up, its voice still speaking), so nothing here drops a line
+  // for that: a second, stricter check used to throw away the call of a technique the player had just picked.
+  function voice(line, text, pri, keys, k, family) {
     if (pri < PRI_OVERRIDE && (U.speaking() || seqOn || (clip && !clip.paused))) return;
+    // A must-say call can start while a clip or a split line is still going: end that properly first. Pausing
+    // just the clip left a split line marked as still talking, and from then on chatter was dropped and every
+    // call waited out the busy timeout.
+    hush();
+    nowFamily = family;
     if (line.parts) {
       const files = partFiles(line, k);
       played.push({ id: line.id, file: files ? files.join('+') : null, at: performance.now() / 1000 });
       if (played.length > 80) played.shift();
-      if (files) { try { if (clip) clip.pause(); playParts(files, text, line); return; } catch (e) { /* fall through */ } }
+      if (files) { try { playParts(files, text, line); return; } catch (e) { /* fall through */ } }
       const sp0 = speakers()[line.speaker];
       U.speakAs(text, sp0 && sp0.tts);
       return;
@@ -166,7 +195,6 @@ SS.broadcast = (function () {
     if (played.length > 80) played.shift();
     if (file) {
       try {
-        if (clip) clip.pause();
         clip = new Audio('audio/vo/' + file);
         clip.play().catch(() => { clip = null; U.speakAs(text, (speakers()[line.speaker] || {}).tts); });
         return;
@@ -201,7 +229,15 @@ SS.broadcast = (function () {
   loadIndex();
   /** A commentary line is being heard right now (system voice or a recorded clip): the music and crowd duck. */
   const talking = () => U.speaking() || seqOn || !!(clip && !clip.paused && !clip.ended);
-  return { say, hush, reset, clearCaption, talking, clipFile, partFiles, get history() { return history.slice(); },
+  /** A call is being spoken, or a real one (priority 2+) is about to be: the game holds a decision card for it.
+   *  With families, only those count (half time waits for its own score call, not for the chatter after it). */
+  const callInFlight = fams => fams
+    ? (talking() && fams.includes(nowFamily)) || queue.some(q => fams.includes(q.family) && audibleIn(q.line, q.family))
+    : talking() || queue.some(q => q.pri >= 2 && audibleIn(q.line, q.family));
+  return { say, hush, reset, clearCaption, talking, callInFlight, clipFile, partFiles, get history() { return history.slice(); },
     /** What was voiced, and from which recording (null = the system voice): for the browser checks. */
-    get played() { return played.slice(); } };
+    get played() { return played.slice(); },
+    /** The broadcast's own state, for the browser checks. */
+    get __state() { return { queue: queue.map(q => q.line.id + ':' + q.pri), seqOn, clip: clip ? { paused: clip.paused, ended: clip.ended } : null,
+      busyMs: Math.round(busyUntil - performance.now()), pumpTimer: !!pumpTimer, nowFamily }; } };
 })();

@@ -138,12 +138,13 @@ function findChrome() {
     await evaluate('SS.audio.__nearLoop(1); true'); await wait(4000); const lp = await snd();
     check('the theme loops: the second player takes over at the loop point, still playing', !!lp.music && lp.music.swaps >= 1 && lp.music.playing && lp.music.t < 4, JSON.stringify(lp.music));
     check('the theme plays on the menus, with no crowd', !!a.music && a.music.state === 'run' && a.music.vol > 0.1 && !(a.bed && a.bed.playing), JSON.stringify(a));
-    // The commentary talks from the kickoff on, so the check decides when "speaking" is true.
-    await evaluate('window.__speaking = SS.util.speaking; window.__talk = false; SS.util.speaking = () => __talk; SS.save.settings.set("speed", "fast"); SS.game.startQuick(["reef", "beamers"]); SS.game.kickoff(); true');
+    // The commentary talks from the kickoff on (the intro is a recording now), so the check decides when
+    // "speaking" is true - the system voice and the recorded clips alike.
+    await evaluate('window.__speaking = SS.util.speaking; window.__btalk = SS.broadcast.talking; window.__talk = false; SS.util.speaking = () => __talk; SS.broadcast.talking = () => __talk; SS.save.settings.set("speed", "fast"); SS.game.startQuick(["reef", "beamers"]); SS.game.kickoff(); true');
     await wait(2500); a = await snd();
     check('in play: the crowd, and no music', !!a.bed && a.bed.playing && a.bed.vol > 0.2 && (!a.music || a.music.state === 'idle'), JSON.stringify(a));
     await evaluate('__talk = true; true'); await wait(1200); a = await snd();
-    await evaluate('SS.util.speaking = window.__speaking; true');
+    await evaluate('SS.util.speaking = window.__speaking; SS.broadcast.talking = window.__btalk; true');
     check('the crowd drops while anything speaks', !!a.bed && a.bed.playing && a.bed.vol < 0.1, JSON.stringify(a));
     await evaluate('SS.ui.openPause(); true'); await wait(1500); a = await snd();
     check('the crowd goes quiet under Pause', !a.bed || !a.bed.playing || a.bed.vol < 0.01, JSON.stringify(a));
@@ -292,6 +293,8 @@ function findChrome() {
     check('the saved match resumes at exactly the same moment', snap === back);
 
     /* ── a goal replay: a real press skips it, and opens nothing ──────── */
+    // When the results card opens: was the full-time score called from recordings? (Bryan heard the system voice.)
+    await evaluate(`window.__atResults = null; (() => { const set = SS.ui.setScreen; SS.ui.setScreen = function (n) { if (n === 'results' && !__atResults) __atResults = { full: SS.broadcast.played.filter(p => p.id === 'pa_full_1').map(p => p.file) }; return set.apply(this, arguments); }; })(); true`);
     await evaluate("SS.save.clearMatch(); SS.save.settings.set('stops', 'ours'); SS.save.settings.set('difficulty', 'easy'); SS.game.startQuick(['reef', 'beamers']); SS.game.kickoff(); true");
     await until(`(() => {
       const p = SS.game.match.pending;
@@ -391,30 +394,70 @@ function findChrome() {
       for (const tk of teams) if (!B.partFiles(lineOf('pbp_int_3'), { tk })) missing.push('int-' + tk);
       const noSixteen = B.partFiles(lineOf('pa_score_1'), { t0: teams[0], n0: SS.util.slug(SS.util.numWord(16)), t1: teams[1], n1: 'one' });
       // fake playback: record each clip started, and when
-      const started = [], RealAudio = window.Audio, realCtx = SS.ui.context, t0 = performance.now();
+      const started = [], RealAudio = window.Audio, realCtx = SS.ui.context, realSpeaking = SS.util.speaking, t0 = performance.now();
+      SS.util.speaking = () => false;                              // the results card's own voice would make the broadcast wait
       window.Audio = function (src) { return { src, paused: true, ended: false, preload: '', play() { started.push({ src: src.replace('audio/vo/', ''), at: Math.round(performance.now() - t0) }); this.paused = false; setTimeout(() => { this.ended = true; this.paused = true; this.onended && this.onended(); }, 40); return Promise.resolve(); }, pause() { this.paused = true; } }; };
       SS.ui.context = () => 'live';
       await new Promise(r => setTimeout(r, 1700));                 // the interface spoke a moment ago: wait it out
-      B.reset();
+      B.reset(); started.length = 0;                               // the match's own full-time call may have played in the wait
       const k = { t0: teams[0], n0: 'two', t1: teams[1], n1: 'one' };
       B.say('goalScore', { score: 'x', _k: k }, 3);
       await new Promise(r => setTimeout(r, 1200));
       const score = started.splice(0).map(s => s.src);
-      B.reset();
+      B.reset(); started.length = 0;
       B.say('secondHalf', { score: 'x', _k: k }, 3);
       await new Promise(r => setTimeout(r, 1500));
       const second = started.splice(0);
-      window.Audio = RealAudio; SS.ui.context = realCtx; B.reset();
+      window.Audio = RealAudio; SS.ui.context = realCtx; SS.util.speaking = realSpeaking; B.reset();
       return JSON.stringify({ missing, noSixteen, score, second: second.map(s => s.src), gaps: second.slice(1).map((s, i) => s.at - second[i].at), played: B.played });
     })()`));
     check('every team and number 0-15 has the clips a score needs; every team has its intercept clips', split.missing.length === 0, split.missing.slice(0, 6).join(', ') || (6 * 16) + ' scores, 6 intercepts');
     check('a score past fifteen has no recording and falls back to the system voice', split.noSixteen === null, String(split.noSixteen));
     check('a score plays team, number, team, number from recordings, in order', JSON.stringify(split.score) === JSON.stringify(['score_teams/pa_score_t__beamers.mp3', 'score_numbers/pa_score_n__two.mp3', 'score_teams/pa_score_t__stars.mp3', 'score_numbers/pa_score_n__one.mp3']), JSON.stringify(split.score));
     check('a second-half call plays its own clip, then the score, with a pause between the clips', split.second.length === 5 && /^score_carriers\/pa_second_/.test(split.second[0]) && split.gaps.every(g => g >= 150), JSON.stringify(split.second) + ' gaps ' + split.gaps);
+    const atResults = JSON.parse(await evaluate('JSON.stringify(window.__atResults)'));
+    check('full time: the score is called from recordings, carrier then team, number, team, number', !!atResults && atResults.full.length > 0 && atResults.full.every(f => f && f.split('+').length === 5), JSON.stringify(atResults));
+    // A choice's own consequence (the technique just picked) is called when play resumes, not dropped under the card.
+    const conseq = JSON.parse(await evaluate(`(async () => {
+      const B = SS.broadcast, wait = ms => new Promise(r => setTimeout(r, ms)), started = [], RealAudio = window.Audio, realCtx = SS.ui.context;
+      window.Audio = function (src) { return { src, paused: true, ended: false, play() { started.push(src.replace('audio/vo/', '')); this.paused = false; setTimeout(() => { this.ended = true; this.paused = true; this.onended && this.onended(); }, 40); return Promise.resolve(); }, pause() { this.paused = true; } }; };
+      let c = 'world'; SS.ui.context = () => c;
+      await wait(1700); B.reset();
+      const p = SS.DATA.TEAMS[0].players.find(x => x.techs.length), tech = SS.DATA.TECHS[p.techs[0]].name;
+      const text = B.say('tech', { player: p.name.split(' ')[0], tech, _keys: [SS.util.slug(p.name), SS.util.slug(tech)] }, 2);
+      await wait(500); const underCard = started.slice();
+      c = 'live'; await wait(700); const after = started.slice();
+      window.Audio = RealAudio; SS.ui.context = realCtx; B.reset();
+      return JSON.stringify({ text, underCard, after });
+    })()`));
+    check('a call made as a choice closes waits for the card, then plays from its recording', conseq.underCard.length === 0 && conseq.after.length === 1 && /^tech_(names|player)\//.test(conseq.after[0]), JSON.stringify(conseq));
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');
     const sv = JSON.parse(said);
     check('commentary is never spoken while a choice or menu is up', sv.bad === 0, sv.n + ' lines spoken, ' + sv.bad + ' over a choice');
     check('every commentary line reached the caption', sv.hist >= sv.now, sv.now + ' spoken this match, ' + sv.hist + ' captioned');
+    /* ── a decision card waits up to 2 s for a call; a manual Pause is never held back ── */
+    await evaluate('window.__cif = SS.broadcast.callInFlight; SS.broadcast.callInFlight = () => true; SS.save.settings.set("stops", "ours"); SS.save.clearMatch(); SS.game.startQuick(["beamers", "reef"]); SS.game.kickoff(); true');
+    await until('SS.game.phase === "decision"', 120000);
+    const holdT0 = Date.now(), duringHold = JSON.parse(await evaluate('JSON.stringify({ ctx: SS.ui.context(), phase: SS.game.phase })'));
+    await until('SS.ui.context() === "world"', 8000);
+    const heldMs = Date.now() - holdT0;
+    check('a decision card waits for a call in flight, then opens: about 2 s, never longer', duringHold.ctx === 'live' && heldMs >= 1400 && heldMs <= 3200, JSON.stringify(duringHold) + ', waited ' + heldMs + ' ms');
+
+    await evaluate('SS.game.startQuick(["reef", "beamers"]); SS.game.kickoff(); true');
+    await until('SS.game.phase === "decision"', 120000);
+    const pauseT0 = Date.now();
+    await evaluate('document.getElementById("pauseBtn").click(); true');
+    const pausedAt = JSON.parse(await evaluate('JSON.stringify({ screen: SS.ui.__dbg().screen, ctx: SS.ui.context() })')), pauseMs = Date.now() - pauseT0;
+    await wait(2600);
+    const stillPaused = JSON.parse(await evaluate('JSON.stringify({ screen: SS.ui.__dbg().screen, ctx: SS.ui.context() })'));
+    check('a manual Pause during the wait opens at once and stays: the held card does not open behind it', pausedAt.screen === 'pause' && pauseMs < 500 && stillPaused.screen === 'pause', JSON.stringify({ pausedAt, pauseMs, stillPaused }));
+    const resumeT0 = Date.now();
+    await evaluate('SS.ui.resumeFromCard(); true');
+    await until('SS.ui.context() === "world"', 3000);
+    const resumeMs = Date.now() - resumeT0;
+    check('Continue after that Pause asks the decision straight away, with no second wait', resumeMs < 900, resumeMs + ' ms');
+    await evaluate('SS.broadcast.callInFlight = window.__cif; true');
+
     check('no exceptions', exceptions.length === 0, exceptions.slice(0, 3).join(' | '));
   } catch (err) {
     console.error(err); fails++;

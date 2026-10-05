@@ -180,7 +180,7 @@ SS.game = (function () {
     m.setBoost(boostOf());
     begin('resume');
     if (sv.context === 'halftime') { phase = 'halftime'; SS.director.setMode('orbit'); SS.ui.setScreen('halftime'); return; }
-    if (m.pending) { SS.director.setMode('broadcast', { follow: playFocus, cut: true }); enterDecision(); return; }
+    if (m.pending) { SS.director.setMode('broadcast', { follow: playFocus, cut: true }); enterDecision(true); return; }
     phase = 'kickoff';
     SS.ui.setScreen('kickoff', { resume: true });
   }
@@ -209,6 +209,7 @@ SS.game = (function () {
   function update(dt) {
     if (m) {
       if (phase === 'live' && !frozen) stepSim(dt);
+      tickDecisionHold();
       drawMatch(dt);
       drawCarrier(dt);
       SS.hud.update(S(), phase !== 'live' || frozen, hudLabels);
@@ -841,7 +842,7 @@ SS.game = (function () {
       case 'intercept':
         SS.audio.play('catch');
         SS.hud.pop('Intercepted!', ours(e.player) ? 'good' : 'bad', 2);
-        say('intercept', { player: who(e.player), team: team(e.player), _keys: [pk(e.player), tk(s.players[e.player].team)], _k: { tk: tk(s.players[e.player].team) } }, 2);
+        say('intercept', { player: who(e.player), team: team(e.player), _keys: [pk(e.player), tk(s.players[e.player].team)], _k: { tk: tk(s.players[e.player].team) } }, 3);   // a must-say call: the shot just called must not silence it
         if (Math.random() < 0.35) say('interceptColor', {}, 1);
         break;
       case 'loose':
@@ -868,7 +869,7 @@ SS.game = (function () {
         break;
       case 'tech': {
         const t = D().TECHS[e.tech];
-        if (t) { techFlourish(e, t); SS.audio.play('tech'); say('tech', { player: who(e.player), tech: t.name, _keys: [pk(e.player), U.slug(t.name)] }, 2); }
+        if (t) { techFlourish(e, t); SS.audio.play('tech'); say('tech', { player: who(e.player), tech: t.name, _keys: [pk(e.player), U.slug(t.name)] }, 3); }   // a technique is always called
         break;
       }
       case 'status': say('status', { player: who(e.player), _keys: [pk(e.player)] }, 1); break;
@@ -891,10 +892,10 @@ SS.game = (function () {
         phase = 'halftime';
         SS.audio.play('whistle');
         SS.hud.pop('Halftime', 'info', 3);
-        say('halftime', { score: scoreWords(), _k: scoreKeys() }, 3);
+        say('halftime', { score: scoreWords(), _k: scoreKeys() }, 4);
         saveNow();
         SS.director.setMode('orbit');
-        setTimeout(() => { if (phase === 'halftime' && m) SS.ui.setScreen('halftime'); }, 1400);
+        openAfterCall(1400, 'halftime', ['halftime'], () => SS.ui.setScreen('halftime'));
         break;
       case 'secondHalf': say('secondHalf', { score: scoreWords(), _k: scoreKeys() }, 3); break;
       case 'overtime': SS.hud.pop('Overtime', 'info', 3); say('overtime', {}, 3); break;
@@ -910,22 +911,57 @@ SS.game = (function () {
         SS.audio.play('whistle');
         SS.audio.sting(e.winner === 0 ? 'win' : 'lose');   // a draw gets the kind "nice try"
         SS.hud.pop('Full Time', 'info', 3);
-        say('fulltime', { score: scoreWords(), _k: scoreKeys() }, 3);
+        say('fulltime', { score: scoreWords(), _k: scoreKeys() }, 4);
         if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short, _keys: [tk(e.winner)] }, 3);
         SS.save.clearMatch();
         SS.director.setMode('orbit');
-        setTimeout(() => { if (phase === 'fulltime' && m) SS.ui.setScreen('results'); }, 1800);
+        openAfterCall(1800, 'fulltime', ['fulltime', 'fulltimeWin', 'fulltimeDraw'], () => SS.ui.setScreen('results'));
         break;
       }
     }
   }
 
   /* ══ decisions on the scene ═══════════════════════════════════════════ */
-  function enterDecision() {
+  /* A decision card silences the broadcast, so a call made in the same moment (an intercept, a score) would be
+   * cut off. The card waits up to DECISION_HOLD_MS for a call to finish; the sim is already stopped, so nothing
+   * about the play changes. A manual Pause is never held back: it opens at once, ends the wait, and Continue
+   * asks the decision straight away (skipHold). */
+  const DECISION_HOLD_MS = 2000;
+  let decisionHold = null;                // { until } while the card waits for a call to finish
+  function enterDecision(skipHold) {
     phase = 'decision';
+    decisionHold = null;
     endShotMoment();
     preview = 0;                          // a choice cuts the formation preview short
     saveNow();
+    if (!skipHold && !frozen && SS.broadcast.callInFlight()) {
+      decisionHold = { until: performance.now() + DECISION_HOLD_MS };
+      SS.ui.goLive();                     // no card while the call plays (after a choice the old one is still 'up')
+      return;
+    }
+    openDecisionCard();
+  }
+  function tickDecisionHold() {
+    if (!decisionHold) return;
+    if (frozen || phase !== 'decision' || !m || !m.pending) { decisionHold = null; return; }   // a Pause (or a restart) got there first
+    if (performance.now() >= decisionHold.until || !SS.broadcast.callInFlight()) openDecisionCard();
+  }
+  /** Half time and the results: the card comes after `ms`, or once the period's own call (the score, the winner)
+   *  has finished, up to PERIOD_CALL_MAX_MS after the whistle. A Pause in between wins, and its Continue opens the
+   *  card itself (resume). */
+  const PERIOD_CALL_MAX_MS = 10000;        // the call can start late: it waits for the interface voice to finish
+  function openAfterCall(ms, want, fams, open) {
+    const t0 = performance.now();
+    const check = () => {
+      if (phase !== want || !m || frozen) return;
+      const t = performance.now() - t0;
+      if (t >= PERIOD_CALL_MAX_MS || !SS.broadcast.callInFlight(fams)) { open(); return; }
+      setTimeout(check, 100);
+    };
+    setTimeout(check, ms);
+  }
+  function openDecisionCard() {
+    decisionHold = null;
     SS.audio.play('decision');
     const dec = m.pending;
     if (dec.kind === 'stance') openStance(dec);
@@ -1183,7 +1219,8 @@ SS.game = (function () {
   }
   function resume() {
     if (!m) return;
-    if (m.pending) { enterDecision(); return; }
+    frozen = false;                                     // Continue: the Pause card is gone
+    if (m.pending) { enterDecision(true); return; }
     if (phase === 'halftime') { SS.ui.setScreen('halftime'); return; }
     if (phase === 'fulltime') { SS.ui.setScreen('results'); return; }
     toLive();
@@ -1192,7 +1229,7 @@ SS.game = (function () {
   function callNow() {
     if (!m || !weHaveBall()) { resume(); return; }
     phase = 'live';
-    if (m.callNow(0) && m.pending) enterDecision(); else toLive();
+    if (m.callNow(0) && m.pending) enterDecision(true); else toLive();
   }
   function startSecondHalf() {
     // Straight to the kickoff places: the sim's break would show everyone drifting, then
