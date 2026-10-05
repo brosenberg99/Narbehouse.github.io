@@ -127,7 +127,7 @@ exception: the cut to the wide view after a goal, below).
   the ball there; a goal bends round the keeper by at least 0.9 m (it flew through them);
   a ball above the shoulders turns the whole body to it (the arms had crossed the face).
   **Technique kicks (M3 animation step, Bryan 2026-10-03):** each family of technique shot
-  has its own big body shape, so they tell apart at match size: Beamin' Blast (and II) a
+  has its own big body shape, so they tell apart at match size: Beamin' Blast (and Super Beamin' Blast) a
   **backflip**, back to the goal, the ball struck over the face at the top of it; Spin Shot a
   **full turn into a sweeping side kick**, the ball tossed up for the turn; Ghost Shot a
   **scorpion**, back to the goal, both heels curled over the back, one whipped through. The

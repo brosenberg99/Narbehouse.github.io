@@ -6,6 +6,13 @@ SS.VOICE_LINES = {
     "pbp":   { "name": "Rip Tidewell", "tag": "Play-by-play",  "tts": { "pitch": 1.18, "rate": 1.12 } },
     "color": { "name": "Coral Banks",  "tag": "Analyst",       "tts": { "pitch": 0.95, "rate": 1.0 } }
   },
+  "pieces": {
+    "_": "Recordings that exist only as parts of longer lines (see each line's parts). A part is a clip key; {slots} are filled from the keys the game passes (slots._k). Played in order with a short gap; if any part has no recording the whole line is read by the system voice. A part named like a line id (pa_second_1) is that line's own clip, recorded without the score.",
+    "pbp_int_3_a": { "speaker": "pbp", "text": "Intercepted!" },
+    "pbp_int_3_b": { "speaker": "pbp", "text": "{team} ball!", "per": "team" },
+    "pa_score_t": { "speaker": "pa", "text": "{team},", "per": "team" },
+    "pa_score_n": { "speaker": "pa", "text": "{n}.", "per": "number 0-15" }
+  },
   "families": {
     "intro": [
       { "id": "pa_intro_1", "speaker": "pa", "text": "Welcome to the sphere! {home} against {away}!" },
@@ -17,8 +24,10 @@ SS.VOICE_LINES = {
       { "id": "pbp_kick_3", "speaker": "pbp", "text": "Here we go again!" }
     ],
     "secondHalf": [
-      { "id": "pa_second_1", "speaker": "pa", "text": "Second half! {score}." },
-      { "id": "pa_second_2", "speaker": "pa", "text": "Back in the water for the second half. {score}." }
+      { "id": "pa_second_1", "speaker": "pa", "text": "Second half! {score}.",
+        "parts": ["pa_second_1", "pa_score_t@{t0}", "pa_score_n@{n0}", "pa_score_t@{t1}", "pa_score_n@{n1}"] },
+      { "id": "pa_second_2", "speaker": "pa", "text": "Back in the water for the second half. {score}.",
+        "parts": ["pa_second_2", "pa_score_t@{t0}", "pa_score_n@{n0}", "pa_score_t@{t1}", "pa_score_n@{n1}"] }
     ],
     "overtime": [
       { "id": "pa_ot_1", "speaker": "pa", "text": "Overtime! Next goal wins it!" }
@@ -32,7 +41,8 @@ SS.VOICE_LINES = {
     "intercept": [
       { "id": "pbp_int_1", "speaker": "pbp", "text": "Picked off by {player}!" },
       { "id": "pbp_int_2", "speaker": "pbp", "text": "{player} reads it and steals it!" },
-      { "id": "pbp_int_3", "speaker": "pbp", "text": "Intercepted! {team} ball!" }
+      { "id": "pbp_int_3", "speaker": "pbp", "text": "Intercepted! {team} ball!",
+        "parts": ["pbp_int_3_a", "pbp_int_3_b@{tk}"] }
     ],
     "loose": [
       { "id": "pbp_loose_1", "speaker": "pbp", "text": "Knocked loose!" },
@@ -60,7 +70,8 @@ SS.VOICE_LINES = {
       { "id": "pbp_goal_3", "speaker": "pbp", "text": "What a goal from {player}!" }
     ],
     "goalScore": [
-      { "id": "pa_score_1", "speaker": "pa", "text": "{score}." }
+      { "id": "pa_score_1", "speaker": "pa", "text": "{score}.",
+        "parts": ["pa_score_t@{t0}", "pa_score_n@{n0}", "pa_score_t@{t1}", "pa_score_n@{n1}"] }
     ],
     "goalColor": [
       { "id": "col_goal_1", "speaker": "color", "text": "The keeper had no chance with that one." },
@@ -99,10 +110,12 @@ SS.VOICE_LINES = {
       { "id": "col_int_2", "speaker": "color", "text": "Read that one all the way." }
     ],
     "halftime": [
-      { "id": "pa_half_1", "speaker": "pa", "text": "That's the half. {score}." }
+      { "id": "pa_half_1", "speaker": "pa", "text": "That's the half. {score}.",
+        "parts": ["pa_half_1", "pa_score_t@{t0}", "pa_score_n@{n0}", "pa_score_t@{t1}", "pa_score_n@{n1}"] }
     ],
     "fulltime": [
-      { "id": "pa_full_1", "speaker": "pa", "text": "Full time! {score}." }
+      { "id": "pa_full_1", "speaker": "pa", "text": "Full time! {score}.",
+        "parts": ["pa_full_1", "pa_score_t@{t0}", "pa_score_n@{n0}", "pa_score_t@{t1}", "pa_score_n@{n1}"] }
     ],
     "fulltimeWin": [
       { "id": "col_win_1", "speaker": "color", "text": "A great day for the {team}." },

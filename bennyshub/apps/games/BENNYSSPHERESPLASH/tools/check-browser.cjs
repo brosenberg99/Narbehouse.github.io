@@ -379,6 +379,38 @@ function findChrome() {
     const lookup = await evaluate(`JSON.stringify(['benji-tide', 'otto-shoal'].map(k => SS.broadcast.clipFile({ id: 'pbp_goal_1' }, [k])).concat(SS.broadcast.clipFile({ id: 'pbp_shot_1' }, ['benji-tide'])))`);
     check('clip lookup: each player has a goal call file; an unrecorded line finds none', lookup === '["goal/pbp_goal_1__benji-tide.mp3","goal/pbp_goal_1__otto-shoal.mp3",null]', lookup);
 
+    // Split lines: a score is team, number, team, number; an intercept is "Intercepted!" then "<team> ball!".
+    const split = JSON.parse(await evaluate(`(async () => {
+      const B = SS.broadcast, V = SS.VOICE_LINES, fam = n => V.families[n];
+      const teams = SS.DATA.TEAMS.map(t => SS.util.slug(t.short)), nums = Array.from({ length: 16 }, (_, i) => SS.util.slug(SS.util.numWord(i)));
+      const lineOf = id => Object.values(V.families).flat().find(l => l.id === id);
+      const missing = [];
+      for (const tk of teams) for (const n of nums) {
+        if (!B.partFiles(lineOf('pa_score_1'), { t0: tk, n0: n, t1: tk, n1: n })) missing.push(tk + '-' + n);
+      }
+      for (const tk of teams) if (!B.partFiles(lineOf('pbp_int_3'), { tk })) missing.push('int-' + tk);
+      const noSixteen = B.partFiles(lineOf('pa_score_1'), { t0: teams[0], n0: SS.util.slug(SS.util.numWord(16)), t1: teams[1], n1: 'one' });
+      // fake playback: record each clip started, and when
+      const started = [], RealAudio = window.Audio, realCtx = SS.ui.context, t0 = performance.now();
+      window.Audio = function (src) { return { src, paused: true, ended: false, preload: '', play() { started.push({ src: src.replace('audio/vo/', ''), at: Math.round(performance.now() - t0) }); this.paused = false; setTimeout(() => { this.ended = true; this.paused = true; this.onended && this.onended(); }, 40); return Promise.resolve(); }, pause() { this.paused = true; } }; };
+      SS.ui.context = () => 'live';
+      await new Promise(r => setTimeout(r, 1700));                 // the interface spoke a moment ago: wait it out
+      B.reset();
+      const k = { t0: teams[0], n0: 'two', t1: teams[1], n1: 'one' };
+      B.say('goalScore', { score: 'x', _k: k }, 3);
+      await new Promise(r => setTimeout(r, 1200));
+      const score = started.splice(0).map(s => s.src);
+      B.reset();
+      B.say('secondHalf', { score: 'x', _k: k }, 3);
+      await new Promise(r => setTimeout(r, 1500));
+      const second = started.splice(0);
+      window.Audio = RealAudio; SS.ui.context = realCtx; B.reset();
+      return JSON.stringify({ missing, noSixteen, score, second: second.map(s => s.src), gaps: second.slice(1).map((s, i) => s.at - second[i].at), played: B.played });
+    })()`));
+    check('every team and number 0-15 has the clips a score needs; every team has its intercept clips', split.missing.length === 0, split.missing.slice(0, 6).join(', ') || (6 * 16) + ' scores, 6 intercepts');
+    check('a score past fifteen has no recording and falls back to the system voice', split.noSixteen === null, String(split.noSixteen));
+    check('a score plays team, number, team, number from recordings, in order', JSON.stringify(split.score) === JSON.stringify(['score_teams/pa_score_t__beamers.mp3', 'score_numbers/pa_score_n__two.mp3', 'score_teams/pa_score_t__stars.mp3', 'score_numbers/pa_score_n__one.mp3']), JSON.stringify(split.score));
+    check('a second-half call plays its own clip, then the score, with a pause between the clips', split.second.length === 5 && /^score_carriers\/pa_second_/.test(split.second[0]) && split.gaps.every(g => g >= 150), JSON.stringify(split.second) + ' gaps ' + split.gaps);
     const said = await evaluate('JSON.stringify({ n: __said.length, bad: __said.filter(s => s.ctx !== "live").length, hist: SS.broadcast.history.length, now: __said.filter(s => s.m === __match).length })');
     const sv = JSON.parse(said);
     check('commentary is never spoken while a choice or menu is up', sv.bad === 0, sv.n + ' lines spoken, ' + sv.bad + ' over a choice');

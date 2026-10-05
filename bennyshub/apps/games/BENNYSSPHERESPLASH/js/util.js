@@ -58,7 +58,7 @@ SS.util = (function () {
   /** The voice pipeline's slug (produce.py slug()): "Benji Tide" -> "benji-tide". Recorded clips are keyed by it. */
   const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const hex = c => typeof c === 'number' ? '#' + ('000000' + c.toString(16)).slice(-6) : String(c || '');
-  const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen'];
   const numWord = n => NUMBER_WORDS[n] || String(n);
   function fmtClock(sec) {
     const s = Math.max(0, Math.ceil(sec)), m = Math.floor(s / 60);

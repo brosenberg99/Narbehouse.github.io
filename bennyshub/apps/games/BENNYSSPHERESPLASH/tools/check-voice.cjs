@@ -11,6 +11,7 @@
  *  - every clip listed in audio/vo/index.json is a real line id and a real file, with the
  *    exact filename case (GitHub Pages is case-sensitive; Windows is not). A clip key is a line
  *    id, or "<line id>@<who>" for one line recorded per player/team (pbp_goal_1@benji-tide);
+ *    a piece (V.pieces: pbp_int_3_b@monarchs, pa_score_n@two) is a clip that only exists as part of a longer line;
  *  - js/voice-index.generated.js (the same index as a script, for file://) matches index.json.
  */
 'use strict';
@@ -52,7 +53,8 @@ const dir = path.join(root, 'audio', 'vo');
 const listing = new Set(walk(dir).map(p => path.relative(dir, p).split(path.sep).join('/')));
 const problems = [];
 for (const [id, file] of Object.entries(clips)) {
-  if (!ids.has(id.split('@')[0])) problems.push(id + ': not a line id');
+  const base = id.split('@')[0];
+  if (!ids.has(base) && !(V.pieces && V.pieces[base])) problems.push(id + ': not a line id or a piece');
   if (!listing.has(file)) problems.push(id + ': ' + file + (fs.existsSync(path.join(dir, file)) ? ' (filename case differs)' : ' (missing)'));
 }
 check('every recorded clip is a real line and a real file (exact case)', problems.length === 0,
@@ -60,6 +62,15 @@ check('every recorded clip is a real line and a real file (exact case)', problem
     const voiced = new Set(Object.keys(clips).map(k => k.split('@')[0]));
     return Object.keys(clips).length + ' clips for ' + voiced.size + ' lines, ' + (ids.size - voiced.size) + ' lines on captions + system voice';
   })());
+
+// every part of a line recorded in parts is a line id or a piece (the build script enforces it too), and when
+// recordings exist for the line's pieces the clips it needs are all there
+const partBad = [];
+for (const lines of Object.values(V.families)) for (const l of lines) for (const part of l.parts || []) {
+  const base = part.split('@')[0];
+  if (!ids.has(base) && !(V.pieces && V.pieces[base])) partBad.push(l.id + ': ' + part);
+}
+check('every part of a split line is a line id or a piece', partBad.length === 0, partBad.join(', ') || Object.values(V.families).flat().filter(l => l.parts).length + ' split lines');
 
 const jsIdx = path.join(root, 'js', 'voice-index.generated.js');
 if (fs.existsSync(jsIdx)) {

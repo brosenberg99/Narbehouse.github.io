@@ -811,6 +811,11 @@ SS.game = (function () {
 
   /* ══ what happened ═════════════════════════════════════════════════════ */
   const say = (f, slots, p) => SS.broadcast.say(f, slots, p);
+  /** The clip keys a score is spoken from: team, number, team, number (script lines' parts). */
+  function scoreKeys() {
+    const s = S();
+    return { t0: tk(0), n0: U.slug(U.numWord(s.score[0])), t1: tk(1), n1: U.slug(U.numWord(s.score[1])) };
+  }
   function scoreWords() {
     const s = S(), t = kits;
     return t[0].short + ' ' + U.numWord(s.score[0]) + ', ' + t[1].short + ' ' + U.numWord(s.score[1]);
@@ -836,7 +841,7 @@ SS.game = (function () {
       case 'intercept':
         SS.audio.play('catch');
         SS.hud.pop('Intercepted!', ours(e.player) ? 'good' : 'bad', 2);
-        say('intercept', { player: who(e.player), team: team(e.player), _keys: [pk(e.player), tk(s.players[e.player].team)] }, 2);
+        say('intercept', { player: who(e.player), team: team(e.player), _keys: [pk(e.player), tk(s.players[e.player].team)], _k: { tk: tk(s.players[e.player].team) } }, 2);
         if (Math.random() < 0.35) say('interceptColor', {}, 1);
         break;
       case 'loose':
@@ -872,7 +877,7 @@ SS.game = (function () {
         SS.hud.hideTech();
         startGoalMoment(e);
         say('goal', { player: s.players[e.player].name, team: kits[e.team].name.replace(/^The /, ''), _keys: [pk(e.player)] }, 3);
-        say('goalScore', { score: scoreWords() }, 3);
+        say('goalScore', { score: scoreWords(), _k: scoreKeys() }, 3);
         say('goalColor', {}, 3);
         break;
       }
@@ -886,12 +891,12 @@ SS.game = (function () {
         phase = 'halftime';
         SS.audio.play('whistle');
         SS.hud.pop('Halftime', 'info', 3);
-        say('halftime', { score: scoreWords() }, 3);
+        say('halftime', { score: scoreWords(), _k: scoreKeys() }, 3);
         saveNow();
         SS.director.setMode('orbit');
         setTimeout(() => { if (phase === 'halftime' && m) SS.ui.setScreen('halftime'); }, 1400);
         break;
-      case 'secondHalf': say('secondHalf', { score: scoreWords() }, 3); break;
+      case 'secondHalf': say('secondHalf', { score: scoreWords(), _k: scoreKeys() }, 3); break;
       case 'overtime': SS.hud.pop('Overtime', 'info', 3); say('overtime', {}, 3); break;
       case 'tactics':
         if (e.by === 'coach' && e.formation !== e.was) {
@@ -905,7 +910,7 @@ SS.game = (function () {
         SS.audio.play('whistle');
         SS.audio.sting(e.winner === 0 ? 'win' : 'lose');   // a draw gets the kind "nice try"
         SS.hud.pop('Full Time', 'info', 3);
-        say('fulltime', { score: scoreWords() }, 3);
+        say('fulltime', { score: scoreWords(), _k: scoreKeys() }, 3);
         if (e.winner == null) say('fulltimeDraw', {}, 3); else say('fulltimeWin', { team: kits[e.winner].short, _keys: [tk(e.winner)] }, 3);
         SS.save.clearMatch();
         SS.director.setMode('orbit');

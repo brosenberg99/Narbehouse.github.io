@@ -8,6 +8,11 @@
  *  ["benji-tide", "spin-shot"]) and the clip is looked up with them joined, then one by
  *  one. Anything without a clip is read by the system voice, so nothing ever goes silent.
  *
+ *  A line with "parts" in the script (an intercept: "Intercepted!" then "<team> ball!"; a score:
+ *  team, number, team, number) is played as several clips in a row with a short gap. Each part is
+ *  a clip key whose {slots} come from slots._k; if any part has no recording the whole line falls
+ *  back to the system voice, so a half-recorded line never plays.
+ *
  *  say(family, slots, priority) picks a line from js/voice-lines.generated.js:
  *   - a no-repeat shuffle per family, so the same words never come twice running;
  *   - a cooldown per speaker, so the caller never drones (ACCESSIBILITY.md: keep
@@ -24,10 +29,12 @@ SS.broadcast = (function () {
   const COOLDOWN = { pa: 0, pbp: 2.4, color: 9 };   // seconds between lines, per speaker
   const PRI_OVERRIDE = 3;                           // this priority ignores the cooldown
   const CAPTION_MS = 3400;
+  const PART_GAP_MS = 180;                          // the pause between the parts of a split line
   const STALE_S = 2.5;                              // chatter that waited longer than this is about a moment now gone
 
   const bags = {}, lastAt = { pa: -99, pbp: -99, color: -99 };
   let voIndex = null, clip = null, captionTimer = null, history = [], played = [];
+  let seq = 0, seqOn = false;                       // the clips of a split line still to come
 
   function lines() { return (SS.VOICE_LINES && SS.VOICE_LINES.families) || {}; }
   function speakers() { return (SS.VOICE_LINES && SS.VOICE_LINES.speakers) || {}; }
@@ -90,14 +97,14 @@ SS.broadcast = (function () {
     if (history.length > 80) history.shift();
     // A must-say moment (a goal, a period) makes waiting chatter stale: it never plays over the celebration.
     if (pri >= PRI_OVERRIDE) for (let i = queue.length - 1; i >= 0; i--) if (queue[i].pri < PRI_OVERRIDE) queue.splice(i, 1);
-    queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], at: now });
+    queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], k: (slots && slots._k) || {}, at: now });
     while (queue.length > 4) queue.splice(queue.findIndex(q => q.pri < PRI_OVERRIDE) >= 0 ? queue.findIndex(q => q.pri < PRI_OVERRIDE) : 0, 1);
     pump();
     return text;
   }
   function pump() {
     if (pumpTimer || !queue.length) return;
-    const now = performance.now(), talking = U.speaking() || (clip && !clip.paused && !clip.ended);
+    const now = performance.now(), talking = U.speaking() || seqOn || (clip && !clip.paused && !clip.ended);
     if (now < busyUntil || (talking && now < busyUntil + 4000)) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
     let q = queue.shift();
     while (q && q.pri < PRI_OVERRIDE && performance.now() / 1000 - q.at > STALE_S) q = queue.shift();
@@ -105,7 +112,7 @@ SS.broadcast = (function () {
     const m = mode();
     caption(q.line.speaker, q.text);
     const audible = m === 'full' || (m === 'calls' && (q.line.speaker === 'pa' || q.family === 'goal'));
-    if (audible) voice(q.line, q.text, q.pri, q.keys);
+    if (audible) voice(q.line, q.text, q.pri, q.keys, q.k);
     busyUntil = now + 500 + q.text.length * 60;             // roughly how long it takes to say
     if (queue.length) pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 200);
   }
@@ -118,11 +125,42 @@ SS.broadcast = (function () {
     for (const k of cands) if (k && voIndex[line.id + '@' + k]) return voIndex[line.id + '@' + k];
     return voIndex[line.id] || null;
   }
-  function voice(line, text, pri, keys) {
+  /** The recordings for each part of a split line, or null if the line has no parts or any part has no recording. */
+  function partFiles(line, k) {
+    if (!line.parts) return null;
+    loadIndex();
+    if (!voIndex) return null;
+    const files = line.parts.map(t => voIndex[t.replace(/\{(\w+)\}/g, (_, n) => (k && k[n]) || '')]);
+    return files.every(Boolean) ? files : null;
+  }
+  function playParts(files, text, line) {
+    const my = ++seq;
+    seqOn = true;
+    const sound = files.map(f => { const a = new Audio('audio/vo/' + f); a.preload = 'auto'; return a; });
+    const fail = () => { if (my !== seq) return; seqOn = false; clip = null; U.speakAs(text, (speakers()[line.speaker] || {}).tts); };
+    const next = i => {
+      if (my !== seq) return;
+      if (i >= sound.length) { seqOn = false; return; }
+      clip = sound[i];
+      clip.onended = () => setTimeout(() => next(i + 1), PART_GAP_MS);
+      clip.play().catch(fail);
+    };
+    next(0);
+  }
+  function voice(line, text, pri, keys, k) {
     const ctx = SS.ui && SS.ui.context ? SS.ui.context() : 'live';
     if (ctx !== 'live') return;                                // a choice is on screen: the interface has the floor
     if (U.uiSpokeRecently(1500)) return;
-    if (pri < PRI_OVERRIDE && (U.speaking() || (clip && !clip.paused))) return;
+    if (pri < PRI_OVERRIDE && (U.speaking() || seqOn || (clip && !clip.paused))) return;
+    if (line.parts) {
+      const files = partFiles(line, k);
+      played.push({ id: line.id, file: files ? files.join('+') : null, at: performance.now() / 1000 });
+      if (played.length > 80) played.shift();
+      if (files) { try { if (clip) clip.pause(); playParts(files, text, line); return; } catch (e) { /* fall through */ } }
+      const sp0 = speakers()[line.speaker];
+      U.speakAs(text, sp0 && sp0.tts);
+      return;
+    }
     const file = clipFile(line, keys || []);
     played.push({ id: line.id, file, at: performance.now() / 1000 });
     if (played.length > 80) played.shift();
@@ -139,7 +177,7 @@ SS.broadcast = (function () {
   }
 
   /** Stop talking: a decision or a menu has just come up. */
-  function hush() { if (clip) { try { clip.pause(); } catch (e) { /* ignore */ } clip = null; } }
+  function hush() { seq++; seqOn = false; if (clip) { try { clip.pause(); } catch (e) { /* ignore */ } clip = null; } }
 
   function caption(speaker, text) {
     const el = U.$('caption');
@@ -162,8 +200,8 @@ SS.broadcast = (function () {
 
   loadIndex();
   /** A commentary line is being heard right now (system voice or a recorded clip): the music and crowd duck. */
-  const talking = () => U.speaking() || !!(clip && !clip.paused && !clip.ended);
-  return { say, hush, reset, clearCaption, talking, clipFile, get history() { return history.slice(); },
+  const talking = () => U.speaking() || seqOn || !!(clip && !clip.paused && !clip.ended);
+  return { say, hush, reset, clearCaption, talking, clipFile, partFiles, get history() { return history.slice(); },
     /** What was voiced, and from which recording (null = the system voice): for the browser checks. */
     get played() { return played.slice(); } };
 })();

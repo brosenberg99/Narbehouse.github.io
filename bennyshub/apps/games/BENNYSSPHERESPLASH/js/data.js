@@ -82,13 +82,13 @@
   // Tech Copy (M5) - key techs are handed out per player in TEAMS below.
   const TECHS = {
     beaminBlast:  { name: "Beamin' Blast",    kind: 'shot',   hp: 120, sh: 3,  clear: 2, learn: 99, signature: true },
-    beaminBlast2: { name: "Beamin' Blast II", kind: 'shot',   hp: 220, sh: 6, clear: 3, ghost: 0.6, learn: 99, signature: true },
+    beaminBlast2: { name: "Super Beamin' Blast", kind: 'shot',   hp: 220, sh: 6, clear: 3, ghost: 0.6, learn: 99, signature: true },
     spinShot:     { name: 'Spin Shot',        kind: 'shot',   hp: 90,  sh: 1,  spin: 4, learn: 8 },
     ghostShot:    { name: 'Ghost Shot',       kind: 'shot',   hp: 180, sh: 2,  ghost: 0.6, learn: 24 },
     stingShot:    { name: 'Sting Shot',       kind: 'shot',   hp: 20,  sh: 2,  status: 'poison', chance: 0.4, learn: 3 },
-    stingShot2:   { name: 'Sting Shot II',    kind: 'shot',   hp: 40,  sh: 3,  status: 'poison', chance: 0.7, learn: 14 },
+    stingShot2:   { name: 'Super Sting Shot', kind: 'shot',   hp: 40,  sh: 3,  status: 'poison', chance: 0.7, learn: 14 },
     snoozeShot:   { name: 'Snooze Shot',      kind: 'shot',   hp: 45,  sh: 2,  status: 'sleep',  chance: 0.3, learn: 6 },
-    snoozeShot2:  { name: 'Snooze Shot II',   kind: 'shot',   hp: 80,  sh: 3,  status: 'sleep',  chance: 0.7, learn: 20 },
+    snoozeShot2:  { name: 'Super Snooze Shot',kind: 'shot',   hp: 80,  sh: 3,  status: 'sleep',  chance: 0.7, learn: 20 },
     wiltShot:     { name: 'Wilt Shot',        kind: 'shot',   hp: 30,  sh: 2,  status: 'wilt',   chance: 0.4, learn: 5 },
     stingPass:    { name: 'Sting Pass',       kind: 'pass',   hp: 40,  pa: 2,  status: 'poison', chance: 0.3, learn: 4 },
     snoozePass:   { name: 'Snooze Pass',      kind: 'pass',   hp: 40,  pa: 2,  status: 'sleep',  chance: 0.3, learn: 7 },
