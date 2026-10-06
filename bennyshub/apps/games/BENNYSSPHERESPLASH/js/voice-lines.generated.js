@@ -138,7 +138,7 @@ SS.VOICE_LINES = {
       { "id": "col_form_bad_2", "speaker": "color", "text": "The {formation} isn't working for the {team}. They're under pressure." }
     ],
     "formationHolding": [
-      { "id": "col_form_hold_1", "speaker": "color", "text": "The {team}'s {formation} is holding firm. Nothing getting through." },
+      { "id": "col_form_hold_1", "speaker": "color", "text": "The {team}' {formation} is holding firm. Nothing getting through." },
       { "id": "col_form_hold_2", "speaker": "color", "text": "Not a single shot against that {formation}. Well organised, the {team}." }
     ],
     "fulltimeDraw": [
