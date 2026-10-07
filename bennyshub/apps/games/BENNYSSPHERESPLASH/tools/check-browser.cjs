@@ -379,8 +379,8 @@ function findChrome() {
     const vo = await evaluate('JSON.stringify(SS.broadcast.played.filter(p => /^pbp_goal_/.test(p.id)))');
     const goalCalls = JSON.parse(vo);
     check('every goal call voiced plays its recording, not the system voice', goalCalls.length > 0 && goalCalls.every(p => p.file && /^goal\//.test(p.file)), vo.slice(0, 200));
-    const lookup = await evaluate(`JSON.stringify(['benji-tide', 'otto-shoal'].map(k => SS.broadcast.clipFile({ id: 'pbp_goal_1' }, [k])).concat(SS.broadcast.clipFile({ id: 'pbp_shot_1' }, ['benji-tide'])))`);
-    check('clip lookup: each player has a goal call file; an unrecorded line finds none', lookup === '["goal/pbp_goal_1__benji-tide.mp3","goal/pbp_goal_1__otto-shoal.mp3",null]', lookup);
+    const lookup = await evaluate(`JSON.stringify(['benji-tide', 'otto-shoal'].map(k => SS.broadcast.clipFile({ id: 'pbp_goal_1' }, [k])).concat(SS.broadcast.clipFile({ id: 'pbp_shot_1' }, ['benji-tide']), SS.broadcast.clipFile({ id: 'pbp_not_a_line' }, ['benji-tide'])))`);
+    check('clip lookup: each player has a goal call and player call file; an unrecorded line finds none', lookup === '["goal/pbp_goal_1__benji-tide.mp3","goal/pbp_goal_1__otto-shoal.mp3","player_calls/pbp_shot_1__benji-tide.mp3",null]', lookup);
 
     // Split lines: a score is team, number, team, number; an intercept is "Intercepted!" then "<team> ball!".
     const split = JSON.parse(await evaluate(`(async () => {
