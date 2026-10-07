@@ -381,6 +381,24 @@ function findChrome() {
     check('every goal call voiced plays its recording, not the system voice', goalCalls.length > 0 && goalCalls.every(p => p.file && /^goal\//.test(p.file)), vo.slice(0, 200));
     const lookup = await evaluate(`JSON.stringify(['benji-tide', 'otto-shoal'].map(k => SS.broadcast.clipFile({ id: 'pbp_goal_1' }, [k])).concat(SS.broadcast.clipFile({ id: 'pbp_shot_1' }, ['benji-tide']), SS.broadcast.clipFile({ id: 'pbp_not_a_line' }, ['benji-tide'])))`);
     check('clip lookup: each player has a goal call and player call file; an unrecorded line finds none', lookup === '["goal/pbp_goal_1__benji-tide.mp3","goal/pbp_goal_1__otto-shoal.mp3","player_calls/pbp_shot_1__benji-tide.mp3",null]', lookup);
+    // Coral on formations: every team x formation, with the keys game.js builds (team short name, formation name).
+    // A change of shape is two clips (her line, then the shape's description); the other lines are one.
+    const forms = JSON.parse(await evaluate(`JSON.stringify((() => {
+      const U = SS.util, L = SS.VOICE_LINES.families, miss = [];
+      let split = 0, whole = 0, sample = null;
+      for (const t of SS.DATA.TEAMS) for (const f of Object.values(SS.DATA.FORMATIONS)) {
+        const tk = U.slug(t.short), fk = U.slug(f.name);
+        for (const fam of ['ourFormation', 'theirFormation']) for (const l of L[fam]) {
+          const files = SS.broadcast.partFiles(l, { tf: tk + '-' + fk, f: fk });
+          if (files && files.length === 2) { split++; sample = sample || files; } else miss.push(l.id + '@' + tk + '-' + fk);
+        }
+        for (const fam of ['formationWorking', 'formationStruggling', 'formationHolding']) for (const l of L[fam]) {
+          if (SS.broadcast.clipFile(l, [tk, fk])) whole++; else miss.push(l.id + '@' + tk + '-' + fk);
+        }
+      }
+      return { split, whole, miss: miss.slice(0, 5), missing: miss.length, sample };
+    })())`));
+    check('formation lines: every team and shape has its recording, a change of shape plays her line then the description', forms.missing === 0 && forms.split === 216 && forms.whole === 324, JSON.stringify(forms));
 
     // Split lines: a score is team, number, team, number; an intercept is "Intercepted!" then "<team> ball!".
     const split = JSON.parse(await evaluate(`(async () => {
@@ -457,6 +475,25 @@ function findChrome() {
     const resumeMs = Date.now() - resumeT0;
     check('Continue after that Pause asks the decision straight away, with no second wait', resumeMs < 900, resumeMs + ' ms');
     await evaluate('SS.broadcast.callInFlight = window.__cif; true');
+    // Coral on a formation change, in a match: change shape, play on, and both clips are heard, in order (the real
+    // say -> queue -> voice path). Last, because it starts a fresh match.
+    await evaluate(`(() => { window.__clips = []; const p = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () { if (/audio\\/vo\\//.test(this.src)) __clips.push(decodeURIComponent(this.src.split('audio/vo/')[1])); return p.call(this); };
+      // the coach takes every decision: a card opening between the two clips would cut her off (the interface always wins)
+      SS.save.settings.set('stops', 'coach'); SS.save.clearMatch(); SS.game.quitToMenu(); })(); true`);
+    await wait(300); await evaluate("SS.game.startQuick(['beamers', 'harbor']); SS.game.kickoff(); true");
+    // after the opening calls: in play a shape is changed from the Huddle, never over the intro
+    await until(`(() => {
+      const p = SS.game.match && SS.game.match.pending;           // a decision on the way: take the likeliest option and play on
+      if (p && SS.ui.context() === 'world') SS.game.choose(p.options.slice().sort((a, b) => b.odds.p - a.odds.p)[0].id);
+      return SS.ui.context() === 'live' && SS.broadcast.history.length > 0 && !SS.broadcast.talking() && !(SS.game.match && SS.game.match.pending);
+    })()`, 60000);
+    await evaluate('SS.game.setFormation("flatLine"); SS.game.resume(); true');
+    await until('__clips.includes("formation_blurbs/col_form_what__flat-line.mp3")', 30000).catch(() => {});
+    const heard = JSON.parse(await evaluate('JSON.stringify(__clips)'));
+    const at = heard.findIndex(f => /^formations\/col_form_us_\d__beamers-flat-line\.mp3$/.test(f));
+    check('a formation change in a match plays Coral\'s line, then the shape\'s description', at >= 0 && heard[at + 1] === 'formation_blurbs/col_form_what__flat-line.mp3', JSON.stringify(heard.slice(-6)));
+    await evaluate("SS.save.settings.set('stops', 'both'); true");
 
     check('no exceptions', exceptions.length === 0, exceptions.slice(0, 3).join(' | '));
   } catch (err) {

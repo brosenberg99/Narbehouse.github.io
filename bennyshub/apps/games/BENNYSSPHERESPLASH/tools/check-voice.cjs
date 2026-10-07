@@ -59,8 +59,10 @@ for (const [id, file] of Object.entries(clips)) {
 }
 check('every recorded clip is a real line and a real file (exact case)', problems.length === 0,
   problems.join('; ') || (() => {
-    const voiced = new Set(Object.keys(clips).map(k => k.split('@')[0]));
-    return Object.keys(clips).length + ' clips for ' + voiced.size + ' lines, ' + (ids.size - voiced.size) + ' lines on captions + system voice';
+    // a line is voiced by its own clips, or (a split line) by clips for every one of its parts
+    const bases = new Set(Object.keys(clips).map(k => k.split('@')[0]));
+    const voiced = [...ids.values()].filter(l => l.parts ? l.parts.every(p => bases.has(p.split('@')[0])) : bases.has(l.id)).length;
+    return Object.keys(clips).length + ' clips for ' + voiced + ' lines, ' + (ids.size - voiced) + ' lines on captions + system voice';
   })());
 
 // every part of a line recorded in parts is a line id or a piece (the build script enforces it too), and when

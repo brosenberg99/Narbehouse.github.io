@@ -48,6 +48,8 @@ SS.game = (function () {
      its short name, a technique or formation of its name. broadcast.js tries them joined, then one by one. */
   const pk = j => { const p = S().players[j]; return p ? U.slug(p.name) : ''; };
   const tk = i => U.slug(kits[i].short);
+  // a formation change is two recordings: Coral's line for this team and shape, then the shape's own description
+  const formKeys = (i, f) => ({ tf: tk(i) + '-' + U.slug(f.name), f: U.slug(f.name) });
   const ours = j => S().players[j].team === 0;
 
   /* ══ building a match on the scene ══════════════════════════════════════ */
@@ -903,7 +905,7 @@ SS.game = (function () {
         if (e.by === 'coach' && e.formation !== e.was) {
           const f = D().FORMATIONS[e.formation];
           SS.hud.pop(kits[e.team].short + ': ' + f.name, 'info', 2);
-          say('theirFormation', { team: kits[e.team].short, formation: f.name, what: f.blurb, _keys: [tk(e.team), U.slug(f.name)] }, 3);
+          say('theirFormation', { team: kits[e.team].short, formation: f.name, what: f.blurb, _keys: [tk(e.team), U.slug(f.name)], _k: formKeys(e.team, f) }, 3);
         }
         break;
       case 'fulltime': {
@@ -1167,7 +1169,7 @@ SS.game = (function () {
     const pts = [];
     s.players.forEach((pl, j) => { if (pl.team === 0 && pl.pos !== 'GL') { pts.push(curP[j].clone()); const a = SS.ai.anchorOf(s, pl, attacking); pts.push(new THREE.Vector3(a.x, a.y, a.z)); } });
     SS.director.setMode('decision', { points: pts });
-    say('ourFormation', { team: kits[0].short, formation: f.name, what: f.blurb, _keys: [tk(0), U.slug(f.name)] }, 3);
+    say('ourFormation', { team: kits[0].short, formation: f.name, what: f.blurb, _keys: [tk(0), U.slug(f.name)], _k: formKeys(0, f) }, 3);
   }
   function drawPreview(dt) {
     if (preview <= 0) { rings.forEach(r => { r.visible = false; }); ringLinks.visible = false; return; }

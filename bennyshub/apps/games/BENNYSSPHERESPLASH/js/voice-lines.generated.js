@@ -11,7 +11,8 @@ SS.VOICE_LINES = {
     "pbp_int_3_a": { "speaker": "pbp", "text": "Intercepted!" },
     "pbp_int_3_b": { "speaker": "pbp", "text": "{team} ball!", "per": "team" },
     "pa_score_t": { "speaker": "pa", "text": "{team},", "per": "team" },
-    "pa_score_n": { "speaker": "pa", "text": "{n}.", "per": "number 0-15" }
+    "pa_score_n": { "speaker": "pa", "text": "{n}.", "per": "number 0-15" },
+    "col_form_what": { "speaker": "color", "text": "{what}", "per": "formation" }
   },
   "families": {
     "intro": [
@@ -122,12 +123,12 @@ SS.VOICE_LINES = {
       { "id": "col_win_2", "speaker": "color", "text": "The {team} earned that one." }
     ],
     "ourFormation": [
-      { "id": "col_form_us_1", "speaker": "color", "text": "Switching to {formation}. {what}" },
-      { "id": "col_form_us_2", "speaker": "color", "text": "The {team} go to {formation}. {what}" }
+      { "id": "col_form_us_1", "speaker": "color", "text": "Switching to {formation}. {what}", "parts": ["col_form_us_1@{tf}", "col_form_what@{f}"] },
+      { "id": "col_form_us_2", "speaker": "color", "text": "The {team} go to {formation}. {what}", "parts": ["col_form_us_2@{tf}", "col_form_what@{f}"] }
     ],
     "theirFormation": [
-      { "id": "col_form_them_1", "speaker": "color", "text": "The {team} change it up. {formation}! {what}" },
-      { "id": "col_form_them_2", "speaker": "color", "text": "New shape from the {team}: {formation}. {what}" }
+      { "id": "col_form_them_1", "speaker": "color", "text": "The {team} change it up. {formation}! {what}", "parts": ["col_form_them_1@{tf}", "col_form_what@{f}"] },
+      { "id": "col_form_them_2", "speaker": "color", "text": "New shape from the {team}: {formation}. {what}", "parts": ["col_form_them_2@{tf}", "col_form_what@{f}"] }
     ],
     "formationWorking": [
       { "id": "col_form_good_1", "speaker": "color", "text": "That {formation} is paying off for the {team}." },
