@@ -1027,7 +1027,7 @@ SS.game = (function () {
     }
     if (techs.length) {
       const names = [...new Set(techs.map(o => D().TECHS[o.tech].name))];
-      items.push({ label: 'Tech', sub: names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : ''), cls: 'tech',
+      items.push({ label: 'Tech', sub: names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) + ' more' : ''), cls: 'tech techs',
         speech: 'Tech moves. ' + names.join(', ') + '.', action: () => openTech(dec) });
     }
     if (swim) items.push({ label: 'Keep Swimming', sub: 'Look for a better chance', speech: 'Keep swimming.', action: () => choose(swim.id) });

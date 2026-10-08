@@ -174,6 +174,17 @@ Scan Speed stays enabled in both Step and Auto modes, since it also sets the int
 | `scripts/check-hub-scan-settings.cjs`, `scripts/check-hub-scan-visibility.cjs` | WEB-ONLY | Check same-row layout, enabled speed, preserved choice and actual backward-scan interval. |
 | `SCAN-UPGRADE-CHANGES.md` | WEB-ONLY | Record this correction for the Electron port. |
 
+## Sphere Splash recorded commentary — 2026-10-07
+
+Not scan work: no shared helper, scan context, input or timing changed. Sphere Splash's broadcast now plays recorded voices for every line (player calls, formation lines and their descriptions, on top of the earlier families), and its commentary queue was corrected so a goal's call, score and analyst line, and the full-time winner, are all heard. Commentary still never speaks over a choice; checks confirm Auto Scan with Wait for Speech keeps stepping through decisions. The game is not in the Hub catalogue; its Exit still returns to the Hub.
+
+| Files | Scope / port | Change |
+| --- | --- | --- |
+| `bennyshub/apps/games/BENNYSSPHERESPLASH/audio/vo/`, `js/voice-index.generated.js`, `js/voice-lines.generated.js` | WEB-ONLY | Recorded clips and their index; formation lines split into the line and the shape's description. |
+| `bennyshub/apps/games/BENNYSSPHERESPLASH/js/broadcast.js` | WEB-ONLY | Lines of one moment wait for each other without going stale; a must-say call cuts formation talk; captions stay up while their clip plays; a clip stopped on purpose no longer falls back to the system voice. |
+| `bennyshub/apps/games/BENNYSSPHERESPLASH/js/game.js`, `css/ss.css` | WEB-ONLY | Formation clip keys; larger move names on the Tech card; the move banner fits narrow windows. |
+| `bennyshub/apps/games/BENNYSSPHERESPLASH/tools/check-*.cjs` | WEB-ONLY | Browser, voice and Firefox checks, including a new whole-match Firefox broadcast check. |
+
 ## ELECTRON PORT PLAN — LOCKED
 
 No desktop files were changed. This plan may start only after the user tests/confirms the web changes and explicitly says **"start the Electron pass."**

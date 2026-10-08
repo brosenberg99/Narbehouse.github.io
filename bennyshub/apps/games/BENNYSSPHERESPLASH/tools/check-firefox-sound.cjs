@@ -53,6 +53,9 @@ const check = (name, ok, detail) => { console.log((ok ? '  PASS ' : '  FAIL ') +
     m = await ev('SS.audio.__dbg().music');
     check('the theme loops (the second player takes over)', !!m && m.playing && m.swaps >= 1 && m.t < 4, JSON.stringify(m));
     await ev('(SS.game.startQuick(["reef", "beamers"]), SS.game.kickoff(), 1)'); await wait(3000);
+    // the crowd ducks under the commentators (the recorded intro plays at kick-off): measure it once they stop
+    for (let i = 0; i < 60 && (await ev('SS.broadcast.talking()')); i++) await wait(250);
+    await wait(1200);
     const a = await ev('SS.audio.__dbg()');
     check('in a match: the crowd plays, the theme stops', !!a.bed && a.bed.playing && a.bed.vol > 0.1 && a.music.state === 'idle', JSON.stringify(a));
   } catch (err) {

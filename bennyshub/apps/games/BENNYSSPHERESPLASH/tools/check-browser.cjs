@@ -475,6 +475,49 @@ function findChrome() {
     const resumeMs = Date.now() - resumeT0;
     check('Continue after that Pause asks the decision straight away, with no second wait', resumeMs < 900, resumeMs + ' ms');
     await evaluate('SS.broadcast.callInFlight = window.__cif; true');
+    // The Commentary setting: Off says nothing (not even a caption), Calls voices the calls (the announcer, goals) and
+    // captions the rest, Full voices everything - each from its recording.
+    const modes = JSON.parse(await evaluate(`(async () => {
+      const B = SS.broadcast, U = SS.util, wait = ms => new Promise(r => setTimeout(r, ms)), started = [], tts = [];
+      const RealAudio = window.Audio, realCtx = SS.ui.context, realSpk = U.speaking, realSay = U.speakAs;
+      window.Audio = function (src) { return { src, paused: true, ended: false, play() { started.push(src.replace('audio/vo/', '')); this.paused = false; setTimeout(() => { this.ended = true; this.paused = true; this.onended && this.onended(); }, 40); return Promise.resolve(); }, pause() { this.paused = true; } }; };
+      SS.ui.context = () => 'live'; U.speaking = () => false; U.speakAs = t => tts.push(t);
+      const p = SS.DATA.TEAMS[0].players[1], k = U.slug(p.name), res = {};
+      for (const m of ['off', 'calls', 'full']) {
+        SS.save.settings.set('commentary', m); B.reset(); started.length = 0; tts.length = 0;
+        B.say('pass', { player: p.name.split(' ')[0], target: p.name.split(' ')[0], _keys: [k] }, 1); await wait(2600);
+        B.say('goal', { player: p.name, team: 'Beamers', _keys: [k] }, 3); await wait(600);
+        res[m] = { voiced: started.map(f => f.split('/')[0]), captioned: B.history.length, tts: tts.length };
+      }
+      SS.save.settings.set('commentary', 'full'); window.Audio = RealAudio; SS.ui.context = realCtx; U.speaking = realSpk; U.speakAs = realSay; B.reset();
+      return JSON.stringify(res);
+    })()`));
+    check('Commentary Off is silent, Calls voices only the goal, Full voices the pass call and the goal (from recordings)',
+      modes.off.voiced.length === 0 && modes.off.captioned === 0 && JSON.stringify(modes.calls.voiced) === '["goal"]' && modes.calls.captioned === 2 &&
+      JSON.stringify(modes.full.voiced) === '["player_calls","goal"]' && !modes.off.tts && !modes.calls.tts && !modes.full.tts, JSON.stringify(modes));
+
+    // One switch with Wait for Speech: Auto Scan steps through real decisions (it waits for its own spoken label,
+    // never for the commentary, so it never stalls), and no recorded commentary plays while a choice is up.
+    await evaluate(`(() => { const s = NarbeScanManager; s.updateSettings({ waitForSpeech: true }); if (!s.getSettings().autoScan) s.toggleAutoScan(); while (s.getScanInterval() !== 1000) s.cycleScanSpeed();
+      window.__over = []; const p = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () { if (/audio\\/vo\\//.test(this.src) && SS.ui.context() !== 'live') __over.push(SS.ui.context() + ' ' + this.src.split('audio/vo/')[1]); return p.call(this); };
+      SS.save.settings.set('stops', 'ours'); SS.save.clearMatch(); SS.game.startQuick(['beamers', 'reef']); SS.game.kickoff(); })(); true`);
+    const steps = [];
+    for (let n = 0; n < 3; n++) {
+      await until('SS.ui.context() === "world" && !!(SS.game.match && SS.game.match.pending)', 90000);
+      const seen = []; let last = -2;
+      // a long label ("Shoot. Risky. 0 blockers, keeper strong.") is read in full before the interval: ~5.5 s a step
+      for (let t = 0; t < 15000; t += 100) { const i = await evaluate('SS.ui.__dbg().index'); if (i !== last) { seen.push(Date.now()); last = i; } await wait(100); }
+      steps.push(seen.slice(1).map((t, i) => t - seen[i]));
+      await press('Enter');
+      if ((await ui()).screen === 'pause') await evaluate('(SS.ui.resumeFromCard(), 1)');   // the scan was on Pause
+    }
+    // >= 900: the index is sampled every 100 ms; the silent blank step (-1) waits just the 1 s interval
+    const flat = steps.flat(), over = JSON.parse(await evaluate('JSON.stringify(__over)'));
+    check('with Wait for Speech, Auto Scan keeps stepping through decisions (no stall), a full interval after each label', steps.every(s => s.length >= 2) && flat.every(g => g >= 900), JSON.stringify(steps));
+    check('no recorded commentary starts while a choice is on screen', over.length === 0, over.slice(0, 4).join('; '));
+    await evaluate('(() => { const s = NarbeScanManager; s.updateSettings({ waitForSpeech: false }); if (s.getSettings().autoScan) s.toggleAutoScan(); while (s.getScanInterval() !== 2000) s.cycleScanSpeed(); })(); true');
+
     // Coral on a formation change, in a match: change shape, play on, and both clips are heard, in order (the real
     // say -> queue -> voice path). Last, because it starts a fresh match.
     await evaluate(`(() => { window.__clips = []; const p = HTMLMediaElement.prototype.play;
@@ -488,11 +531,15 @@ function findChrome() {
       if (p && SS.ui.context() === 'world') SS.game.choose(p.options.slice().sort((a, b) => b.odds.p - a.odds.p)[0].id);
       return SS.ui.context() === 'live' && SS.broadcast.history.length > 0 && !SS.broadcast.talking() && !(SS.game.match && SS.game.match.pending);
     })()`, 60000);
-    await evaluate('SS.game.setFormation("flatLine"); SS.game.resume(); true');
-    await until('__clips.includes("formation_blurbs/col_form_what__flat-line.mp3")', 30000).catch(() => {});
+    // a shape the team is not already in (the coach may have changed it by now); the queue cleared first, so a run of
+    // move calls queued just before cannot leave her line waiting until it lapses
+    const shape = await evaluate('(() => { const id = SS.game.formationId() === "flatLine" ? "counter" : "flatLine"; SS.broadcast.reset(); SS.game.setFormation(id); SS.game.resume(); return SS.util.slug(SS.DATA.FORMATIONS[id].name); })()');
+    const blurb = 'formation_blurbs/col_form_what__' + shape + '.mp3';
+    await until('__clips.includes(' + JSON.stringify(blurb) + ')', 30000).catch(() => {});
     const heard = JSON.parse(await evaluate('JSON.stringify(__clips)'));
-    const at = heard.findIndex(f => /^formations\/col_form_us_\d__beamers-flat-line\.mp3$/.test(f));
-    check('a formation change in a match plays Coral\'s line, then the shape\'s description', at >= 0 && heard[at + 1] === 'formation_blurbs/col_form_what__flat-line.mp3', JSON.stringify(heard.slice(-6)));
+    const at = heard.findIndex(f => f.startsWith('formations/col_form_us_') && f.endsWith('__beamers-' + shape + '.mp3'));
+    const why = at >= 0 && heard[at + 1] === blurb ? '' : await evaluate('JSON.stringify({ form: SS.game.formationId(), phase: SS.game.phase, ctx: SS.ui.context(), said: SS.broadcast.history.slice(-8).map(h => h.family + ":" + h.id) })');
+    check('a formation change in a match plays Coral\'s line, then the shape\'s description', at >= 0 && heard[at + 1] === blurb, shape + ': ' + JSON.stringify(heard.slice(-6)) + ' ' + why);
     await evaluate("SS.save.settings.set('stops', 'both'); true");
 
     check('no exceptions', exceptions.length === 0, exceptions.slice(0, 3).join(' | '));

@@ -37,6 +37,10 @@ SS.broadcast = (function () {
   let voIndex = null, clip = null, captionTimer = null, history = [], played = [];
   let seq = 0, seqOn = false;                       // the clips of a split line still to come
   let nowFamily = null;                             // the family of the line last voiced (talking() says if it still is)
+  let nowMo = 0;                                    // ...and the moment it belongs to
+  let moment = 0, momentAt = -99;                   // lines asked for within a second of each other are one moment
+  // Coral's talk about formations: must-say (a change of shape ignores her cooldown) but gives way to a call
+  const YIELDS = ['ourFormation', 'theirFormation', 'formationWorking', 'formationStruggling', 'formationHolding'];
 
   function lines() { return (SS.VOICE_LINES && SS.VOICE_LINES.families) || {}; }
   function speakers() { return (SS.VOICE_LINES && SS.VOICE_LINES.speakers) || {}; }
@@ -105,7 +109,9 @@ SS.broadcast = (function () {
     }
     // A must-say moment (a goal, a period) makes waiting chatter stale: it never plays over the celebration.
     if (pri >= PRI_OVERRIDE) for (let i = queue.length - 1; i >= 0; i--) if (queue[i].pri < PRI_OVERRIDE) queue.splice(i, 1);
-    queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], k: (slots && slots._k) || {}, at: now });
+    if (now - momentAt > 1) moment++;
+    momentAt = now;
+    queue.push({ line, text, pri, family, keys: (slots && slots._keys) || [], k: (slots && slots._k) || {}, at: now, mo: moment });
     while (queue.length > 4) queue.splice(queue.findIndex(q => q.pri < PRI_OVERRIDE) >= 0 ? queue.findIndex(q => q.pri < PRI_OVERRIDE) : 0, 1);
     pump();
     return text;
@@ -117,7 +123,13 @@ SS.broadcast = (function () {
     // label - not just for our own estimate of the last line: past that estimate a must-say call used to start on
     // top of the voice. A line that waits too long goes stale below, so the wait always ends.
     const head = queue[0], waited = now / 1000 - head.at;
-    if (now < busyUntil || (talking && waited <= (head.pri < PRI_OVERRIDE ? STALE_S : STALE_CALL_S))) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
+    // A must-say call (a goal, an intercept) never waits behind Coral's talk about formations (a change of shape runs
+    // to 7 s): that recording is cut and the call goes now. A goal used to wait it out and lose its score. Short
+    // calls ("Benji shoots!") are waited for: cutting them half way sounded worse than the second's wait.
+    const yieldTo = head.pri >= PRI_OVERRIDE && !U.speaking() && recording() && YIELDS.includes(nowFamily) && head.mo !== nowMo;
+    // ...and a line is never stale while its own moment is still being called: the full-time score alone runs 6.4 s.
+    if (talking && recording() && head.mo === nowMo) head.at = now / 1000;
+    if (!yieldTo && (now < busyUntil || (talking && waited <= (head.pri < PRI_OVERRIDE ? STALE_S : STALE_CALL_S)))) { pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
     let q = queue.shift();
     while (q && performance.now() / 1000 - q.at > (q.pri < PRI_OVERRIDE ? STALE_S : STALE_CALL_S)) q = queue.shift();
     if (!q) return;
@@ -126,7 +138,7 @@ SS.broadcast = (function () {
     // the moment play resumes; the staleness rule above still lets go of a moment that has passed.
     if (audibleIn(q.line, q.family) && interfaceHasFloor()) { queue.unshift(q); pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 150); return; }
     caption(q.line.speaker, q.text);
-    if (audibleIn(q.line, q.family)) voice(q.line, q.text, q.pri, q.keys, q.k, q.family);
+    if (audibleIn(q.line, q.family)) { nowMo = q.mo; voice(q.line, q.text, q.pri, q.keys, q.k, q.family); }
     busyUntil = now + 500 + q.text.length * 60;             // roughly how long it takes to say
     if (queue.length) pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, 200);
   }
@@ -195,8 +207,10 @@ SS.broadcast = (function () {
     if (played.length > 80) played.shift();
     if (file) {
       try {
-        clip = new Audio('audio/vo/' + file);
-        clip.play().catch(() => { clip = null; U.speakAs(text, (speakers()[line.speaker] || {}).tts); });
+        const mine = clip = new Audio('audio/vo/' + file);
+        // only a clip that failed on its own falls back to the system voice: one stopped on purpose (hush - the
+        // full-time whistle a moment after a pass call) rejects too, and used to be read out over the whistle
+        mine.play().catch(() => { if (clip !== mine) return; clip = null; U.speakAs(text, (speakers()[line.speaker] || {}).tts); });
         return;
       } catch (e) { /* fall through to the system voice */ }
     }
@@ -217,13 +231,18 @@ SS.broadcast = (function () {
     el.append(who, what);
     el.classList.add('on');
     clearTimeout(captionTimer);
-    captionTimer = setTimeout(() => el.classList.remove('on'), CAPTION_MS + text.length * 25);
+    // up for at least the reading time, and never gone while its recording is still playing (a change of shape is
+    // her line plus the description: up to 7.5 s, well past the reading time of its text)
+    const off = () => { if (recording()) { captionTimer = setTimeout(off, 250); return; } el.classList.remove('on'); };
+    captionTimer = setTimeout(off, CAPTION_MS + text.length * 25);
   }
+  /** One of our clips (or a split line) is playing - not the system voice, which may be the interface's. */
+  function recording() { return seqOn || !!(clip && !clip.paused && !clip.ended); }
   function clearCaption() { const el = U.$('caption'); if (el) el.classList.remove('on'); clearTimeout(captionTimer); }
 
   function reset() {
     Object.keys(bags).forEach(k => delete bags[k]); Object.keys(lastAt).forEach(k => { lastAt[k] = -99; });
-    history = []; played = []; queue.length = 0; clearTimeout(pumpTimer); pumpTimer = null; busyUntil = 0; clearCaption(); hush();
+    history = []; played = []; queue.length = 0; clearTimeout(pumpTimer); pumpTimer = null; busyUntil = 0; nowMo = 0; clearCaption(); hush();
   }
 
   loadIndex();
