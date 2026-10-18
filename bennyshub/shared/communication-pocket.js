@@ -5,7 +5,7 @@
      frame): same audio, about twice as fast;
    - the standard int8 models: full precision scored higher on a clarity metric but sounded no different in a blind test;
    - every voice is levelled to the same loudness, with a soft limiter so nothing clips;
-   - voices are precomputed voice prints (communication-voices/*.f32), so the voice encoder is never downloaded. */
+   - voices are precomputed voice prints (communication-voices/*.bin, raw float32), so the voice encoder is never downloaded. */
 const ORT_DIST='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/';
 const MODELS='https://huggingface.co/spaces/KevinAHM/pocket-tts-web/resolve/d0c0c79b7712256a32d691c67f20b8ae2e020d00/onnx/english_2026-04/';
 const FILES={text:'text_conditioner_int8.onnx',main:'flow_lm_main_int8.onnx',flow:'flow_lm_flow_int8.onnx',decoder:'mimi_decoder_int8.onnx'};
@@ -98,7 +98,7 @@ export function createPocket(progress=()=>{}){
   async function voiceState(voice){
     if(voiceStates.has(voice))return voiceStates.get(voice);
     const key=voice.slice('pocket:'.length);if(!/^[a-z0-9-]+$/.test(key))throw Error('Unknown custom voice.');
-    const response=await fetch(new URL('communication-voices/'+key+'.f32',import.meta.url));if(!response.ok)throw Error('Custom voice file missing.');
+    const response=await fetch(new URL('communication-voices/'+key+'.bin',import.meta.url));if(!response.ok)throw Error('Custom voice file missing.');
     const print=new Float32Array(await response.arrayBuffer()),data=bos?new Float32Array(bos.length+print.length):print;
     if(bos){data.set(bos);data.set(print,bos.length);}
     const frames=data.length/TEXT_DIM,state=freshState(meta.flow_lm_state_manifest);grow(state,frames);
