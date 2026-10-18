@@ -1080,6 +1080,10 @@
             <span class="kicker">Setting</span><div class="btn-title">Remove custom voice</div>
             <div class="row"><p class="desc">Remove the selected added voice from this device. Keep the voice file to add it again later.</p><span class="pill" id="speaker-voice-remove-status">None selected</span></div>
           </button>
+          <button class="card-btn" id="speaker-names" disabled>
+            <span class="kicker">Setting</span><div class="btn-title">Names to say</div>
+            <div class="row"><p class="desc">Names Custom voices should say correctly, like family and friends. Typing them needs a caregiver.</p><span class="pill" id="speaker-names-status">None</span></div>
+          </button>
           <input type="file" id="speaker-voice-file" accept=".json,application/json" hidden data-scan-exclude>
           <button class="card-btn" id="speaker-find" disabled>
             <span class="kicker">Setting</span><div class="btn-title">Find speakers</div>
@@ -1101,6 +1105,16 @@
               <p id="speaker-voice-remove-text">This voice will be removed from this device.</p>
               <button class="card-btn" id="speaker-voice-remove-cancel">Cancel</button>
               <button class="card-btn" id="speaker-voice-remove-confirm">Remove voice</button>
+            </div>
+          </div>
+
+          <div id="speaker-names-dialog" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="speaker-names-heading" hidden>
+            <div class="modal-content">
+              <h2 id="speaker-names-heading">Names to say</h2>
+              <p id="speaker-names-help">The keyboard types in capitals, so Custom voices can't tell a name from a word. Type one name per line, spelled the usual way (Ari, McKenna). Kokoro voices don't need this.</p>
+              <textarea id="speaker-names-text" rows="8" aria-labelledby="speaker-names-heading" aria-describedby="speaker-names-help" data-scan-exclude spellcheck="false" style="width:100%;box-sizing:border-box;font:inherit;margin:8px 0 12px"></textarea>
+              <button class="card-btn" id="speaker-names-cancel">Cancel</button>
+              <button class="card-btn" id="speaker-names-save">Save names</button>
             </div>
           </div>
 
@@ -2071,7 +2085,7 @@
         !document.getElementById('hub-settings').open;
     }
     function settingsItems() {
-      for (const id of ['speaker-permission-dialog', 'speaker-voice-remove-dialog']) {
+      for (const id of ['speaker-permission-dialog', 'speaker-voice-remove-dialog', 'speaker-names-dialog']) {
         const dialog = document.getElementById(id);
         if (dialog && !dialog.hidden) return Array.from(dialog.querySelectorAll('button'));
       }
@@ -2152,6 +2166,8 @@
       settingsScreen.dataset.scanState = state.parked ? 'parked' : state.braked ? 'paused' : window.NarbeScanManager.getSettings().autoScan ? 'running' : 'step';
       if (!settingsOwnsScan()) return;
       focusIndex = state.index;
+      // A caregiver typing in a Settings text box (Names to say) keeps focus while scanning continues.
+      if (settingsScreen.contains(document.activeElement) && document.activeElement.matches('textarea')) return;
       if (item) {
         item.focus({preventScroll: true});
         revealHubChoice(item);

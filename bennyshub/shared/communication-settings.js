@@ -3,7 +3,8 @@ window.NarbeCommunicationSettings={mount({refreshScan,announce}){
   const manager=NarbeCommunicationSpeech,byId=id=>document.getElementById(id);
   function draw(){
     const s=manager.get();byId('speaker-mode-status').textContent=s.enabled?'On':'Off';byId('speaker-mode-toggle').setAttribute('aria-pressed',String(s.enabled));
-    for(const id of ['speaker-output-toggle','speaker-voice-toggle','speaker-voice-add','speaker-find','speaker-test'])byId(id).disabled=!s.enabled||!s.supported;
+    for(const id of ['speaker-output-toggle','speaker-voice-toggle','speaker-voice-add','speaker-names','speaker-find','speaker-test'])byId(id).disabled=!s.enabled||!s.supported;
+    byId('speaker-names-status').textContent=s.names.length?s.names.length+(s.names.length===1?' name':' names'):'None';
     const added=s.custom.find(v=>v.id===s.voice);
     byId('speaker-voice-remove').disabled=!s.enabled||!s.supported||!added;byId('speaker-voice-remove-status').textContent=added?added.name:'None selected';
     const connected=s.outputs.some(d=>d.deviceId===s.sinkId);
@@ -56,6 +57,18 @@ window.NarbeCommunicationSettings={mount({refreshScan,announce}){
     const added=manager.get().custom.find(v=>v.id===manager.get().voice);
     if(added){manager.removeVoice(added.id);try{await NarbeCustomVoices.remove(added.id);}catch(_){/* listed voice is gone; a leftover print is harmless */}}
     closeRemove('speaker-voice-toggle');draw();if(added)note('Removed '+added.name+'. Speaker voice is now '+manager.get().voices.find(v=>v.id===manager.get().voice).name+'.');
+  };
+  // Names to say: typed by a caregiver; Cancel and Save stay reachable by switch.
+  function closeNames(){byId('speaker-names-dialog').hidden=true;refreshScan({restoreId:'speaker-names'});}
+  byId('speaker-names').onclick=()=>{
+    // No automatic focus in the text box: Space and Enter would type there, leaving a switch user unable to leave.
+    byId('speaker-names-text').value=manager.get().names.join('\n');byId('speaker-names-dialog').hidden=false;refreshScan({fresh:true});
+    announce('Names to say. A caregiver clicks the box, types one name per line, then chooses Save names. Cancel leaves it unchanged.');
+  };
+  byId('speaker-names-cancel').onclick=()=>{closeNames();announce('Names not changed.');};
+  byId('speaker-names-save').onclick=()=>{
+    const names=manager.setNames(byId('speaker-names-text').value.split(/[\n,;]+/));
+    closeNames();draw();note(names.length?'Saved '+names.length+(names.length===1?' name: ':' names: ')+names.slice(0,5).join(', ')+(names.length>5?'…':'')+'.':'No names saved.');
   };
   byId('speaker-test').onclick=()=>{
     if(['generating','playing'].includes(manager.get().phase)){manager.stop();return;}

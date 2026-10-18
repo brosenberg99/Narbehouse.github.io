@@ -15,13 +15,15 @@
   // Voices added in Settings from a Voice Studio file (communication-voices.js keeps the voice print on this device).
   const addedVoices=list=>(Array.isArray(list)?list:[]).filter(v=>/^pocket:user-[a-f0-9]{12}$/.test(v?.id)&&typeof v.name==='string'&&v.name.length<=40).slice(0,20).map(v=>({id:v.id,name:v.name,recorded:v.recorded===true}));
   const voicesFor=prefs=>[...builtInVoices,...prefs.custom];
+  // Names a caregiver lists in Settings so Pocket voices say them with a capital (see pocketCase in communication-pocket.js).
+  const cleanNames=list=>[...new Set((Array.isArray(list)?list:[]).filter(n=>typeof n==='string').map(n=>n.replace(/[^\p{L}\p{M}' -]/gu,'').replace(/\s+/g,' ').trim().slice(0,40)).filter(Boolean))].slice(0,200);
   let service;
   try{if(parent!==window&&parent.location.origin===location.origin)service=parent.NarbeCommunicationSpeech?._service;}catch(_){/* standalone */}
   if(!service){
     let channel,worker,outputs=[],phase='idle',detail='',eventOwner,revision=0,permissionPending=false,readyVoice='',setupSeq=0;
     let preparing;
     const listeners=new Set(),pending=new Map();
-    const normalize=v=>{const custom=addedVoices(v?.custom);return {version:1,enabled:v?.enabled===true,sinkId:typeof v?.sinkId==='string'&&!['default','communications'].includes(v.sinkId)?v.sinkId:'',sinkLabel:typeof v?.sinkLabel==='string'?v.sinkLabel:'',voice:voicesFor({custom}).some(x=>x.id===v?.voice)?v.voice:'am_michael',custom};};
+    const normalize=v=>{const custom=addedVoices(v?.custom);return {version:1,enabled:v?.enabled===true,sinkId:typeof v?.sinkId==='string'&&!['default','communications'].includes(v.sinkId)?v.sinkId:'',sinkLabel:typeof v?.sinkLabel==='string'?v.sinkLabel:'',voice:voicesFor({custom}).some(x=>x.id===v?.voice)?v.voice:'am_michael',custom,names:cleanNames(v?.names)};};
     const store=NarbePlatform.settings.open({key:'narbe-communication-speaker',normalize,onChange:()=>{
       revision++;channel?.stop();channel?.selectSink(store.readCached().sinkId);phase='idle';detail='';notify();
       if(store.readCached().enabled)void prepareVoice();
@@ -42,7 +44,7 @@
       }
       return new Promise((resolve,reject)=>{pending.set(message.id,{resolve,reject});try{worker.postMessage(message);}catch(e){pending.delete(message.id);reject(e);}});
     }
-    function synthesize(id,text,voice){return request({id,text,voice});}
+    function synthesize(id,text,voice){return request({id,text,voice,names:store.readCached().names});}
     async function prepareVoice(){
       const voice=store.readCached().voice,setupRevision=revision;if(!supported())return;
       if(preparing&&preparing.voice!==voice){worker?.postMessage({type:'cancel',id:preparing.id});pending.get(preparing.id)?.reject(Error('Voice changed.'));pending.delete(preparing.id);preparing=null;}
@@ -51,7 +53,7 @@
       try{
         if(preparing?.voice!==voice){
           const id='prepare-'+(++setupSeq);let timer;
-          const work=Promise.race([request({type:'prepare',id,voice,text:previewText}),new Promise((_,reject)=>{timer=setTimeout(()=>{failWorker('Voice setup took too long. Toggle Speaker Mode off and on to retry.');reject(Error('Voice setup took too long.'));},600000);})]).finally(()=>{clearTimeout(timer);if(preparing?.work===work)preparing=null;});
+          const work=Promise.race([request({type:'prepare',id,voice,text:previewText,names:store.readCached().names}),new Promise((_,reject)=>{timer=setTimeout(()=>{failWorker('Voice setup took too long. Toggle Speaker Mode off and on to retry.');reject(Error('Voice setup took too long.'));},600000);})]).finally(()=>{clearTimeout(timer);if(preparing?.work===work)preparing=null;});
           preparing={voice,id,work};
         }
         const result=await preparing.work;
@@ -93,6 +95,7 @@
       cycleVoice(){const prefs=store.readCached(),voices=voicesFor(prefs);store.save({...prefs,voice:voices[(voices.findIndex(v=>v.id===prefs.voice)+1)%voices.length].id});},
       // The voice print must already be saved (NarbeCustomVoices.save). Adding selects the new voice.
       addVoice({id,name,recorded}){const prefs=store.readCached();store.save({...prefs,custom:[...prefs.custom,{id,name,recorded}],voice:id});return store.readCached().voice===id;},
+      setNames(names){const prefs=store.readCached();store.save({...prefs,names:cleanNames(names)});return store.readCached().names;},
       removeVoice(id){const prefs=store.readCached();store.save({...prefs,custom:prefs.custom.filter(v=>v.id!==id),voice:prefs.voice===id?'am_michael':prefs.voice});},
       speak(text,who){if(!supported()){report({phase:'error',detail:'Speaker selection is unavailable in this browser.',owner:who});return ended('error');}return channel.speak(text,{voice:store.readCached().voice,owner:who});},
       stop:who=>channel.stop(who),releaseOwner(who){channel.stop(who);if(eventOwner===who){eventOwner=undefined;phase='idle';detail='';notify();}},dispose(){channel.stop();failWorker('Closed.');store.dispose();listeners.clear();}
@@ -106,7 +109,7 @@
   const api=window.NarbeCommunicationSpeech={
     _service:service,get:service.snapshot,subscribe:service.subscribe,isEnabled:()=>service.snapshot().enabled,
     toggle:service.toggle,cycleSpeaker:service.cycle,cycleVoice:service.cycleVoice,findSpeakers:service.findSpeakers,refresh:service.refresh,
-    addVoice:service.addVoice,removeVoice:service.removeVoice,
+    addVoice:service.addVoice,removeVoice:service.removeVoice,setNames:service.setNames,
     speak(text,fallback){
       if(!api.isEnabled())return fallback?.();
       // Communication is intentional output, independent of general/scan TTS.

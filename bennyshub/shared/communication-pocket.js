@@ -15,17 +15,21 @@ const CACHE='narbe-pocket-v1',START_SLOTS=64,GROW_SLOTS=32,TARGET_DBFS=-18,LATEN
 const SAY_AS=[];
 // Pocket reads spelling, capitals included: an ALL CAPS word comes out as an acronym or oddly stressed ("HAVE" as
 // "hay-ve"), a lowercase name is misread ("ari"), and capitalising every word stresses each first sound. Ben's keyboard
-// types in capitals, so an all-capitals message is spoken in sentence case, keeping these acronyms and names.
-// Listening tests 2026-10-18. Add to either list as they come up.
+// types in capitals, so an all-capitals message is spoken in sentence case, keeping these acronyms and names, plus
+// the names a caregiver lists in Settings > Names to say (spelled as typed there, e.g. "McKenna").
+// Listening tests 2026-10-18. Add acronyms here as they come up; people's names belong in Settings.
 const KEEP_CAPS=new Set(['OK','TV','DVD','PC','USB','ASAP','ESPN','NFL','NBA','MLB','NHL']);
-const NAMES=new Set(['ari','ben','benny']);
-export function pocketCase(text){
+const NAMES=['Ari','Ben','Benny'];
+export function pocketCase(text,names=[]){
   if(/[a-z]/.test(text)||!/[A-Z]/.test(text))return text;
-  return text.replace(/[A-Z][A-Z']*/g,word=>{
+  const spelled=new Map();
+  for(const name of [...NAMES,...names])for(const word of String(name).split(/[\s-]+/))if(word)spelled.set(word.toUpperCase(),word[0].toUpperCase()+word.slice(1));
+  return text.replace(/\p{Lu}[\p{Lu}\p{M}']*/gu,word=>{
     if(KEEP_CAPS.has(word))return word;
+    if(spelled.has(word))return spelled.get(word);
     const lower=word.toLowerCase();
-    return NAMES.has(lower)||/^i('|$)/.test(lower)?lower[0].toUpperCase()+lower.slice(1):lower;
-  }).replace(/(^|[.!?]\s+)([a-z])/g,(_,before,letter)=>before+letter.toUpperCase());
+    return /^i('|$)/.test(lower)?'I'+lower.slice(1):lower;
+  }).replace(/(^|[.!?]\s+)(\p{Ll})/gu,(_,before,letter)=>before+letter.toUpperCase());
 }
 
 async function download(url,report){
@@ -132,8 +136,8 @@ export function createPocket(progress=()=>{}){
     update(state,await s.main.run({sequence:tensor('float32',new Float32Array(0),[1,0,LATENT]),text_embeddings:tensor('float32',data,[1,frames,TEXT_DIM]),...state}));
     voiceStates.set(voice,state);return state;
   }
-  function chunks(text){
-    let prompt=SAY_AS.reduce((t,[from,to])=>t.replace(from,to),pocketCase(text)).replace(/\s+/g,' ').trim();
+  function chunks(text,names){
+    let prompt=SAY_AS.reduce((t,[from,to])=>t.replace(from,to),pocketCase(text,names)).replace(/\s+/g,' ').trim();
     const words=prompt.split(' ').length;
     if(!/[A-ZÀ-Þ]/.test(prompt[0]))prompt=prompt[0].toUpperCase()+prompt.slice(1);
     if(/[0-9A-Za-zÀ-ÿ]$/.test(prompt))prompt+='.';
@@ -178,9 +182,9 @@ export function createPocket(progress=()=>{}){
   }
   return {
     // Same shape as KokoroTTS.generate: resolves {audio: Float32Array at 24 kHz}, or {audio: null} once no longer current.
-    async generate(text,{voice,isCurrent=()=>true}={}){
+    async generate(text,{voice,names=[],isCurrent=()=>true}={}){
       await load();await voiceState(voice);
-      const {parts,after}=chunks(text),pieces=[],gap=new Float32Array(Math.round(.25*meta.sample_rate));
+      const {parts,after}=chunks(text,names),pieces=[],gap=new Float32Array(Math.round(.25*meta.sample_rate));
       for(let i=0;i<parts.length;i++){
         const piece=await speakPart(parts[i],voice,after,isCurrent);if(!piece)return {audio:null};
         if(i)pieces.push(gap);pieces.push(piece);

@@ -13,6 +13,12 @@ test('names keep a capital and known acronyms stay in capitals',async()=>{
   assert.equal(pocketCase('OK TURN ON THE TV FOR BENNY'),'OK turn on the TV for Benny');
   assert.equal(pocketCase('WATCH ESPN AT 7'),'Watch ESPN at 7');
 });
+test('names from Settings are said as spelled there',async()=>{
+  const {pocketCase}=await load();
+  assert.equal(pocketCase('TELL MCKENNA AND MARY ANN I SAID HI',['McKenna','Mary Ann']),'Tell McKenna and Mary Ann I said hi');
+  assert.equal(pocketCase('ASK ARI',['ari']),'Ask Ari'); // a name typed in lowercase still gets its capital
+  assert.equal(pocketCase('ASK ZOË ABOUT IT',['Zoë']),'Ask Zoë about it');
+});
 test('text with any lowercase is left as written',async()=>{
   const {pocketCase}=await load();
   for(const text of ['I have a question','Ask ari','NASA called me','123 456'])assert.equal(pocketCase(text),text);

@@ -21,11 +21,14 @@ async function load(){
   })().then(model=>engine=model).catch(e=>{loading=null;throw e;});
   return loading;
 }
-// Custom voices (ids "pocket:...") come from Pocket TTS, loaded only when one is chosen. It splits its own sentences.
+// Custom voices (ids "pocket:...") come from Pocket TTS, loaded only when one is chosen. It splits its own sentences;
+// m.names (Settings > Names to say) are part of the cache key, so editing them never replays old audio.
 let pocket;
 const isPocket=voice=>String(voice).startsWith('pocket:');
 const pocketEngine=()=>pocket??=import('./communication-pocket.js').then(m=>m.createPocket(progress=>postMessage({progress}))).catch(e=>{pocket=null;throw e;});
 const engineFor=voice=>isPocket(voice)?pocketEngine():load();
+const namesFor=m=>isPocket(m.voice)&&Array.isArray(m.names)?m.names:[];
+const keyFor=(voice,names,text)=>voice+'|'+(names.length?names.join(',')+'|':'')+text.trim();
 // Small chunks prevent Kokoro's tokenizer from silently truncating long messages.
 // Concatenate the complete result before playback; insert Bluetooth silence once.
 function chunks(text){
@@ -48,8 +51,8 @@ self.onmessage=({data:m})=>{
       if(!current()){cancelled();return;}
       try{
         const tts=await engineFor(m.voice);if(!current()){cancelled();return;}
-        const text=m.text||'Hello from your communication speaker.',key=m.voice+'|'+text.trim();
-        if(!cache.has(key)){const audio=await tts.generate(text,{voice:m.voice,isCurrent:current});if(!current()){cancelled();return;}remember(key,audio.audio);}
+        const text=m.text||'Hello from your communication speaker.',names=namesFor(m),key=keyFor(m.voice,names,text);
+        if(!cache.has(key)){const audio=await tts.generate(text,{voice:m.voice,names,isCurrent:current});if(!current()){cancelled();return;}remember(key,audio.audio);}
         postMessage({id:m.id,ready:true});
       }
       catch(e){postMessage({id:m.id,error:e.message||'Local voice setup failed.'});}
@@ -60,12 +63,12 @@ self.onmessage=({data:m})=>{
   queue=queue.catch(()=>{}).then(async()=>{
     if(latest!==m.id)return;
     try{
-      const key=m.voice+'|'+m.text.trim(),saved=cache.get(key);
+      const names=namesFor(m),key=keyFor(m.voice,names,m.text),saved=cache.get(key);
       if(saved){const samples=saved.slice();postMessage({id:m.id,samples,sampleRate:24000},[samples.buffer]);return;}
       const parts=isPocket(m.voice)?[m.text]:chunks(m.text),tts=await engineFor(m.voice);if(latest!==m.id)return;
       const buffers=[];let length=0;
       for(let i=0;i<parts.length;i++){
-        const audio=await tts.generate(parts[i],{voice:m.voice,isCurrent:()=>latest===m.id});if(latest!==m.id)return;
+        const audio=await tts.generate(parts[i],{voice:m.voice,names,isCurrent:()=>latest===m.id});if(latest!==m.id)return;
         buffers.push(audio.audio);length+=audio.audio.length;
         postMessage({progress:'Preparing message: '+(i+1)+' of '+parts.length,id:m.id});
       }
