@@ -18,6 +18,11 @@ There are 18 voices: Michael, Heart, Emma, George, Bella, Nicole, Kore, Sarah, N
 Aoede, Fenrir, Puck, Isabella and Fable. The added voices share the same Kokoro model;
 individual voice files download/cache on demand without a separate installation. The last 4, Custom Upbeat 1-2
 and Custom Bright 1-2, are Pocket TTS voices (communication-pocket.js); its model files download on first use.
+Add custom voice takes a Voice Studio export (.pocketvoice.json) and adds it after these, selected; Remove custom
+voice removes the selected added voice after a confirmation. The voice print stays on the device (IndexedDB
+narbe-communication-voices, written by communication-voices.js, read by the Pocket engine in the worker); the
+Speaker settings keep only each added voice's id and name. Added voices are not in data backups: the voice file
+itself is the backup. Voices made from a recording get a consent reminder but are never refused.
 The local voice downloads and warms in the background when enabled. Find speakers refreshes already
 exposed outputs. If browser permission is needed, a spoken Cancel-first dialog
 guards the native prompt and explains that caregiver help may be required once.

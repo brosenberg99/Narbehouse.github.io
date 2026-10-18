@@ -5,7 +5,8 @@
      frame): same audio, about twice as fast;
    - the standard int8 models: full precision scored higher on a clarity metric but sounded no different in a blind test;
    - every voice is levelled to the same loudness, with a soft limiter so nothing clips;
-   - voices are precomputed voice prints (communication-voices/*.bin, raw float32), so the voice encoder is never downloaded. */
+   - voices are precomputed voice prints (communication-voices/*.bin, raw float32, or ones added in Settings from a
+     Voice Studio export), so the voice encoder is never downloaded. */
 const ORT_DIST='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/';
 const MODELS='https://huggingface.co/spaces/KevinAHM/pocket-tts-web/resolve/d0c0c79b7712256a32d691c67f20b8ae2e020d00/onnx/english_2026-04/';
 const FILES={text:'text_conditioner_int8.onnx',main:'flow_lm_main_int8.onnx',flow:'flow_lm_flow_int8.onnx',decoder:'mimi_decoder_int8.onnx'};
@@ -51,6 +52,19 @@ function gaussian(n){
   return out;
 }
 const yieldToMessages=()=>new Promise(resolve=>setTimeout(resolve));
+async function builtInPrint(key){
+  const response=await fetch(new URL('communication-voices/'+key+'.bin',import.meta.url));if(!response.ok)throw Error('Custom voice file missing.');
+  return new Float32Array(await response.arrayBuffer());
+}
+// Voices added in Settings (communication-voices.js saves them in this device's IndexedDB).
+async function addedPrint(key){
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('narbe-communication-voices',1);r.onupgradeneeded=()=>r.result.createObjectStore('prints');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  try{
+    const saved=await new Promise((resolve,reject)=>{const r=db.transaction('prints').objectStore('prints').get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+    if(!saved)throw Error('This custom voice is not on this device. Add it again in Hub Settings.');
+    return new Float32Array(saved.data);
+  }finally{db.close();}
+}
 
 export function createPocket(progress=()=>{}){
   let loading,ort,s,meta,sp,bos;const voiceStates=new Map();
@@ -98,8 +112,7 @@ export function createPocket(progress=()=>{}){
   async function voiceState(voice){
     if(voiceStates.has(voice))return voiceStates.get(voice);
     const key=voice.slice('pocket:'.length);if(!/^[a-z0-9-]+$/.test(key))throw Error('Unknown custom voice.');
-    const response=await fetch(new URL('communication-voices/'+key+'.bin',import.meta.url));if(!response.ok)throw Error('Custom voice file missing.');
-    const print=new Float32Array(await response.arrayBuffer()),data=bos?new Float32Array(bos.length+print.length):print;
+    const print=key.startsWith('user-')?await addedPrint(key):await builtInPrint(key),data=bos?new Float32Array(bos.length+print.length):print;
     if(bos){data.set(bos);data.set(print,bos.length);}
     const frames=data.length/TEXT_DIM,state=freshState(meta.flow_lm_state_manifest);grow(state,frames);
     update(state,await s.main.run({sequence:tensor('float32',new Float32Array(0),[1,0,LATENT]),text_embeddings:tensor('float32',data,[1,frames,TEXT_DIM]),...state}));

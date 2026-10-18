@@ -1070,8 +1070,17 @@
           </button>
           <button class="card-btn" id="speaker-voice-toggle" disabled>
             <span class="kicker">Setting</span><div class="btn-title">Speaker voice</div>
-            <div class="row"><p class="desc">Cycle through 18 voices and hear a sample; the last 4 are Custom voices. The Voice setting above controls scanning.</p><span class="pill" id="speaker-voice-status">Michael</span></div>
+            <div class="row"><p class="desc">Cycle through the voices and hear a sample; Custom voices come last. The Voice setting above controls scanning.</p><span class="pill" id="speaker-voice-status">Michael</span></div>
           </button>
+          <button class="card-btn" id="speaker-voice-add" disabled>
+            <span class="kicker">Setting</span><div class="btn-title">Add custom voice</div>
+            <div class="row"><p class="desc">Choose a voice file exported from Voice Studio (.pocketvoice.json). Choosing a file may need caregiver help.</p></div>
+          </button>
+          <button class="card-btn" id="speaker-voice-remove" disabled>
+            <span class="kicker">Setting</span><div class="btn-title">Remove custom voice</div>
+            <div class="row"><p class="desc">Remove the selected added voice from this device. Keep the voice file to add it again later.</p><span class="pill" id="speaker-voice-remove-status">None selected</span></div>
+          </button>
+          <input type="file" id="speaker-voice-file" accept=".json,application/json" hidden data-scan-exclude>
           <button class="card-btn" id="speaker-find" disabled>
             <span class="kicker">Setting</span><div class="btn-title">Find speakers</div>
             <div class="row"><p class="desc">Refresh connected speakers. Browser access may need caregiver help.</p></div>
@@ -1083,7 +1092,17 @@
 
             </div>
           <p id="speaker-details" role="status" aria-live="polite" hidden></p>
+          <p id="speaker-voice-note" role="status" aria-live="polite" hidden></p>
           </section>
+
+          <div id="speaker-voice-remove-dialog" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="speaker-voice-remove-heading" hidden>
+            <div class="modal-content">
+              <h2 id="speaker-voice-remove-heading">Remove custom voice?</h2>
+              <p id="speaker-voice-remove-text">This voice will be removed from this device.</p>
+              <button class="card-btn" id="speaker-voice-remove-cancel">Cancel</button>
+              <button class="card-btn" id="speaker-voice-remove-confirm">Remove voice</button>
+            </div>
+          </div>
 
           <div id="speaker-permission-dialog" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="speaker-permission-heading" hidden>
             <div class="modal-content">
@@ -1132,6 +1151,7 @@
   <script src="shared/communication-channel.js"></script>
   <script src="shared/communication-speech.js"></script>
   <script src="shared/communication-companion.js"></script>
+  <script src="shared/communication-voices.js"></script>
   <script src="shared/communication-settings.js"></script>
   <!-- Shared Scan Manager -->
   <script src="shared/scan-manager.js"></script>
@@ -2051,8 +2071,10 @@
         !document.getElementById('hub-settings').open;
     }
     function settingsItems() {
-      const permission = document.getElementById('speaker-permission-dialog');
-      if (permission && !permission.hidden) return Array.from(permission.querySelectorAll('button'));
+      for (const id of ['speaker-permission-dialog', 'speaker-voice-remove-dialog']) {
+        const dialog = document.getElementById(id);
+        if (dialog && !dialog.hidden) return Array.from(dialog.querySelectorAll('button'));
+      }
       return Array.from(settingsScreen.querySelectorAll('button:not([disabled])'))
         .filter(el => !el.closest('[hidden], [data-scan-exclude]'));
     }

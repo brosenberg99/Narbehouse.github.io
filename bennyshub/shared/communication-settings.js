@@ -3,7 +3,9 @@ window.NarbeCommunicationSettings={mount({refreshScan,announce}){
   const manager=NarbeCommunicationSpeech,byId=id=>document.getElementById(id);
   function draw(){
     const s=manager.get();byId('speaker-mode-status').textContent=s.enabled?'On':'Off';byId('speaker-mode-toggle').setAttribute('aria-pressed',String(s.enabled));
-    for(const id of ['speaker-output-toggle','speaker-voice-toggle','speaker-find','speaker-test'])byId(id).disabled=!s.enabled||!s.supported;
+    for(const id of ['speaker-output-toggle','speaker-voice-toggle','speaker-voice-add','speaker-find','speaker-test'])byId(id).disabled=!s.enabled||!s.supported;
+    const added=s.custom.find(v=>v.id===s.voice);
+    byId('speaker-voice-remove').disabled=!s.enabled||!s.supported||!added;byId('speaker-voice-remove-status').textContent=added?added.name:'None selected';
     const connected=s.outputs.some(d=>d.deviceId===s.sinkId);
     byId('speaker-output-status').textContent=s.sinkId?(s.sinkLabel||'Selected speaker')+(s.enabled&&!connected?' (unavailable)':''):'Not selected';
     byId('speaker-voice-status').textContent=s.voices.find(v=>v.id===s.voice).name+(s.enabled&&!s.voiceReady?' (preparing)':'');
@@ -24,6 +26,36 @@ window.NarbeCommunicationSettings={mount({refreshScan,announce}){
     if(manager.get().outputs.length&&!navigator.mediaDevices.selectAudioOutput){void manager.refresh().then(()=>announce('Speaker list refreshed. Use Speaker to choose an output.'));return;}
     byId('speaker-permission-dialog').hidden=false;refreshScan({fresh:true});
     announce('The browser may ask for permission. Your switches may not work in that prompt; a caregiver may need to help. Cancel returns to Speakers.');
+  };
+  // Custom voices from Voice Studio. Recorded voices get a consent reminder but are never refused:
+  // someone rebuilding their own lost voice needs exactly this.
+  function note(text){byId('speaker-voice-note').textContent=text;byId('speaker-voice-note').hidden=!text;announce(text);}
+  byId('speaker-voice-add').onclick=()=>{byId('speaker-voice-file').value='';byId('speaker-voice-file').click();};
+  byId('speaker-voice-file').onchange=async()=>{
+    const file=byId('speaker-voice-file').files[0];if(!file)return;
+    try{
+      const voice=NarbeCustomVoices.parse(await file.text()),taken=new Set(manager.get().voices.map(v=>v.name));
+      let name=voice.name;for(let n=2;taken.has(name);n++)name=voice.name.slice(0,36)+' '+n;
+      if(manager.get().custom.length>=20)throw Error('This device already has 20 added voices. Remove one first.');
+      const id=NarbeCustomVoices.newId();await NarbeCustomVoices.save(id,voice);
+      if(!manager.addVoice({id,name,recorded:voice.recorded})){void NarbeCustomVoices.remove(id);throw Error('The voice could not be added.');}
+      draw();
+      note('Custom voice added and selected: '+name+'.'+(voice.recorded?' It was made from a recording of a real voice. Use it only with that person’s permission.':''));
+      if(manager.get().sinkId)manager.preview();
+    }catch(e){note('Could not add that voice file. '+(e.message||''));}
+    refreshScan({restoreId:'speaker-voice-add'});
+  };
+  function closeRemove(restoreId){byId('speaker-voice-remove-dialog').hidden=true;refreshScan({restoreId});}
+  byId('speaker-voice-remove').onclick=()=>{
+    const added=manager.get().custom.find(v=>v.id===manager.get().voice);if(!added)return;
+    byId('speaker-voice-remove-text').textContent='Remove “'+added.name+'” from this device? Speaker voice goes back to Michael. Keep the voice file to add it again later.';
+    byId('speaker-voice-remove-dialog').hidden=false;refreshScan({fresh:true});announce('Remove '+added.name+'? Cancel keeps it.');
+  };
+  byId('speaker-voice-remove-cancel').onclick=()=>{closeRemove('speaker-voice-remove');announce('Voice kept.');};
+  byId('speaker-voice-remove-confirm').onclick=async()=>{
+    const added=manager.get().custom.find(v=>v.id===manager.get().voice);
+    if(added){manager.removeVoice(added.id);try{await NarbeCustomVoices.remove(added.id);}catch(_){/* listed voice is gone; a leftover print is harmless */}}
+    closeRemove('speaker-voice-toggle');draw();if(added)note('Removed '+added.name+'. Speaker voice is now '+manager.get().voices.find(v=>v.id===manager.get().voice).name+'.');
   };
   byId('speaker-test').onclick=()=>{
     if(['generating','playing'].includes(manager.get().phase)){manager.stop();return;}

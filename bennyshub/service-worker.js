@@ -8,7 +8,7 @@ SHELL.push('./shared/journal-storage.js','./shared/app-storage.js','./shared/dat
 SHELL.push('./shared/byok-client.js','./images/tools/rtc-lite.png',...['index.html','app.js','core.js','providers.js','web-config.js','dictionary.js','api-server.js','speech.js','whisper-worker.js'].map(x=>'./apps/tools/rtc-lite/'+x));
 // Cache local inference runtimes only when requested, not during Hub installation.
 const RTC_RUNTIME=['transformers.js','ort-wasm.wasm','ort-wasm-simd.wasm','ort-wasm-threaded.wasm','ort-wasm-simd-threaded.wasm'].map(x=>'./apps/tools/rtc-lite/vendor/'+x);
-SHELL.push(...['communication-channel.js','communication-speech.js','communication-settings.js','communication-worker.js','communication-companion.js'].map(x=>'./shared/'+x));
+SHELL.push(...['communication-channel.js','communication-speech.js','communication-voices.js','communication-settings.js','communication-worker.js','communication-companion.js'].map(x=>'./shared/'+x));
 const SPEAKER_RUNTIME=['kokoro.web.js','ort-wasm-simd-threaded.jsep.mjs','ort-wasm-simd-threaded.jsep.wasm'].map(x=>'./shared/communication-vendor/'+x);
 // Custom voices: Pocket engine, its tokenizer and voice prints (its model files live in their own narbe-pocket-v1 cache).
 SPEAKER_RUNTIME.push('./shared/communication-pocket.js','./shared/communication-vendor/sentencepiece.js',...['a2','a5','b2','b4'].map(x=>'./shared/communication-voices/'+x+'.bin'));
