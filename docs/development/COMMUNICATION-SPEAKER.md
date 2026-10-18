@@ -14,9 +14,10 @@ choice on the default output. Samples use the same cached text as voice warm-up;
 quick changes discard obsolete preparation and playback rather than queueing previews.
 Leaving Settings cancels its sample, and disabled mode never auditions.
 
-There are 14 voices: Michael, Heart, Emma, George, Bella, Nicole, Kore, Sarah, Nova,
+There are 18 voices: Michael, Heart, Emma, George, Bella, Nicole, Kore, Sarah, Nova,
 Aoede, Fenrir, Puck, Isabella and Fable. The added voices share the same Kokoro model;
-individual voice files download/cache on demand without a separate installation.
+individual voice files download/cache on demand without a separate installation. The last 4, Custom Upbeat 1-2
+and Custom Bright 1-2, are Pocket TTS voices (communication-pocket.js); its model files download on first use.
 The local voice downloads and warms in the background when enabled. Find speakers refreshes already
 exposed outputs. If browser permission is needed, a spoken Cancel-first dialog
 guards the native prompt and explains that caregiver help may be required once.
