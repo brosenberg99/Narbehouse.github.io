@@ -8,7 +8,9 @@
     {id:'am_michael',name:'Michael'},{id:'af_heart',name:'Heart'},{id:'bf_emma',name:'Emma'},{id:'bm_george',name:'George'},
     {id:'af_bella',name:'Bella'},{id:'af_nicole',name:'Nicole'},{id:'af_kore',name:'Kore'},{id:'af_sarah',name:'Sarah'},
     {id:'af_nova',name:'Nova'},{id:'af_aoede',name:'Aoede'},{id:'am_fenrir',name:'Fenrir'},{id:'am_puck',name:'Puck'},
-    {id:'bf_isabella',name:'Isabella'},{id:'bm_fable',name:'Fable'}
+    {id:'bf_isabella',name:'Isabella'},{id:'bm_fable',name:'Fable'},
+    // Custom voices (Pocket TTS, communication-pocket.js): invented in Voice Studio from a written description, not copied from a person.
+    {id:'pocket:a2',name:'Custom Upbeat 1'},{id:'pocket:a5',name:'Custom Upbeat 2'},{id:'pocket:b2',name:'Custom Bright 1'},{id:'pocket:b4',name:'Custom Bright 2'}
   ];
   let service;
   try{if(parent!==window&&parent.location.origin===location.origin)service=parent.NarbeCommunicationSpeech?._service;}catch(_){/* standalone */}

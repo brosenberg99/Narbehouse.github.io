@@ -10,6 +10,8 @@ SHELL.push('./shared/byok-client.js','./images/tools/rtc-lite.png',...['index.ht
 const RTC_RUNTIME=['transformers.js','ort-wasm.wasm','ort-wasm-simd.wasm','ort-wasm-threaded.wasm','ort-wasm-simd-threaded.wasm'].map(x=>'./apps/tools/rtc-lite/vendor/'+x);
 SHELL.push(...['communication-channel.js','communication-speech.js','communication-settings.js','communication-worker.js','communication-companion.js'].map(x=>'./shared/'+x));
 const SPEAKER_RUNTIME=['kokoro.web.js','ort-wasm-simd-threaded.jsep.mjs','ort-wasm-simd-threaded.jsep.wasm'].map(x=>'./shared/communication-vendor/'+x);
+// Custom voices: Pocket engine, its tokenizer and voice prints (its model files live in their own narbe-pocket-v1 cache).
+SPEAKER_RUNTIME.push('./shared/communication-pocket.js','./shared/communication-vendor/sentencepiece.js',...['a2','a5','b2','b4'].map(x=>'./shared/communication-voices/'+x+'.f32'));
 const allowed=new Set([...SHELL,...RTC_RUNTIME,...SPEAKER_RUNTIME].map(p=>new URL(p,self.registration.scope).href));
 
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
