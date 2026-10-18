@@ -13,6 +13,20 @@ const FILES={text:'text_conditioner_int8.onnx',main:'flow_lm_main_int8.onnx',flo
 const CACHE='narbe-pocket-v1',START_SLOTS=64,GROW_SLOTS=32,TARGET_DBFS=-18,LATENT=32,TEXT_DIM=1024;
 // Words Pocket smears, spelled the way it says them clearly. Add to it as they come up.
 const SAY_AS=[];
+// Pocket reads spelling, capitals included: an ALL CAPS word comes out as an acronym or oddly stressed ("HAVE" as
+// "hay-ve"), a lowercase name is misread ("ari"), and capitalising every word stresses each first sound. Ben's keyboard
+// types in capitals, so an all-capitals message is spoken in sentence case, keeping these acronyms and names.
+// Listening tests 2026-10-18. Add to either list as they come up.
+const KEEP_CAPS=new Set(['OK','TV','DVD','PC','USB','ASAP','ESPN','NFL','NBA','MLB','NHL']);
+const NAMES=new Set(['ari','ben','benny']);
+export function pocketCase(text){
+  if(/[a-z]/.test(text)||!/[A-Z]/.test(text))return text;
+  return text.replace(/[A-Z][A-Z']*/g,word=>{
+    if(KEEP_CAPS.has(word))return word;
+    const lower=word.toLowerCase();
+    return NAMES.has(lower)||/^i('|$)/.test(lower)?lower[0].toUpperCase()+lower.slice(1):lower;
+  }).replace(/(^|[.!?]\s+)([a-z])/g,(_,before,letter)=>before+letter.toUpperCase());
+}
 
 async function download(url,report){
   let cache;
@@ -119,7 +133,7 @@ export function createPocket(progress=()=>{}){
     voiceStates.set(voice,state);return state;
   }
   function chunks(text){
-    let prompt=SAY_AS.reduce((t,[from,to])=>t.replace(from,to),text).replace(/\s+/g,' ').trim();
+    let prompt=SAY_AS.reduce((t,[from,to])=>t.replace(from,to),pocketCase(text)).replace(/\s+/g,' ').trim();
     const words=prompt.split(' ').length;
     if(!/[A-ZÀ-Þ]/.test(prompt[0]))prompt=prompt[0].toUpperCase()+prompt.slice(1);
     if(/[0-9A-Za-zÀ-ÿ]$/.test(prompt))prompt+='.';

@@ -23,6 +23,8 @@ voice removes the selected added voice after a confirmation. The voice print sta
 narbe-communication-voices, written by communication-voices.js, read by the Pocket engine in the worker); the
 Speaker settings keep only each added voice's id and name. Added voices are not in data backups: the voice file
 itself is the backup. Voices made from a recording get a consent reminder but are never refused.
+Pocket reads capitals literally, and the keyboard types in capitals, so an all-capitals message is spoken in
+sentence case; KEEP_CAPS (OK, TV...) and NAMES (Ari, Ben, Benny) in communication-pocket.js are kept. Kokoro is unaffected.
 The local voice downloads and warms in the background when enabled. Find speakers refreshes already
 exposed outputs. If browser permission is needed, a spoken Cancel-first dialog
 guards the native prompt and explains that caregiver help may be required once.
