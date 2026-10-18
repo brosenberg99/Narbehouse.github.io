@@ -19,6 +19,12 @@ test('names from Settings are said as spelled there',async()=>{
   assert.equal(pocketCase('ASK ARI',['ari']),'Ask Ari'); // a name typed in lowercase still gets its capital
   assert.equal(pocketCase('ASK ZOË ABOUT IT',['Zoë']),'Ask Zoë about it');
 });
+test('Ari is respelled so Pocket says it like "sorry", wherever it is',async()=>{
+  const {pocketText}=await load();
+  assert.equal(pocketText('ARI IS MY BROTHER'),'Ahree is my brother');
+  assert.equal(pocketText("MY BROTHER IS ARI. ARI'S HERE"),"My brother is Ahree. Ahree's here");
+  assert.equal(pocketText('Ask ari about Ariel'),'Ask Ahree about Ariel');
+});
 test('text with any lowercase is left as written',async()=>{
   const {pocketCase}=await load();
   for(const text of ['I have a question','Ask ari','NASA called me','123 456'])assert.equal(pocketCase(text),text);

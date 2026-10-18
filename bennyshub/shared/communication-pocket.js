@@ -12,7 +12,8 @@ const MODELS='https://huggingface.co/spaces/KevinAHM/pocket-tts-web/resolve/d0c0
 const FILES={text:'text_conditioner_int8.onnx',main:'flow_lm_main_int8.onnx',flow:'flow_lm_flow_int8.onnx',decoder:'mimi_decoder_int8.onnx'};
 const CACHE='narbe-pocket-v1',START_SLOTS=64,GROW_SLOTS=32,TARGET_DBFS=-18,LATENT=32,TEXT_DIM=1024;
 // Words Pocket smears, spelled the way it says them clearly. Add to it as they come up.
-const SAY_AS=[];
+// "Ari" (as in "sorry") came out like "Harry" as a sentence's first word; "Ahree" was right everywhere (2026-10-18).
+const SAY_AS=[[/\bari\b/gi,'Ahree']];
 // Pocket reads spelling, capitals included: an ALL CAPS word comes out as an acronym or oddly stressed ("HAVE" as
 // "hay-ve"), a lowercase name is misread ("ari"), and capitalising every word stresses each first sound. Ben's keyboard
 // types in capitals, so an all-capitals message is spoken in sentence case, keeping these acronyms and names, plus
@@ -20,6 +21,8 @@ const SAY_AS=[];
 // Listening tests 2026-10-18. Add acronyms here as they come up; people's names belong in Settings.
 const KEEP_CAPS=new Set(['OK','TV','DVD','PC','USB','ASAP','ESPN','NFL','NBA','MLB','NHL']);
 const NAMES=['Ari','Ben','Benny'];
+// What Pocket is given for a message: casing first (so names are found), then respellings.
+export const pocketText=(text,names=[])=>SAY_AS.reduce((t,[from,to])=>t.replace(from,to),pocketCase(text,names));
 export function pocketCase(text,names=[]){
   if(/[a-z]/.test(text)||!/[A-Z]/.test(text))return text;
   const spelled=new Map();
@@ -137,7 +140,7 @@ export function createPocket(progress=()=>{}){
     voiceStates.set(voice,state);return state;
   }
   function chunks(text,names){
-    let prompt=SAY_AS.reduce((t,[from,to])=>t.replace(from,to),pocketCase(text,names)).replace(/\s+/g,' ').trim();
+    let prompt=pocketText(text,names).replace(/\s+/g,' ').trim();
     const words=prompt.split(' ').length;
     if(!/[A-ZÀ-Þ]/.test(prompt[0]))prompt=prompt[0].toUpperCase()+prompt.slice(1);
     if(/[0-9A-Za-zÀ-ÿ]$/.test(prompt))prompt+='.';
