@@ -13,18 +13,18 @@ disagree, this file is wrong.
 
 | Milestone | State |
 |---|---|
-| M0 design doc + rules engine | **this document — waiting on review by Bryan and Ari** |
-| M1 greybox scan flow (grill, board, counter) | not started; starts after review |
+| M0 design doc + rules engine | design reviewed by Bryan and Ari (2026-11-01); rules engine next |
+| M1 greybox scan flow (grill, board, counter) | not started |
 | M2 every station, greybox | not started |
 | M3 art | not started |
 | M4 voices and sound | not started |
 | M5 progression + Free Cook | not started |
 | M6 ship (unlisted, direct link only) | not started |
 
-**Needs Ari's sign-off before M1:** the optional "Cooks on Its Own" setting (see
-[Cooking on its own](#cooking-on-its-own-opt-in)). It is the one place this game runs a
-world clock under a CHOICE scan. Every other question is in
-[Open questions](#open-questions).
+Ari approved the design on 2026-11-01, with changes now written in: two cooking modes
+(see [Cooking modes](#cooking-modes)), two ways to pour, Mitch talking while the scan is
+parked, typed names for regulars, and editors left for later. The decisions are listed
+under [Decided](#decided).
 
 ## What the player sees
 
@@ -49,26 +49,32 @@ offers **Continue Shift** when one is in progress.
 
 | Station | What the player does |
 |---|---|
-| Grill | New patty or bacon → Cook until… (Rare / Medium / Well Done / Extra Crispy) → Flip → cook the other side → Send to Board |
-| Board | Bottom bun → patty → cheese → lettuce, tomato, pickles, onion → ketchup, mustard, mayo (Dab / Line / Lots) → top bun. The order of the stack counts |
-| Fryer | Fries or onion rings → Fry until… (Golden / Crispy / Extra Crispy) → Shake the basket → Salt → Send to Tray |
-| Griddle | Pour batter (Small / Medium / Large) → Cook → Flip → Stack → Butter, syrup. Also grilled cheese: bread, cheese, bread, cook, flip |
-| Shake Bar | Flavour → Scoops (1 / 2 / 3) → Milk (Splash / Some / Lots) → Blend → Pour → Whipped cream, cherry, sprinkles |
-| Drinks | Cup (Small / Medium / Large) → Ice (None / Some / Lots) → Flavour → Fill to (Half / Full / To the Top) |
+| Grill | New patty or bacon → Cook → Flip → cook the other side → Send to Board |
+| Board | Bottom bun → patty → cheese → lettuce, tomato, pickles, onion → ketchup, mustard, mayo → top bun. The order of the stack counts |
+| Fryer | Fries or onion rings → Fry → Shake the basket → Salt → Send to Tray |
+| Griddle | Pour batter → Cook → Flip → Stack → Butter, syrup. Also grilled cheese: bread, cheese, bread, cook, flip |
+| Shake Bar | Flavour → Scoops (1 / 2 / 3) → Milk → Blend → Pour → Whipped cream, cherry, sprinkles |
+| Drinks | Cup (Small / Medium / Large) → Ice → Flavour → Fill |
 | Counter | Check the tray (spoken list of what is on it) → Serve |
 
-Every station is playable in the first release.
+How Cook works depends on the Cooking setting ([Cooking modes](#cooking-modes)). Sauces,
+syrup, batter, milk, ice and drink fills are pours, set by the Pouring setting
+([Pouring](#pouring)). Every station is playable in the first release.
 
-### Food never burns
+### Cooking stages
 
-Cooking moves through named stages and stops at the last one, which is never a failure:
+Cooking moves through named stages:
 
-| Food | Stages (the last is the cap) |
+| Food | Stages |
 |---|---|
-| Patty, each side | Raw → Rare → Medium → Well Done → Extra Crispy |
+| Patty, each side | Raw → Blue Rare → Rare → Medium → Well Done → Extra Crispy |
 | Bacon | Raw → Chewy → Crispy → Extra Crispy |
 | Fries, onion rings | Raw → Golden → Crispy → Extra Crispy |
 | Pancake, grilled cheese, each side | Raw → Golden → Brown → Extra Crispy |
+
+By default, food stops at Extra Crispy and never burns. The **Burning** setting can add a
+last stage, Burnt, as a challenge. Burnt food can still be served, still earns at least 1
+star, and gets its own reactions.
 
 A patty has two sides, and each side is cooked and scored on its own. It is described
 both ways: "Patty 1, top rare, bottom medium."
@@ -78,7 +84,9 @@ both ways: "Patty 1, top rare, bottom medium."
 Coins only go down when the player buys something, and nothing is ever required to
 keep playing.
 
-- **Menu:** new recipes and ingredients.
+- **Menu:** new recipes and ingredients. Any menu item can be renamed for fun with the
+  switch keyboard ("the Fried Dingus Sandwich"); the ticket and customers use the new
+  name.
 - **Upgrades:** a second and third grill spot, a bigger fryer basket, a fancy blender, a
   second griddle spot. Upgrades add room or flair, **never speed**: nothing in this game
   rewards being quick.
@@ -202,14 +210,17 @@ The card is an ordinary CHOICE card, opening on -1:
   rhyme or alliteration with their first name ("Onion Ring Olive", "Double Shake Dana",
   "Mustard Mike"), plus one plain name.
 - **More Names:** four new suggestions.
+- **Spell a Name:** the switch keyboard, as Pet Pals uses for pet names: pick a row,
+  then a letter, with Delete, Done and Cancel, up to 12 letters.
 - **Keep "Olive":** keeps the name they came in with.
 - **Later:** no name now. Any regular can be renamed from the Visitors' book at any time,
   with the same card.
 
 Suggestions come from word lists in the pack, so they cost no extra code. Every
-first name and nickname part is recorded, so Mitch and the customer can say the chosen
-name in their own voices. Typing a name of one's own needs a switch keyboard inside the
-game. It is left for later, and would fall back to text to speech.
+first name and nickname part is recorded, so Mitch and the customer can say a suggested
+name in their own voices. A spelled name is spoken with text to speech. The keyboard is
+copied from Pet Pals (`NARBEPETPALS/js/game.js`, `buildNames` and `pressKey`) into this
+game's card engine; it is the same keyboard used to rename menu items.
 
 ### Silly-food reactions
 
@@ -237,11 +248,11 @@ scan target.
 
 | When | Example |
 |---|---|
-| A shift starts | "Doors are open. Try not to set anything on fire. Kidding. You literally can't." |
-| Food is one stage from what the ticket asked for (Cooks on Its Own) | "Patty 1's nearly medium. Marge's favourite stage, I'm told." |
-| Food is one stage from the cap (Cooks on Its Own) | "That bacon is heading for crispy. Dale would be proud. Marge, less so." |
-| Food reaches the cap | "Extra crispy. I'll tell Dale." |
-| Food sent on that doesn't match the ticket (Waits for You) | "Vernon asked for medium. That's well done. Bold move." |
+| A shift starts | "Doors are open. Try not to set anything on fire." |
+| Food is one stage from what the ticket asked for (Time It Yourself) | "Patty 1's nearly medium. Marge's favourite stage, I'm told." |
+| Food is one stage from Extra Crispy, or from Burnt (Time It Yourself) | "That bacon is heading for crispy. Dale would be proud. Marge, less so." |
+| Food reaches Extra Crispy | "Extra crispy. I'll tell Dale." |
+| Food sent on that doesn't match the ticket (Pick the Doneness) | "Vernon asked for medium. That's well done. Bold move." |
 | Something is missing at the counter | "Hold up, Gus wanted two shakes. I count one." |
 | The first time each station is used | One short tip, once per save: "Flip it when the bottom looks right. Patties have two sides. Shocking, I know." |
 | A customer reacts | Sometimes a one-liner after the customer, never instead of them |
@@ -253,22 +264,30 @@ for the player, and they never stop or block anything.
 
 - **Scan speech always wins.** Mitch never cuts off a scan label and never holds the
   scanner's speech ticket, so he has no effect on Wait for Speech.
-- **He speaks into silence.** If no silence comes within a few seconds, a heads-up turns
-  into a caption and a short sound cue instead. A line that is no longer true when the
-  silence comes (the patty was flipped) is dropped.
+- **He speaks into silence, and parked is his time.** Parking exists so the scan is not
+  constant speech and the game has room to breathe, so Mitch talks while the scan is
+  parked, after the "parked" announcement ends. In two-switch play he speaks between
+  presses. When the scan resumes, the scan label takes over.
+- **If no silence comes** within a few seconds, a heads-up turns into a caption and a
+  short sound cue instead. A line that is no longer true when the silence comes (the
+  patty was flipped) is dropped.
+- **With Auto Scan on and Parking off,** the scan never goes quiet, so Mitch can barely be
+  heard. A notice at the start of the first shift of each session says so, spoken as it
+  opens: "Mitch talks while the scan is parked. To hear him, turn on parking in Hub
+  Settings." Its items are OK and Don't Show Again. The game reads the Hub's parking
+  setting but never changes it.
 - **Priority:** heads-ups about food, then hints, then jokes. At most one joke per
   customer, and no line repeats in a shift.
-- **He is silent** while the scan is parked or braked, while Pause, Settings or any card
-  is open, and during a Hold and Let Go pour.
+- **He is silent** while Pause, Settings or any card is open, and during a Hold to Pour.
 - **He never comments on how long anything took,** and never talks about the player's
   speed or skill.
 - **Heads-ups never rely on Mitch alone.** The food's label changes, a badge appears on
   it and the sizzle sound changes as well. A player with Mitch off loses no information
   that the scan doesn't already give.
 
-With Cooks on Its Own, Mitch's warnings are the main audio cue that food is getting close.
-That should make the setting easier to use, and is part of the case for it (see
-[Cooking on its own](#cooking-on-its-own-opt-in)).
+With Time It Yourself, Mitch's warnings are the main audio cue that food is getting
+close, and parking gives a natural one-switch rhythm: park while the patty cooks, hear
+"nearly medium", press to resume and flip (see [Cooking modes](#cooking-modes)).
 
 ## How the 3D works
 
@@ -290,8 +309,8 @@ That should make the setting easier to use, and is part of the case for it (see
 | Context | What is on screen | Classification |
 |---|---|---|
 | card | Main menu, Settings, Pause, My Diner, results, confirmations | CHOICE |
-| station | The station scene and its items | CHOICE (see the clock question below) |
-| mech | One Hold and Let Go pour or squeeze, while held | MECHANIC |
+| station | The station scene and its items | CHOICE; with Time It Yourself, a CHOICE scan over a slowly changing world (see [Cooking modes](#cooking-modes)) |
+| mech | One Hold to Pour, while held | MECHANIC |
 | playout | A short animation of an outcome already applied (a flip, a pour, a serve) | Not scanned; under one second, then the scan resumes on the same row |
 
 All the rules of §4 apply: the root opens on the blank -1, every row is entered with
@@ -306,7 +325,8 @@ The grill, for example:
 
 1. -1 (blank)
 2. Each object on the grill, read with its state: "Patty 1, top medium, bottom rare". It
-   opens a row: Flip · Cook Until… · Send to Board · Take · Bin It
+   opens a row: Flip · Cook Until… (Pick the Doneness) or Cook (Time It Yourself) ·
+   Send to Board · Take · Bin It
 3. New Patty · New Bacon
 4. Put Down (only while holding something)
 5. Ticket: speaks the order again. The highlight stays on Ticket
@@ -329,70 +349,79 @@ Rules the menu builder keeps:
 Pause is the last item on every station root and on every card that is not itself
 Pause. Pause holds the standard items (ACCESSIBILITY §7): Continue · Restart Shift ·
 Settings · Main Menu · Exit Game. A hold-Enter shortcut also opens Pause, except during a
-Hold and Let Go pour, where the hold *is* the control. A pour ends on release, and Pause
-is reachable again right after.
+Hold to Pour, where the hold *is* the control. A pour ends on release, and Pause is
+reachable again right after. Pause freezes everything, in every mode: it is the real
+"taking a break" button.
 
-### Picking an amount or holding (Pouring and Squeezing setting)
+### Pouring
 
-- **Pick an Amount** (default): sauce, batter, milk and drink fills are a row of named
-  amounts (Dab / Line / Lots; Half / Full / To the Top).
-- **Hold and Let Go:** selecting a pour starts the mech context. Holding Enter pours; a
-  large gauge shows the same named marks. Letting go stops the pour and the amount is
-  read out. A hold past the top mark stops at the top: nothing overflows. Space does
-  nothing during a pour.
+Sauces, syrup, batter, milk, ice and drink fills are pours. Every action in the game works
+with single presses; holding is only ever an extra (ACCESSIBILITY §9).
 
-Both forms end in the same rule that changes the food, so they always give the same
-result for the same amount. Tests check this.
+- **Auto-Fill** (default): one select pours exactly what the ticket asks for. The
+  amount can never be wrong, so it is never scored. In Free Cook, with no ticket, it pours
+  a normal amount.
+- **Hold to Pour:** selecting a pour starts the mech context. Holding Enter pours, and a
+  large gauge shows a target line at the ticket's amount. Near the line the pour slows to
+  a trickle, so there is time to let go (like the Shot Helper in Benny's Basketball
+  Shooter). Letting go stops the pour and the amount is read out. A hold past the top
+  stops at the top: nothing overflows. Space does nothing during a pour.
+
+Cup size, scoop count and flavour are not pours. They are what the customer ordered, so
+they stay ordinary choices in both modes.
 
 ### How many presses
 
 The press count per order is measured by the M0 planner bot and judged in the M1
-playtest. A rough estimate for a cheeseburger with Cooking: Waits for You and Pick an
-Amount: about **8 choices on the grill, 7 on the board and 3 to serve**, plus the
-scanning between them. If that is too many, the first things to try are:
+playtest. A rough estimate for a cheeseburger with Pick the Doneness and Auto-Fill: about
+**8 choices on the grill, 6 on the board and 3 to serve**, plus the scanning between
+them. If that is too many, the first things to try are:
 
 - **Next-Step Star** marks the next needed step with a star and adds "next" to its label
   (no reordering, so the scan stays predictable).
 - **Orders: Simple** keeps orders to one burger with up to two toppings.
 
-## Cooking on its own (opt-in)
+## Cooking modes
 
-**This section needs Ari's sign-off.**
+Approved by Ari (2026-11-01). The setting **Cooking: Pick the Doneness / Time It
+Yourself** defaults to **Pick the Doneness**. Both work entirely with single presses.
 
-The setting **Cooking: Waits for You / Cooks on Its Own** defaults to **Waits for You.**
+- **Pick the Doneness:** the player reads the ticket and chooses Cook Until… with the
+  stage it calls for. The food goes straight to that stage. Nothing in the world moves
+  while the player is not pressing, and every screen is a pure CHOICE.
+- **Time It Yourself:** the challenge. Pressing Cook once starts the food moving through
+  its stages at the chosen Cooking Speed (blue rare through well done for a patty;
+  golden through crispy for fried food). The player presses Flip to turn it and Send to
+  take it off. There is no Cook Until… in this mode: choosing when to stop *is* the
+  challenge.
 
-- **Waits for You:** food cooks only when the player chooses Cook Until…, and goes
-  straight to the chosen stage. Nothing in the world moves while the player is not
-  pressing. Every screen is a pure CHOICE.
-- **Cooks on Its Own:** food on the grill, fryer and griddle keeps cooking at the chosen
-  Cooking Speed, the way a real kitchen does. Cook Until… still exists and stops the food
-  at a chosen stage.
-
-With Cooks on Its Own, food changes while the player is not pressing. By the §4 test
-("If Ben stops pressing, does anything in the game keep happening?") the station screen
-is then a MECHANIC. The proposal is to keep it a **CHOICE scan over a slowly changing
-world**, under these rules:
+With Time It Yourself, food changes while the player is not pressing, so by the §4 test
+the world is a mechanic. Ari approved keeping the station a **CHOICE scan over a slowly
+changing world**, under these rules:
 
 - **The clock never touches the scan.** It never moves the highlight, never adds or
   removes items and never switches contexts. Only labels change ("Patty 1, top rare" →
   "top medium"), and a redraw keeps the same id highlighted.
-- **Warnings come from Mitch,** under his speech rules: only into silence, only about a
-  stage that matters to an open ticket, and one stage *before* it is reached ("Patty 1's
-  nearly medium"). They never cut off a scan label or take the speech ticket away from the
-  scanner. The food's label, badge and sizzle sound change as well, so nothing depends on
-  speech alone.
-- **It freezes** whenever the scan is parked, the Space Brake is holding, any card
-  (Pause, Settings, results) is open, the window is hidden or loses focus, or a Hold and
-  Let Go pour is running.
-- **There is no deadline.** Customers never leave. Food left too long stops at the cap,
-  and the worst a forgotten patty can cost is one star on that check.
-- **Waiting is never scored,** in either setting.
-- **Cooking Speed defaults to Very Slow** (starting values: Very Slow ≈ 40 s per stage,
-  Slow ≈ 25 s, Normal ≈ 12 s; tuned in M2). The speed setting is shown but disabled while
-  Cooking is set to Waits for You.
-
-If Ari decides this should not ship, the game still works fully without it. Cooks on Its
-Own would be removed and Waits for You would be the only mode.
+- **The timing is very forgiving.** Cooking Speed defaults to Very Slow (starting values:
+  Very Slow ≈ 40 s per stage, Slow ≈ 25 s, Normal ≈ 12 s; tuned in M2). The stage the
+  ticket asks for lasts twice as long as the others, so there is a wide window to take
+  the food off.
+- **Warnings come early and in several forms.** Mitch says when food is one stage from
+  what the ticket wants, or from Extra Crispy, under his speech rules. The food's label,
+  a badge on it and the sizzle sound change as well, so nothing depends on speech alone.
+- **The clock keeps running while the scan is parked or braked.** Parking is part of the
+  rhythm: park while the food cooks, hear Mitch, resume and flip. Two-switch play (Auto
+  Scan off) runs the same way.
+- **It freezes** whenever Pause, Settings or any card is open, the window is hidden or
+  loses focus, or a Hold to Pour is running.
+- **There is no deadline.** Customers never leave and waiting is never scored. With
+  Burning off (the default), food stops at Extra Crispy, so the worst a forgotten patty can
+  cost is one star on that check.
+- **Burning** is a separate challenge setting, available only with Time It Yourself. With
+  it on, food left past Extra Crispy becomes Burnt. Burnt food is still served, still earns
+  at least 1 star, and gets its own lines.
+- **Holding is never required.** A hold could later be added as an extra (as with the
+  charge kick in the football games), but every action has a single-press route.
 
 ## Settings
 
@@ -403,27 +432,30 @@ Labels say what changes, not who it is for.
 |---|---|---|
 | 1 | Text to Speech | On / Off |
 | 2 | Voice | cycles available voices |
-| 3 | Cooking | Waits for You / Cooks on Its Own |
-| 4 | Cooking Speed | Very Slow / Slow / Normal (disabled while Cooking waits) |
-| 5 | Pouring and Squeezing | Pick an Amount / Hold and Let Go |
-| 6 | Customers at Once | 1 / 2 / 3 |
-| 7 | Shift Length | 5 / 3 / 8 customers |
-| 8 | Orders | Usual / Simple / Fancy |
-| 9 | Assistant Manager | Hints and Jokes / Hints Only / Off |
-| 10 | Next-Step Star | Off / On |
-| 11 | Character Voices | Voices and Captions / Captions Only / Off |
-| 12 | Colour Profile | Standard / High Contrast |
-| 13 | Motion | Full / Reduced |
-| 14 | Text Size | Normal / Large / Extra Large |
-| 15 | Graphics Quality | Use Hub Setting / High / Standard / Low |
-| 16 | Auto Scan | Off — Two Switches / On — One Switch |
-| 17 | Scan Speed | 1 s to 5 s; default 2 s |
-| 18 | Sound Effects | On / Off |
-| 19 | Music | On / Off |
-| 20 | Reset Progress | two-step confirm |
-| 21 | Back | |
+| 3 | Cooking | Pick the Doneness / Time It Yourself |
+| 4 | Cooking Speed | Very Slow / Slow / Normal (disabled with Pick the Doneness) |
+| 5 | Burning | Stops at Extra Crispy / Food Can Burn (disabled with Pick the Doneness) |
+| 6 | Pouring | Auto-Fill / Hold to Pour |
+| 7 | Customers at Once | 1 / 2 / 3 |
+| 8 | Shift Length | 5 / 3 / 8 customers |
+| 9 | Orders | Usual / Simple / Fancy |
+| 10 | Assistant Manager | Hints and Jokes / Hints Only / Off |
+| 11 | Next-Step Star | Off / On |
+| 12 | Character Voices | Voices and Captions / Captions Only / Off |
+| 13 | Colour Profile | Standard / High Contrast |
+| 14 | Motion | Full / Reduced |
+| 15 | Text Size | Normal / Large / Extra Large |
+| 16 | Graphics Quality | Use Hub Setting / High / Standard / Low |
+| 17 | Auto Scan | Off — Two Switches / On — One Switch |
+| 18 | Scan Speed | 1 s to 5 s; default 2 s |
+| 19 | Sound Effects | On / Off |
+| 20 | Music | On / Off |
+| 21 | Reset Progress | two-step confirm |
+| 22 | Back | |
 
 - **Customers at Once** above 1 turns Ticket into a Tickets row, one item per customer.
+  The player sets it themselves. A day that builds from quiet hours to a rush hour is
+  planned for later ([Later](#later)).
 - **Assistant Manager:** Hints Only keeps Mitch's heads-ups and hints and drops his jokes.
   Hints also adds what the order still needs to the Ticket item's speech.
 - **Character Voices** controls the recorded voices of customers and Mitch. Scan speech
@@ -440,7 +472,8 @@ mistake lowers a score but never zeroes it.
 | Doneness (per side, per food) | 1 | 0.7 | 0.4 |
 | Toppings present or held | 1 | 0.7 per mistake | floor 0.4 |
 | Stack order | 1 | 0.8 | 0.5 |
-| Sauce, fill and scoop amounts | 1 | 0.7 | 0.4 |
+| Poured amounts (Hold to Pour only; Auto-Fill is always right) | 1 | 0.7 | 0.4 |
+| Scoop count | 1 | 0.7 | 0.4 |
 | Drink size, ice and flavour | 1 | 0.6 | 0.4 |
 
 The order's quality *q* is the average of its checks. Stars: 3 if *q* ≥ 0.9, 2 if
@@ -499,7 +532,7 @@ Follows `docs/development/GRAPHICS-QUALITY.md`, which is authoritative.
 - Load `shared/platform.js`, then `shared/graphics-quality.js`, before any renderer code.
   Open the game with the stable id `bensburgerbar` and wait for `ready` before creating
   the renderer.
-- The setting is item 14, with the stable id `graphics-quality`, cycling Use Hub
+- The setting is item 16, with the stable id `graphics-quality`, cycling Use Hub
   Setting / High / Standard / Low. High is the Hub default and never lowers itself.
 - **High:** full detail, pixel ratio capped at 2, no automatic lowering.
 - **Standard:** the same as High. This game has no older adaptive behaviour to preserve.
@@ -546,36 +579,60 @@ the repo.
 
 | M | What gets built | Done when |
 |---|---|---|
-| M0 | This document; rules modules; the whole diner pack as data; planner bot; test pizzeria pack | Node tests pass: pick and hold give the same result, food stops at the cap, the pack checks out, the planner can finish every recipe, the pizza pack needs no rules changes, press counts per recipe are within budget, a shift saves and restores exactly |
+| M0 | This document; rules modules; the whole diner pack as data; planner bot; test pizzeria pack | Node tests pass: Auto-Fill and Hold to Pour change food through the same rule, food stops at Extra Crispy unless Burning is on, every action has a single-press route, the pack checks out, the planner can finish every recipe, the pizza pack needs no rules changes, press counts per recipe are within budget, a shift saves and restores exactly |
 | M1 | Box-art kitchen; grill, board and counter; one text-to-speech customer; Ticket, Go To, Pause, Settings, Exit | Menu tests (stable ids, -1, `enterGroup` only, Back restores the row); a headless Chrome run that makes a burger with real key events, two-switch and one-switch. **The player tries it:** how many presses per burger and per shift, any signs of fatigue, and is it fun? |
-| M2 | Fryer, griddle, shake bar, drinks; Cooks on Its Own and its freeze rules (if approved); Hold and Let Go; orders, scoring, shifts, saves; Mitch's hints and warnings with text to speech | Scoring, order, shift, save and clock-freeze tests; Mitch never speaks over a scan label, while parked or during a card; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
+| M2 | Fryer, griddle, shake bar, drinks; Time It Yourself with its forgiving window, freeze rules and Burning; Hold to Pour with the slow-down near the line; orders, scoring, shifts, saves; Mitch's hints and warnings with text to speech, including while parked, and the parking notice | Scoring, order, shift, save and clock-freeze tests (runs while parked, freezes on cards and blur); Mitch never speaks over a scan label or during a card; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
 | M3 | Cel-shaded diner, chunky food with doneness marks, toon customers, world-pinned badges, camera moves, High Contrast, Motion Reduced, Graphics Quality | Draw-call budget; doneness readable in High Contrast without colour; the new-game checklist in `GRAPHICS-QUALITY.md` (Hub inheritance, override, reset, live change, all four modes readable); frame times measured on a typical player tablet, aiming for a steady 30 FPS or better |
 | M4 | Customer voice lines (orders built from parts) for the ten regulars, Mitch and the walk-in voice pool (including every first name and nickname part), sound effects, music | Voice and audio checks; Wait for Speech waits on recorded lines; a real-play sound check in Firefox as well as Chrome |
-| M5 | My Diner shop, unlocks, decor in the world, upgrades, jukebox, silly reactions, Free Cook, walk-ins, daily special, visitors' book, New Regular naming card | Coins never go negative; every unlock is reachable; silly-rule tests; 1,000 generated walk-ins all give valid orders within the Orders setting's press budget |
+| M5 | My Diner shop, unlocks, decor in the world, upgrades, jukebox, silly reactions, Free Cook, walk-ins, daily special, visitors' book, New Regular naming card with Spell a Name, renaming menu items | Coins never go negative; every unlock is reachable; silly-rule tests; 1,000 generated walk-ins all give valid orders within the Orders setting's press budget |
 | M6 | How to Play (`BennyTutorial`), `README-ACCESSIBLE.md`, thumbnail, development history entry | The ACCESSIBILITY §10 checklist and `docs/testing/SWITCH-ACCESS-TESTING.md`; the cold offline test in `OFFLINE-LIBRARY.md` (download the library without opening the game, disconnect, then play a shift); `npm test`, `npm run build`, `npm run audit:release` and `npm run check:pages` pass; the player goes hub → game → shift → pause → settings → hub alone with their own switch setup. The Electron app is not changed |
 
 **The first release is unlisted:** reachable by direct link only, with no `games.json`
 entry, as Chasing Rainbows was. Ari reviews it before it is listed in the hub.
 
+## Later
+
+Planned, with room left in the prototype, but not in the first release. The first
+release focuses on the core features and a good prototype.
+
+- **A day at the diner** (Ari's idea): a progression mode through the hours of the day,
+  from quiet hours with one customer to a rush hour with more. Tuned from the playtests'
+  press and fatigue numbers, and still with no deadlines. Until then, the player sets
+  Customers at Once.
+- **Caregiver mode:** a menu editor (custom recipes made from the game's existing
+  ingredients) and a favourite-customer editor (looks, names, orders). Reached behind the
+  standard spoken warning before any mouse-only screen (ACCESSIBILITY §7). The pack format
+  already holds recipes and customers as data, so the editors write the same data. How it
+  looks is open.
+- **More ways to type names:** a regular keyboard, and two-switch predictive text, in
+  addition to the Pet Pals-style keyboard in the first release.
+
 ## Open questions
 
-**For Ari**
+None at the moment.
 
-1. Can the station screen stay a CHOICE scan while Cooks on Its Own is on, under the
-   rules in [Cooking on its own](#cooking-on-its-own-opt-in)? Or should that setting be
-   dropped?
-2. Customers at Once above 1 turns Ticket into a row. Is that acceptable, or should the
-   game stay at one customer at a time?
-3. Pause is a scan item on every station, with hold-Enter as a shortcut except during a
-   pour. Does that match the §12 direction?
-4. §1 asks whether a new game can have an editor. The pack format would allow a
-   caregiver **Menu Editor** later (custom recipes, customers named after family).
-   Should that be planned now, behind the standard mouse warning?
-5. Mitch's speech rules: scan speech always wins, and he speaks only into silence, or
-   falls back to a caption and sound cue. Is that enough to keep him clear of Auto Scan
-   and Wait for Speech?
+## Decided
 
-**Decided**
+**Ari's review (2026-11-01)**
+
+1. **Cooking:** two modes picked in Settings, named for what they do: Pick the Doneness
+   (default) and Time It Yourself. Timed cooking is very forgiving; nothing burns by
+   default, and a separate Burning setting adds burning as a challenge. Everything works
+   with single presses; a hold is only ever an extra.
+2. **Customers at Once:** approved, as part of the challenge. The player sets it; the
+   day progression comes later (Bryan: focus on the core features first).
+3. **Pause:** approved. Pouring offers Auto-Fill (default) and a forgiving Hold to Pour
+   that slows near the line. Bryan dropped the earlier Pick an Amount option, since it
+   only added ways to get an order wrong.
+4. **Editors:** room left in the prototype; caregiver editors come later. Players can type
+   names for regulars and rename menu items with the switch keyboard in the first
+   release.
+5. **Mitch:** approved, with one change. He talks while the scan is parked (parking is
+   the game's breathing room), and a notice suggests parking when Auto Scan runs without
+   it. Timed cooking stays available with Auto Scan, and parked time counts as cooking
+   time.
+
+**Bryan**
 
 - **Title:** Ben's Burger Bar. The folder `BENSBURGERBAR` and the id `bensburgerbar` are
   final (Bryan, 2026-11-01).
@@ -587,7 +644,7 @@ entry, as Chasing Rainbows was. Ari reviews it before it is listed in the hub.
   add a snarky, picky regular (Vernon); add randomly built walk-ins for variety from shift
   to shift. Kai and Vernon approved as drafted.
 - **Naming:** a walk-in served three times becomes a regular, and the player can pick a
-  nickname from suggestions (Bryan, 2026-11-01).
+  nickname from suggestions or spell one (Bryan and Ari, 2026-11-01).
 - **Assistant manager:** a narrator character (Mitch) gives light narration, warnings
   before food reaches a stage, and hints, in the game's funny-but-helpful tone. Mitch
   approved as drafted; Assistant Manager defaults to Hints and Jokes (Bryan, 2026-11-01).
