@@ -124,25 +124,92 @@ first shift.
 Every recipe is plain data in the pack, so new ones need no code. An order is one to
 three items, chosen from unlocked recipes to match the **Orders** setting.
 
-## The regulars
+## Customers
 
-Each regular has a look, a voice, favourites and one quirk. Hidden favourites can only
-add to a score, never take away. Voices are made in Voice Studio in M4; the descriptions
-below are starting points.
+Two kinds of customer share every shift: **regulars**, who give the diner its
+personality, and **walk-ins**, who give it variety. Both follow the same rules:
 
-| Customer | Who they are | Usually orders | Quirk |
-|---|---|---|---|
-| Marge | Retired school-bus driver, cardigan, reading glasses on a chain. Warm, unhurried voice | "The usual, hon": cheeseburger, medium, iced tea | Says "the usual" and expects the player to know. The ticket shows it anyway |
-| Dale | Wiry mechanic in grease-spotted overalls. Gravelly drawl | Anything, extra crispy | Delighted by anything at the cap. The one customer who scores extra crispy higher |
-| Priya | Night-shift nurse in scrubs, coffee-deprived. Dry, quick voice | Pancakes at any hour | Orders breakfast at dinner time and refuses to discuss it |
-| Coach Bev | Whistle, tracksuit, clipboard. Booming voice | Double bacon cheeseburger | Counts the pickles out loud on serve |
-| Professor Oakes | Tweed jacket, bow tie. Precise, plummy voice | Grilled cheese, lemonade | Hates onions, with a one-line reason that changes each visit |
-| Gus | Long-haul trucker, huge beard, trucker cap. Low, friendly rumble | Two of everything | Biggest orders, biggest tips. Never in a hurry |
-| Reginald | Self-declared food critic, scarf in all weather. Theatrical voice | Whatever is newest on the menu | Reviews every order like a five-course meal: "A bold choice of pickle placement." |
-| Tasha | Teenage skateboarder, deeply unimpressed. Flat voice | Milkshakes | Pretends not to care, cheers quietly on a 3-star shake |
+- **Order size always follows the Orders setting,** whoever is ordering. A customer's
+  personality changes *what* they order, never how many presses it takes.
+- **The ticket always shows the whole order,** in pictures and words.
+- **No customer brings a new mechanic,** changes their mind, leaves or hurries the player.
+- **Snark aims at the food, never at the player.** "This bun is a crime" is fine; anything
+  about the player's speed or skill is not (ACCESSIBILITY §1).
+- Hidden favourites can only add to a score, never take away.
+
+Voices are made in Voice Studio in M4. The voice descriptions below are starting points,
+chosen so that no two regulars sound alike.
+
+### The regulars
+
+| Customer | Who they are | Voice | Usually orders | Quirk |
+|---|---|---|---|---|
+| Marge | Retired school-bus driver, cardigan, reading glasses on a chain | Warm, unhurried | "The usual, hon": cheeseburger, medium, iced tea | Says "the usual" and expects the player to know. The ticket shows it anyway |
+| Dale | Wiry mechanic in grease-spotted overalls | Gravelly drawl | Onion rings, extra crispy, with anything | The onion-ring guy. The one customer who scores extra crispy higher |
+| Priya | Night-shift nurse in scrubs, coffee-deprived | Dry, quick | Pancakes at any hour | Orders breakfast at dinner time and refuses to discuss it |
+| Coach Bev | Whistle, tracksuit, clipboard | Booming | Double bacon cheeseburger | Counts the pickles out loud on serve |
+| Professor Oakes | Tweed jacket, bow tie, pocket protector | Nasal, nerdy, slightly too fast | Grilled cheese, lemonade | Hates onions, with a new over-researched reason each visit |
+| Gus | Long-haul trucker, huge beard, trucker cap | Low, friendly rumble | Two of one thing, a different thing each visit: "Two chocolate shakes. One for now, one for the road." | Big tips. Never in a hurry |
+| Reginald | Self-declared food critic, scarf in all weather | Theatrical, sweeping | Whatever is newest on the menu | Reviews every order like a five-course meal: "A bold choice of pickle placement." |
+| Tasha | Teenage skateboarder, deeply unimpressed | Flat, deadpan | Milkshakes | Pretends not to care, cheers quietly on a 3-star shake |
+| Kai | Ten years old, notebook under one arm, Reginald's biggest fan | Bright, very serious | A small burger and a small drink (a short order: a breather in the shift) | Copies Reginald's reviews but gets to the point: "Ten out of ten. Needs more ketchup." |
+| Vernon | Runs a burger-review blog with eleven followers; arms permanently folded | Deep, slow, droning, with heavy sighs | Very exact orders, within the Orders setting: "Cheeseburger. Medium. Mustard: a line, not a dab. I will know." | Picky and borderline rude, about the food only. A 1-star order: "I've had warmer welcomes from a vending machine." A 3-star one, after a long pause: "…Acceptable. Don't let it go to your head." He tips best of all on 3 stars and pretends he didn't |
 
 More regulars can be added as data. Any regular can be replaced with a voice-free
 captioned customer with no other changes.
+
+### Walk-ins
+
+Walk-ins are one-off customers built from parts, so every shift brings faces and lines
+the player has not met:
+
+- **Look:** body, outfit, hair, hat or accessory, and colours, from the same toon
+  character kit as the regulars.
+- **Name:** from a long list, spoken on arrival and shown on the ticket.
+- **Voice:** one of a pool of walk-in voices (about eight to start), each recorded with
+  the full set of order parts, so any order can be spoken. Text to speech covers anything
+  missing.
+- **One or two quirks:** a favourite (can only add to the score), a dislike ("no
+  pickles"), a way of ordering (polite, chatty, food puns, very formal) and a way of
+  reacting (cheerful, deadpan, overjoyed).
+- **The order** comes from the same generator as everyone else's, from unlocked recipes.
+
+**The mix changes as the game goes on.** Early shifts are mostly regulars, so the player
+learns a few familiar faces. As the menu grows, more walk-ins appear. Every shift has at
+least one regular. Starting mix for a 5-customer shift: 3 regulars and 2 walk-ins at
+first, moving to 2 regulars and 3 walk-ins once six recipes are unlocked (tuned in M5).
+
+**Other variety, none of which adds presses:**
+
+- **Daily special:** one unlocked recipe is the special each shift, ordered more often
+  and with a small tip bonus.
+- **Regulars try new things:** once a new recipe is unlocked, a regular will sometimes
+  order it instead of their usual, with a line about it ("Marge is feeling adventurous
+  today").
+- **Visitors' book:** My Diner keeps a page for every customer the player has served,
+  with their best order. A walk-in served three times becomes a regular and keeps coming
+  back.
+
+### Naming a new regular
+
+When a walk-in has been served three times, a **New Regular** card appears after that
+shift's results (never in the middle of a shift). Mitch, the assistant manager, says:
+"Looks like the onion-ring lady is a regular now. Want to give her a nickname?"
+
+The card is an ordinary CHOICE card, opening on -1:
+
+- **Four suggested names,** built from who they are: their favourite, a quirk, or a
+  rhyme or alliteration with their first name ("Onion Ring Olive", "Double Shake Dana",
+  "Mustard Mike"), plus one plain name.
+- **More Names:** four new suggestions.
+- **Keep "Olive":** keeps the name they came in with.
+- **Later:** no name now. Any regular can be renamed from the Visitors' book at any time,
+  with the same card.
+
+Suggestions come from word lists in the pack, so they cost no extra code. Every
+first name and nickname part is recorded, so Mitch and the customer can say the chosen
+name in their own voices. Typing a name of one's own needs a switch keyboard inside the
+game. It is left for later, and would fall back to text to speech.
 
 ### Silly-food reactions
 
@@ -157,6 +224,51 @@ Odd food never scores below 1 star, and gets its own line. Some examples:
 | Pancakes as burger buns | "Breakfast and lunch at the same time. Efficient." |
 | An empty cup | "Ah. A cup of air. Very refreshing." |
 | Twelve patties (Free Cook) | "I'm going to need a bigger mouth." |
+
+## Mitch, the assistant manager
+
+Mitch narrates the diner and gives hints, in the same voice as everything else: funny,
+but there to help. He wears a short-sleeved shirt and tie, a headset he does not need, and
+a name badge where "ASST." is a strip of tape over "MANAGER". He leans in the kitchen
+doorway, and his lines show as captions beside a small portrait in a corner, never over a
+scan target.
+
+**What he does**
+
+| When | Example |
+|---|---|
+| A shift starts | "Doors are open. Try not to set anything on fire. Kidding. You literally can't." |
+| Food is one stage from what the ticket asked for (Cooks on Its Own) | "Patty 1's nearly medium. Marge's favourite stage, I'm told." |
+| Food is one stage from the cap (Cooks on Its Own) | "That bacon is heading for crispy. Dale would be proud. Marge, less so." |
+| Food reaches the cap | "Extra crispy. I'll tell Dale." |
+| Food sent on that doesn't match the ticket (Waits for You) | "Vernon asked for medium. That's well done. Bold move." |
+| Something is missing at the counter | "Hold up, Gus wanted two shakes. I count one." |
+| The first time each station is used | One short tip, once per save: "Flip it when the bottom looks right. Patties have two sides. Shocking, I know." |
+| A customer reacts | Sometimes a one-liner after the customer, never instead of them |
+
+His hints say what is happening and what the ticket wanted. They never make the choice
+for the player, and they never stop or block anything.
+
+**Rules for when he talks** (these protect the scan, ACCESSIBILITY §4):
+
+- **Scan speech always wins.** Mitch never cuts off a scan label and never holds the
+  scanner's speech ticket, so he has no effect on Wait for Speech.
+- **He speaks into silence.** If no silence comes within a few seconds, a heads-up turns
+  into a caption and a short sound cue instead. A line that is no longer true when the
+  silence comes (the patty was flipped) is dropped.
+- **Priority:** heads-ups about food, then hints, then jokes. At most one joke per
+  customer, and no line repeats in a shift.
+- **He is silent** while the scan is parked or braked, while Pause, Settings or any card
+  is open, and during a Hold and Let Go pour.
+- **He never comments on how long anything took,** and never talks about the player's
+  speed or skill.
+- **Heads-ups never rely on Mitch alone.** The food's label changes, a badge appears on
+  it and the sizzle sound changes as well. A player with Mitch off loses no information
+  that the scan doesn't already give.
+
+With Cooks on Its Own, Mitch's warnings are the main audio cue that food is getting close.
+That should make the setting easier to use, and is part of the case for it (see
+[Cooking on its own](#cooking-on-its-own-opt-in)).
 
 ## How the 3D works
 
@@ -239,8 +351,8 @@ playtest. A rough estimate for a cheeseburger with Cooking: Waits for You and Pi
 Amount: about **8 choices on the grill, 7 on the board and 3 to serve**, plus the
 scanning between them. If that is too many, the first things to try are:
 
-- **Order Helper: Guide** marks the next needed step with a star and says "next" (no
-  reordering, so the scan stays predictable).
+- **Next-Step Star** marks the next needed step with a star and adds "next" to its label
+  (no reordering, so the scan stays predictable).
 - **Orders: Simple** keeps orders to one burger with up to two toppings.
 
 ## Cooking on its own (opt-in)
@@ -264,9 +376,11 @@ world**, under these rules:
 - **The clock never touches the scan.** It never moves the highlight, never adds or
   removes items and never switches contexts. Only labels change ("Patty 1, top rare" →
   "top medium"), and a redraw keeps the same id highlighted.
-- **It only speaks into silence,** and only about a stage that matters to an open
-  ticket: "Patty 1 is medium on the bottom." It never cuts off a scan label or takes the
-  speech ticket away from the scanner.
+- **Warnings come from Mitch,** under his speech rules: only into silence, only about a
+  stage that matters to an open ticket, and one stage *before* it is reached ("Patty 1's
+  nearly medium"). They never cut off a scan label or take the speech ticket away from the
+  scanner. The food's label, badge and sizzle sound change as well, so nothing depends on
+  speech alone.
 - **It freezes** whenever the scan is parked, the Space Brake is holding, any card
   (Pause, Settings, results) is open, the window is hidden or loses focus, or a Hold and
   Let Go pour is running.
@@ -295,24 +409,25 @@ Labels say what changes, not who it is for.
 | 6 | Customers at Once | 1 / 2 / 3 |
 | 7 | Shift Length | 5 / 3 / 8 customers |
 | 8 | Orders | Usual / Simple / Fancy |
-| 9 | Order Helper | Off / Hints / Guide |
-| 10 | Customer Voices | Voices and Captions / Captions Only / Off |
-| 11 | Colour Profile | Standard / High Contrast |
-| 12 | Motion | Full / Reduced |
-| 13 | Text Size | Normal / Large / Extra Large |
-| 14 | Graphics Quality | Use Hub Setting / High / Standard / Low |
-| 15 | Auto Scan | Off — Two Switches / On — One Switch |
-| 16 | Scan Speed | 1 s to 5 s; default 2 s |
-| 17 | Sound Effects | On / Off |
-| 18 | Music | On / Off |
-| 19 | Reset Progress | two-step confirm |
-| 20 | Back | |
+| 9 | Assistant Manager | Hints and Jokes / Hints Only / Off |
+| 10 | Next-Step Star | Off / On |
+| 11 | Character Voices | Voices and Captions / Captions Only / Off |
+| 12 | Colour Profile | Standard / High Contrast |
+| 13 | Motion | Full / Reduced |
+| 14 | Text Size | Normal / Large / Extra Large |
+| 15 | Graphics Quality | Use Hub Setting / High / Standard / Low |
+| 16 | Auto Scan | Off — Two Switches / On — One Switch |
+| 17 | Scan Speed | 1 s to 5 s; default 2 s |
+| 18 | Sound Effects | On / Off |
+| 19 | Music | On / Off |
+| 20 | Reset Progress | two-step confirm |
+| 21 | Back | |
 
 - **Customers at Once** above 1 turns Ticket into a Tickets row, one item per customer.
-- **Order Helper: Hints** adds what the order still needs to the Ticket item's speech.
-  **Guide** also marks the next step with a star.
-- **Customer Voices** controls recorded voices only. Scan speech always follows Text to
-  Speech.
+- **Assistant Manager:** Hints Only keeps Mitch's heads-ups and hints and drops his jokes.
+  Hints also adds what the order still needs to the Ticket item's speech.
+- **Character Voices** controls the recorded voices of customers and Mitch. Scan speech
+  always follows Text to Speech.
 
 ## Scoring
 
@@ -432,11 +547,11 @@ the repo.
 | M | What gets built | Done when |
 |---|---|---|
 | M0 | This document; rules modules; the whole diner pack as data; planner bot; test pizzeria pack | Node tests pass: pick and hold give the same result, food stops at the cap, the pack checks out, the planner can finish every recipe, the pizza pack needs no rules changes, press counts per recipe are within budget, a shift saves and restores exactly |
-| M1 | Box-art kitchen; grill, board and counter; one text-to-speech customer; Ticket, Go To, Pause, Settings, Exit | Menu tests (stable ids, -1, `enterGroup` only, Back restores the row); a headless Chrome run that makes a burger with real key events, two-switch and one-switch. **The player tries it:** how many presses per burger, and is it fun? |
-| M2 | Fryer, griddle, shake bar, drinks; Cooks on Its Own and its freeze rules (if approved); Hold and Let Go; orders, scoring, shifts, saves | Scoring, order, shift, save and clock-freeze tests; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
+| M1 | Box-art kitchen; grill, board and counter; one text-to-speech customer; Ticket, Go To, Pause, Settings, Exit | Menu tests (stable ids, -1, `enterGroup` only, Back restores the row); a headless Chrome run that makes a burger with real key events, two-switch and one-switch. **The player tries it:** how many presses per burger and per shift, any signs of fatigue, and is it fun? |
+| M2 | Fryer, griddle, shake bar, drinks; Cooks on Its Own and its freeze rules (if approved); Hold and Let Go; orders, scoring, shifts, saves; Mitch's hints and warnings with text to speech | Scoring, order, shift, save and clock-freeze tests; Mitch never speaks over a scan label, while parked or during a card; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
 | M3 | Cel-shaded diner, chunky food with doneness marks, toon customers, world-pinned badges, camera moves, High Contrast, Motion Reduced, Graphics Quality | Draw-call budget; doneness readable in High Contrast without colour; the new-game checklist in `GRAPHICS-QUALITY.md` (Hub inheritance, override, reset, live change, all four modes readable); frame times measured on a typical player tablet, aiming for a steady 30 FPS or better |
-| M4 | Customer voice lines (orders built from parts), sound effects, music | Voice and audio checks; Wait for Speech waits on recorded lines; a real-play sound check in Firefox as well as Chrome |
-| M5 | My Diner shop, unlocks, decor in the world, upgrades, jukebox, silly reactions, Free Cook | Coins never go negative; every unlock is reachable; silly-rule tests |
+| M4 | Customer voice lines (orders built from parts) for the ten regulars, Mitch and the walk-in voice pool (including every first name and nickname part), sound effects, music | Voice and audio checks; Wait for Speech waits on recorded lines; a real-play sound check in Firefox as well as Chrome |
+| M5 | My Diner shop, unlocks, decor in the world, upgrades, jukebox, silly reactions, Free Cook, walk-ins, daily special, visitors' book, New Regular naming card | Coins never go negative; every unlock is reachable; silly-rule tests; 1,000 generated walk-ins all give valid orders within the Orders setting's press budget |
 | M6 | How to Play (`BennyTutorial`), `README-ACCESSIBLE.md`, thumbnail, development history entry | The ACCESSIBILITY §10 checklist and `docs/testing/SWITCH-ACCESS-TESTING.md`; the cold offline test in `OFFLINE-LIBRARY.md` (download the library without opening the game, disconnect, then play a shift); `npm test`, `npm run build`, `npm run audit:release` and `npm run check:pages` pass; the player goes hub → game → shift → pause → settings → hub alone with their own switch setup. The Electron app is not changed |
 
 **The first release is unlisted:** reachable by direct link only, with no `games.json`
@@ -456,12 +571,23 @@ entry, as Chasing Rainbows was. Ari reviews it before it is listed in the hub.
 4. §1 asks whether a new game can have an editor. The pack format would allow a
    caregiver **Menu Editor** later (custom recipes, customers named after family).
    Should that be planned now, behind the standard mouse warning?
+5. Mitch's speech rules: scan speech always wins, and he speaks only into silence, or
+   falls back to a caption and sound cue. Is that enough to keep him clear of Auto Scan
+   and Wait for Speech?
 
-**For Bryan**
+**Decided**
 
-5. The title: "Ben's Burger Bar", or "Benny's Burger Bar" to match the other Benny's
-   games? The folder name and the id `bensburgerbar` follow the choice. The id needs to be
-   settled before M3, because graphics settings and the Hub's play history are stored
-   under it.
-6. Is the cast of regulars right? Are any to add, change or drop?
-7. Are the default Shift Length (5 customers) and Orders (Usual) right for a first session?
+- **Title:** Ben's Burger Bar. The folder `BENSBURGERBAR` and the id `bensburgerbar` are
+  final (Bryan, 2026-11-01).
+- **Shift Length** stays at 5 customers by default until the playtests. The M1 and M2
+  playtests count presses per order and per shift and watch for fatigue. Shift Length,
+  Orders and the size of each order are tuned from that (Bryan, 2026-11-01).
+- **Cast changes** (Bryan, 2026-11-01): Gus orders two of one thing, different each visit;
+  Oakes sounds nasal and nerdy; Dale is the onion-ring guy; add a younger regular (Kai);
+  add a snarky, picky regular (Vernon); add randomly built walk-ins for variety from shift
+  to shift. Kai and Vernon approved as drafted.
+- **Naming:** a walk-in served three times becomes a regular, and the player can pick a
+  nickname from suggestions (Bryan, 2026-11-01).
+- **Assistant manager:** a narrator character (Mitch) gives light narration, warnings
+  before food reaches a stage, and hints, in the game's funny-but-helpful tone. Mitch
+  approved as drafted; Assistant Manager defaults to Hints and Jokes (Bryan, 2026-11-01).
