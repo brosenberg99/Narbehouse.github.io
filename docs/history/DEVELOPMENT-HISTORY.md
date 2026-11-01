@@ -2,6 +2,18 @@
 
 Detailed implementation and verification records for Benny’s Hub and the NARBE House website. This file was formerly SCAN-UPGRADE-CHANGES.md; its scope now covers all development. Historical entries retain the names and status recorded at the time. Start with [the documentation index](../README.md) for maintained guidance.
 
+## 2026-11-01 — Ben's Burger Bar design notes for review
+
+Scope: the design document for a new cooking simulation game, for Bryan and Ari to review before any game code is written. Electron port: **NO**. Branch `burger-bar`, from upstream/main. No runtime, catalog or `games.json` change; the game will first ship unlisted, by direct link only.
+
+The document sets out the shift loop, all seven stations, the recipe list, the regular customers, scoring, saves, settings, the scan contexts and milestones M0–M6. It asks Ari to rule on the optional "Cooks on Its Own" setting, which would keep a CHOICE scan over food that cooks while the player is not pressing, under the freeze and no-deadline rules in the document. The default, "Waits for You", is a pure CHOICE scan. The document follows the guidance current at upstream main 37e13a8, including the fixed-High graphics quality contract (Use Hub setting / High / Standard / Low) and the offline library rules (local pinned dependencies, generated manifest, cold offline test), both added after the original plan was drafted.
+
+Changed files (all web scope, Electron port: NO):
+- bennyshub/apps/games/BENSBURGERBAR/DESIGN.md — new design document.
+- docs/history/DEVELOPMENT-HISTORY.md — this entry.
+
+Verification: documentation only; no tests apply.
+
 ## 2026-10-30 — Switch Stories acts on switch release
 
 Scope: port Nancy’s latest PC Switch Stories input fix to the web. Electron port: **NO** for every changed file below; the PC Hub was read only and was not launched or modified. The four game JavaScript files match the current PC source byte-for-byte. Backups, hashes and browser evidence are in WEBSITES/tmp/switchstories-release-web-20261030.
