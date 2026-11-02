@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "version": "355900dd257ddaa6add34d389c7c845f1bead0c256196f471cd0b4ea0b088d50",
-  "totalBytes": 536893390,
+  "version": "2055e07686fcff82137c6357d8170f4cf4cffbcf701207614cbdbf9f4d83342f",
+  "totalBytes": 537381941,
   "assets": [
     {
       "url": "./apps/games/BENNYSAYS/index.html",
-      "revision": "ec207bdeba42a43ab3c4381d18189e9b56a210a79c97a8074c29da9c8edc3660",
-      "bytes": 39964
+      "revision": "4b031e3edcea78069e1b43d3ec101a8404ac503cb4d0ad51a19078b460f1e3cd",
+      "bytes": 39984
     },
     {
       "url": "./apps/games/BENNYSAYS/scan-access.js",
-      "revision": "ac7f76b1670aee57caa17bb6d6dcd9c6689259aac6b44843217e2dbd3cb9fdcd",
-      "bytes": 4631
+      "revision": "562fa8e5ce952e49ba8d9682eebb4a5bf9e970e9a23642e9b77c24543a6df895",
+      "bytes": 4659
     },
     {
       "url": "./apps/games/BENNYSAYS/sounds/tone0.wav",
@@ -310,18 +310,18 @@
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/castle-files.css",
-      "revision": "fdbc9bca7f8a033b23067dff75f4b7f2973e09a447dcf8c4c14ac9f299be0d95",
-      "bytes": 1391
+      "revision": "005582f79a408bf05d487d7cc37d2aaf5ca6c8d925c73c4e1fb9ccc035c4b137",
+      "bytes": 1403
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/editor-style.css",
-      "revision": "cf19dfb4b81eb0d2763eaf96dd288302e12ec280d8dfdd5b6ef2f6f11a468712",
-      "bytes": 17196
+      "revision": "1cec5c81b9cc683e1295a38aa811caabe3c0e3b914f5d596172d0b41741ebdfe",
+      "bytes": 17243
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/editor.html",
-      "revision": "737864ee3bc80a26af12489982a5da5b3c9ac54005ec654afbcf37c703c4feb2",
-      "bytes": 12581
+      "revision": "4f4b3a2c06f6b730c3b7bd975999d34f85c0586eeb285d693fc0f01f693abb7b",
+      "bytes": 12626
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/index.html",
@@ -330,108 +330,108 @@
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/ammo.js",
-      "revision": "2104c157ee23c531c1fbb2148404290cdb8e67d9a60f1ad2f3e284937087bb01",
-      "bytes": 1729212
+      "revision": "f4c1b902a91efdd30861f8b3b0742747ae5190e04a7d0470c9a8b054432bda73",
+      "bytes": 1729865
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/art.js",
-      "revision": "8571e54a050fb8a3dbb455fcad015eef53de3091b8c924b2f4458d1e5ccd68a7",
-      "bytes": 33114
+      "revision": "d4adbda7ebdd340c7412fe9e9c1f06c2a3e2b29f163c50ae1e84697a66725fce",
+      "bytes": 33817
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/audio-safe.js",
-      "revision": "94b342814e852c0005b9cd40ba47b9bdd7fbf53322fd60e22d799b1bb9970584",
-      "bytes": 4602
+      "revision": "c69c7f80778c53da61bf67e7a360dd5d9328632ac2707e9819d870737b69f8b5",
+      "bytes": 4628
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/campaigns.js",
-      "revision": "7a564c280329a56a59d329aae609f6c73d9631cf3ca73be812a621c2c6d37e5c",
-      "bytes": 19894
+      "revision": "fe2935f7a3cdb600330eac357aefd2aa56c4a2cfec9c600609f409480d3c13cc",
+      "bytes": 20143
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/castle-art.js",
-      "revision": "a651048e3d99f6488d51eb43075185b38e386744f62af0343751a2397a1b9388",
-      "bytes": 23761
+      "revision": "9a4dde4d0e6c35bffc35c17ec0647d989f376519d626ad7c7a702d23b3914416",
+      "bytes": 23925
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/castle-files.js",
-      "revision": "d6e36524f0c7abfeeeb11da037acd5ca6930864881032c3ac0e9fce85ca5ef1d",
-      "bytes": 8728
+      "revision": "1d21394714052c0e99c52e742c944587497e30066471f19e0c78dec6674fb557",
+      "bytes": 8830
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/castle-life.js",
-      "revision": "5d75447c2bbb4b0f1231c03c7d5b755b9ac3111d0142d04edf2bcfc3e8343e63",
-      "bytes": 12474
+      "revision": "dd77075e17c4245f7aeee24acb9c57ab9aa18f548909e8289621fad54a6ac6e7",
+      "bytes": 12576
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/character-paths.js",
-      "revision": "c929fe3a361ee7707604f32a05be15056e86cf9bd54c475ada92e4ccc0ea5a02",
-      "bytes": 2823
+      "revision": "d068bae11ca452244d30bbb60e129a80c3d327ca9de77959bffb57788e4c3e15",
+      "bytes": 2839
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/courses.js",
-      "revision": "df857cfe9f14d46e97338e25fd3c73602352be2bc36d563bd6b8d1e6225232e5",
-      "bytes": 8154
+      "revision": "f0cb3ee3edb1d3e123af1548a794b725ea07c26d7db50c6f7bce511019b22b00",
+      "bytes": 8222
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/custom-campaigns.js",
-      "revision": "bc17c44e02aab579a09d93d8609401c1be279eaa749000aacc773de83ff370c5",
-      "bytes": 3845
+      "revision": "ca06a0a02b573fce01b4557c9ba88f1b6e02ccdc503bb2b2b54327248e2678d7",
+      "bytes": 3879
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/data.js",
-      "revision": "0c8b85e067ac91bcd839d55ff0ba32e9ed0b477d0f123531024a98578670fce7",
-      "bytes": 44269
+      "revision": "54974d68bf80487552d7ecc7a7de9ecd8b0f5b137ee902282b544604e9de4360",
+      "bytes": 45005
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor-campaigns.js",
-      "revision": "15ca5bd7b48b6c4805fb728261e33297a445172140cb2cc75a2cc6d37103d574",
-      "bytes": 11278
+      "revision": "17a6588fdfdcec7a84271c76f62f2812d96163b5e7116097d0ae027b66aae718",
+      "bytes": 11331
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor-goals.js",
-      "revision": "ad63bbf9fd3463ef54b5a38b5e652359d2d2a93bcc2b121ce2e51f45869d3dde",
-      "bytes": 2532
+      "revision": "784894a94c3900380091cd32032849e6a81e6d947c8ba11090b72d074ff8e3ce",
+      "bytes": 2538
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor-narrator.js",
-      "revision": "bc89cc60fe2849edeeebe37f3a048bdbf5d55bedb38a751dfc6a4cafa38614b3",
-      "bytes": 1955
+      "revision": "a8e897ef6cae428b8bf93d776671e332ce18dac4928f33ebcbba4ac43a1a5ca8",
+      "bytes": 1963
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor-scene.js",
-      "revision": "219308f3109a541dfa7a0129379bbdf06e7deaeb6043240e180ef7f1259966cc",
-      "bytes": 3170
+      "revision": "a9e3ee860aa2da4fac50696dc9920fc7313b107cdf8892e08aa3fc43de6278dc",
+      "bytes": 3178
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor-ui.js",
-      "revision": "6ae34508d774c2a36dd128de8de6829b35512c78ea57a2cfef6eb5f274015099",
-      "bytes": 8982
+      "revision": "bbb9634527f69af4b8284981f5d330b89a6e1a17c64b962fa602e54406615206",
+      "bytes": 9006
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/editor.js",
-      "revision": "819797958a20c7a56a01c2f48221b257f108e2bf16b33a68334ecf26f10996ba",
-      "bytes": 116296
+      "revision": "b3cdd3ce7d6e31b21ebfc63d3050aca369b0fa55d5b34f9d4d51b1b236fad675",
+      "bytes": 118228
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/effects.js",
-      "revision": "946f8acd50a1fe64ecdfab3e50ff576ce14d66a88c0312d2b58e7b0437ee4564",
-      "bytes": 9237
+      "revision": "533c692331ad9b5623165d7de9a1a33733e499df172d5704b51a8bf7478712ce",
+      "bytes": 9310
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/game.js",
-      "revision": "c56fb7672adbfe1eaaea6ebd8889e848e08c5c09d4d62a2f9aed506958893ccc",
-      "bytes": 117358
+      "revision": "fb2a6db52657d8642a2d7b8dfafbdae8720913ce325646f80aecc3b1aac01866",
+      "bytes": 119386
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/level-brief.js",
-      "revision": "8d79bf0c966708ba8687772636b54f030a48f6ff6528dae31a721c4bf153b5e8",
-      "bytes": 4113
+      "revision": "dd12b09818de36e6863784279b7c82dd397fd67a915b06f957f66b941e4164b1",
+      "bytes": 4127
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/levels.js",
-      "revision": "4c4c7475de10c67ecb4a1ded30746a325e1f4808a242ab1930b5e5c187c6b0d7",
-      "bytes": 60036
+      "revision": "d7d5e278f06b4e08ab7884452c2a537d05fecac92f0b2227d42a68ed8868c297",
+      "bytes": 61408
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/main.js",
@@ -440,33 +440,33 @@
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/models.js",
-      "revision": "e66aead65923887bb2ebf6e903d355ddb6634f9d946c3f44a4f83b9ffc0cfd2b",
-      "bytes": 206849
+      "revision": "48afd2c143016758e2808999dc022dbd9c37edd358789d2fcf2251ff31abecd3",
+      "bytes": 206922
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/physics.js",
-      "revision": "5e003e78db5d96bdec09763793d8cde03e8615bfbdfb2eadd40d9ae1ab0c0244",
-      "bytes": 15642
+      "revision": "e97582c54dd64d5d9de2df8c72469902f73159c1a696efa499ff11f596292f8a",
+      "bytes": 15969
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/prefabs.js",
-      "revision": "29e92f3ad9e205b62e021b853cd5661cdabf3917571b1b7b4ed7a582a7499503",
-      "bytes": 2225
+      "revision": "a45ec078a2ee637954ea47332d54c948471f9cad9fcd6b4d35aab30ea19fe04a",
+      "bytes": 2246
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/scenery.js",
-      "revision": "a2578e27a0d4b12f5889b7fe69b864d0b4edb94629bc72ff13c913bb1cb5d345",
-      "bytes": 9297
+      "revision": "ded0cbad28885e0844c64cc782caeab7f3ffefd93d74e01f5b94ec36c1b1d182",
+      "bytes": 9338
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/settle.js",
-      "revision": "0e8c42b5c13f9b9448600c04ed0026d05551eb9da10d843c4e173a196894109c",
-      "bytes": 13155
+      "revision": "32b2e40db7afb5c2eabacf432597b50fc8d69cb23622d6c79cb58cb69367f9b3",
+      "bytes": 13403
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/ui.js",
@@ -475,18 +475,18 @@
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/util.js",
-      "revision": "f36bd8e9ca63b781351045cd95bf90260c01a4bcfe263edc5693ff510e4db014",
-      "bytes": 3954
+      "revision": "1f36ea579baf70f257ccb02d6c6e6d7b8a2db071b6803241be5c368384ad3959",
+      "bytes": 4072
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/js/world.js",
-      "revision": "072462beeb269aca5b898a7086c81c3731b483b4f069b950646c3c9e4058ca4b",
-      "bytes": 14128
+      "revision": "fa7b808edd14816a2626d0ee051c2a9deb33e66fd62274833de02a67ad6acd53",
+      "bytes": 14423
     },
     {
       "url": "./apps/games/BENNYSBALLISTA/style.css",
-      "revision": "8898e438ddea770206bd03df0717b3d401415bdf0171047444ef2b2ee96023f4",
-      "bytes": 35314
+      "revision": "b992bdf13db70458acea3553e9e0f066ca5d098646d59f1585a09707263b1872",
+      "bytes": 35447
     },
     {
       "url": "./apps/games/BENNYSBASEBALL2/audio/baseballhit.wav",
@@ -640,8 +640,8 @@
     },
     {
       "url": "./apps/games/BENNYSBASEBALL2/js/choice-canvas.js",
-      "revision": "6057300850bb939e4d411a15cfc373fb00b46cbfb2727431bcd1bc6dc5c0cde1",
-      "bytes": 9288
+      "revision": "93495487d99e61c1a183dbbf8f30cba3868ff6a7c09837440630cd7405009c7e",
+      "bytes": 9346
     },
     {
       "url": "./apps/games/BENNYSBASEBALL2/js/constants.js",
@@ -680,8 +680,8 @@
     },
     {
       "url": "./apps/games/BENNYSBASEBALL2/js/season.js",
-      "revision": "4bb0da97314a7a4607d51b17ebe805838c20270791c1cf728384dc7403e63e3a",
-      "bytes": 8199
+      "revision": "20211bf6b3ee9edec82b69b3df8588b940b0c238430fcbaed63c41efdad2a056",
+      "bytes": 8424
     },
     {
       "url": "./apps/games/BENNYSBASEBALL2/js/sprites.js",
@@ -695,8 +695,8 @@
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/CREDITS.md",
-      "revision": "33e7b9d0e1f8a310530c98f5e82ff534f562bda27fa3ba91ecf3cf72bb70116f",
-      "bytes": 3821
+      "revision": "7fa5943d58fdcc8c90a00c162d6a2be5f175d935bfa8872d38356c53bb2b6103",
+      "bytes": 3856
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/basketball%20object/10487_basketball_diffuse.jpg",
@@ -730,78 +730,78 @@
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/court.js",
-      "revision": "de3834d2c7ad93f30ee1c86579f2c7f1b53ef67d3c871f3b1cbe32a8b5fd2423",
-      "bytes": 10620
+      "revision": "d8723ceeab353b5979d30e5ab73e4accf15a4cba8b085bcad79036353d23e0c2",
+      "bytes": 10848
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/fx.js",
-      "revision": "35aaadfe9ef9d90ccc654d16a1f1734eeb9f2cf6177bb01203930ab58d6d70af",
-      "bytes": 5377
+      "revision": "36fc4487e15b56936a8217a03b402c201be066ca4fd8cf3bde66390bc33c5ff2",
+      "bytes": 5481
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/hoop.js",
-      "revision": "537aa4610e9dd3ac8236c8e79b5ebcba1fdb21d5b34df715699a01c29f18bedf",
-      "bytes": 13794
+      "revision": "d368c2a4f1d1ede6ab627eb007bee127100fe65b3a0ff912d45a88ae5b9f1e37",
+      "bytes": 14045
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/horse.js",
-      "revision": "fc3a2fc41435e45fc329aa2345803f26be8c05b8f6b992bc06998356f8482688",
-      "bytes": 5362
+      "revision": "2299303b3e1f204ff68593dee5c6995adab7f687aaeb514a9b7d498597f3e0d2",
+      "bytes": 5474
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/sfx.js",
-      "revision": "cf55bcbb5bc79ab0ca46b7ed0d1cd5e92839e70240cbbd3d76ae063bb198063a",
-      "bytes": 5292
+      "revision": "299d60615145d136d71a0fcbb0b95688c9cc30c0c5602729b916f80581c58eb9",
+      "bytes": 5419
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/CopyShader.js",
-      "revision": "6b5da4fe3b410286974590885f82fe4a446f25c728f7d6c888e2a2a331333949",
-      "bytes": 606
+      "revision": "8cf05bda35383ea2502decc388d91a4adcf6ab3d9fa1d35a600fee4e49ec796b",
+      "bytes": 653
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/EffectComposer.js",
-      "revision": "4fc320fa3185847797332bc2b0125b1a39b9cf5fc4170a2f180cfa54fb057a2b",
-      "bytes": 6271
+      "revision": "72dcd55f4626f1533a9f98dd03021a5de415ffc15f1ad688ef84997612b04de0",
+      "bytes": 6555
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/GammaCorrectionShader.js",
-      "revision": "77c8fdedf8f488b7cab5392afb2d55f1acadf9d9086961b61dfd28f7ae80bdc3",
-      "bytes": 679
+      "revision": "d89f40558d1310dc569b98e47899fd7ee719ab4813057d9faf481678baeee9fb",
+      "bytes": 723
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/LuminosityHighPassShader.js",
-      "revision": "00ed0682e61ca207d9c62298269472d6d4eedd9d33528400e7cbc633da8544da",
-      "bytes": 1228
+      "revision": "1b6eaa1f4f1c6d240001cd310e604551274968c7aaa55f7cc9c6c1a8aae45526",
+      "bytes": 1299
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/Reflector.js",
-      "revision": "a8db19d9af1a91c07f9da9620600ce1dbf4e18299edad6da8d51f5d1188effb8",
-      "bytes": 6849
+      "revision": "b2eb2174028a0cdb747a2a4f5fda64ef0c51e84397f6dd6aa67f74ee02d5f50a",
+      "bytes": 7046
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/RenderPass.js",
-      "revision": "57a549b2d6a947cddf0385a804dc70c3b2d155663d908e99e35d42274b3878be",
-      "bytes": 1746
+      "revision": "3a08e1adbe3a5d915d75323ecc9d6b836057ae06afd3d39704dea180795823cd",
+      "bytes": 1820
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/RoomEnvironment.js",
-      "revision": "94fd17363598048cb3faf3b3d7d663e561e8bc929b0162716f33424af30695ad",
-      "bytes": 3425
+      "revision": "660155beff3377f07f55c5168b7bdb27c97a9912231bb2e756bb75da2ac8848d",
+      "bytes": 3525
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/ShaderPass.js",
-      "revision": "2e64890b8e4c4dafcfd796d5c84877f2ad36a101c83263211c500ec40eaf1240",
-      "bytes": 1416
+      "revision": "9ed292e0b177cab987d00000070a779202a7c86b6d738ee24f3864ccfa0c79ed",
+      "bytes": 1479
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/js/vendor/UnrealBloomPass.js",
-      "revision": "1ed342b273e9b077a3e92e5caeecd45043f03071306c696564d5b53f0562dced",
-      "bytes": 12612
+      "revision": "0030802645409fc2c35ad87d4f794619b379a1a208edf6a1a9c5d0002f9831f7",
+      "bytes": 12978
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/scan-access.js",
-      "revision": "b72cda55390ffb8452d805e77f7cbb0254ac25bb0f8604fd1a8377370c1cd89e",
-      "bytes": 4672
+      "revision": "3779e5b9f44acd8b3095378b039f81838c2306c97cc5c5bda381c3f1df49b050",
+      "bytes": 4689
     },
     {
       "url": "./apps/games/BENNYSBASKETBALLSHOOTER/sounds/applause.mp3",
@@ -935,28 +935,28 @@
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/index.html",
-      "revision": "b2b6ef1f5911dda3c46c9642c31076cb42b4da742f43de61da2aa77023889cec",
-      "bytes": 13396
+      "revision": "2cac5255583d639551e0dbd19cc9b6e9623b1c1bea3d87cd2b21c157b09778f9",
+      "bytes": 13609
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/scan-access.js",
-      "revision": "1bfcbf1046dfcc95f7a0969e9f79097d3e8b8432a0e8e0c841cf691e23d02abd",
-      "bytes": 10228
+      "revision": "9714b0750437579aa34c4fce3c7e5486f7ae798f5aea233f7c39ec1b07bce570",
+      "bytes": 10250
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/scripts/battleship.js",
-      "revision": "5c7ddd6e780dc5abc65165a17ab2bd7d58d02e9fd3d391e0bccac3d133fab498",
-      "bytes": 136358
+      "revision": "939c55271d3366dab617641a46cedbb4efec13db4a0b2b5339e4576be9f91795",
+      "bytes": 139980
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/scripts/presentation.js",
-      "revision": "1a5aec7865d75d25ae7c9e1c85323aff58103176ac2e57b7b5593bfc37ce98dd",
-      "bytes": 11365
+      "revision": "2699416deab69c2f05b63885893b2ab23d51930acc2524348cca04a15a0d1cca",
+      "bytes": 11545
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/styles/command.css",
-      "revision": "bf71a3b6bf87f07c764e35339ec7a076714e77d7b9b6ecf6189680a6bfb29ac2",
-      "bytes": 19583
+      "revision": "d3bda6a6b69e88a6079b744c4fc348c4491bcd2c82b8f420f4f0491d28798b7b",
+      "bytes": 19801
     },
     {
       "url": "./apps/games/BENNYSBATTLEBOATS/styles/main.css",
@@ -975,8 +975,8 @@
     },
     {
       "url": "./apps/games/BENNYSBOWLING/LICENSE",
-      "revision": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
-      "bytes": 35149
+      "revision": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+      "bytes": 35823
     },
     {
       "url": "./apps/games/BENNYSBOWLING/index.html",
@@ -985,18 +985,18 @@
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/GLTFLoader.js",
-      "revision": "5c0eb2fa59ec70c78b948339b67669f86ad51aaed0b7f8284fad2cece2e1f737",
-      "bytes": 81083
+      "revision": "d7f763761b6cddc02a127e339608473cee400cb56bf59098935acd09249195e4",
+      "bytes": 84267
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/alley.js",
-      "revision": "bfddb7a44bed0f3e537a37882f501f5b51c60bada818d93d75d4ee4776ee5a69",
-      "bytes": 31391
+      "revision": "0e9dbedd1f6bcaeb222754a9fecc4d921614476fb33d3f19d78bfdaa03ecebf4",
+      "bytes": 32212
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/ammo.js",
-      "revision": "2104c157ee23c531c1fbb2148404290cdb8e67d9a60f1ad2f3e284937087bb01",
-      "bytes": 1729212
+      "revision": "f4c1b902a91efdd30861f8b3b0742747ae5190e04a7d0470c9a8b054432bda73",
+      "bytes": 1729865
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/bowlchallenge.js",
@@ -1005,23 +1005,23 @@
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/bowlphysics.js",
-      "revision": "20acc708ce93f74efa5516e008b94473796a7dbdb8bfdace3c911c89507c95e6",
-      "bytes": 16256
+      "revision": "b76d2f5af899c35b49156450d0d322ca0c1c9380e9365aac71c25d7946473b8a",
+      "bytes": 16707
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/cues.js",
-      "revision": "ad9046a5c0348e5ae44f0b052911012af5a9166cb4743a37131a17fdbfe9327a",
-      "bytes": 6816
+      "revision": "d3d0b81691ed6c0298b0477d468778b1552c38f2226c9a0c2ad2e9d6590aff55",
+      "bytes": 7026
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/scores.js",
-      "revision": "8a9de3bef07bc7baef4c5e3474bfffe1a78b04246191e5f3b22936adf3cdf57e",
-      "bytes": 5914
+      "revision": "7f1700902a171c9e7456cb4d3b3af313568f7c026427462ad3a76bb7afda95f4",
+      "bytes": 6139
     },
     {
       "url": "./apps/games/BENNYSBOWLING/js/three.js",
-      "revision": "40873d04d4ace1529c503b10053fe6c09c04e8ba4a1eaacb07a1ea17fa073368",
-      "bytes": 1150054
+      "revision": "895d47b435798fef2913fb3b28dca6225ffd061528571edb59c6a594854fc32a",
+      "bytes": 1199107
     },
     {
       "url": "./apps/games/BENNYSBOWLING/music/music%20(1).mp3",
@@ -1050,8 +1050,8 @@
     },
     {
       "url": "./apps/games/BENNYSBOWLING/res/scene.gltf",
-      "revision": "b7c438a9e39e10e87e8eb1ebb1cb2db6c2c97642e5fd160b6778201a4b3776cf",
-      "bytes": 11628
+      "revision": "fd59387103e7733dd801f0f1d0c98edc6383a83ccc07ab5b67c6a5974e00cde8",
+      "bytes": 12125
     },
     {
       "url": "./apps/games/BENNYSBOWLING/screenshot.png",
@@ -1075,8 +1075,8 @@
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/crowd.js",
-      "revision": "4af8ab6e34dcb7384bce0fd2882f8346d2f74ae9ea97550a1fb68e198e7b9677",
-      "bytes": 4483
+      "revision": "eeec07f32e22a923dbb1814b2c31a331986154a587f3ebdfb330a7358044d303",
+      "bytes": 4583
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/game.js",
@@ -1090,23 +1090,23 @@
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/presentation.js",
-      "revision": "47e1259846029f8ba03d0e01fb46ae8f33a659d16a1e7f3688204be4d73b5d72",
-      "bytes": 30251
+      "revision": "ba0e3636df11e7e0429faa8fb22362485019200bee0113c7b685a33c4e192b09",
+      "bytes": 30627
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/progression.js",
-      "revision": "d15abf583f85f7b330b3298b6a47604cfaf9643643a5ef3fa45cbf6a125c60af",
-      "bytes": 2661
+      "revision": "a8ae5da6a571bfafa2d1c69f15e7521dc76f1a9eee3708bb61140d0e01a75bea",
+      "bytes": 2705
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/scan-access.js",
-      "revision": "1d815bfbb9ce9d7baa77ec5352634392b9e62aeabf4b772f8aa26006c3e34316",
-      "bytes": 6270
+      "revision": "cb6ab8915732d18c9888ca4a25ddbc20a6324c13472d731f9048020324bbf74d",
+      "bytes": 6289
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/shop.js",
-      "revision": "03cce4b0c36acaf12ce82d03f6a04cdfc600ba13ab0796be3a6c5a3e34a67626",
-      "bytes": 10451
+      "revision": "3179a2697c829f4fdad7008e0275951b1f6a58344abcd9de896ba6bfdb4316d4",
+      "bytes": 10551
     },
     {
       "url": "./apps/games/BENNYSBUGBLASTER/sounds/bomb.wav",
@@ -1160,13 +1160,13 @@
     },
     {
       "url": "./apps/games/BENNYSCHESSCHECKERS/index.html",
-      "revision": "6af20002819050d37c49da95124c00e968c4a6c0164a14f9684f057f77f9be05",
-      "bytes": 1627
+      "revision": "ea167f395bb89362a505d6eb59f9a4108a4853210a7ddeb0bfa7fd799c65ac3c",
+      "bytes": 1633
     },
     {
       "url": "./apps/games/BENNYSCHESSCHECKERS/scan-access.js",
-      "revision": "b2125d88d927043ff7ae9a52207d9db8c66f2bdd11e6dae681345aa9029cc7fd",
-      "bytes": 8474
+      "revision": "644940970b134e606427ddbf99081c1e87c5c0bef8f986a6931827d99dd6614d",
+      "bytes": 8540
     },
     {
       "url": "./apps/games/BENNYSCHESSCHECKERS/script.js",
@@ -1175,18 +1175,18 @@
     },
     {
       "url": "./apps/games/BENNYSCHESSCHECKERS/style.css",
-      "revision": "60d012b771b65c66481725566f8c925f85bd08d4d2c57bb2e35a700e7a755bd4",
-      "bytes": 7194
+      "revision": "0b20a49f5e2efaf4c8d3d25e1bcb510439630c2d2bfcdadadff031f5b0dd1bb6",
+      "bytes": 7523
     },
     {
       "url": "./apps/games/BENNYSCONNECTFOUR/index.html",
-      "revision": "6d2c5a7b9eda7c23a769404b615219daee3d37d1a0126f4532f007684e9435ff",
-      "bytes": 1573
+      "revision": "9518b771e0873eb2d462ab817b2747c23197fab8b615fa2434ab5d6133440798",
+      "bytes": 1579
     },
     {
       "url": "./apps/games/BENNYSCONNECTFOUR/scan-access.js",
-      "revision": "2c2c1c818750a3555c16a98852a7185b0dd5a4cffd5c744e2942124577e89c6f",
-      "bytes": 8478
+      "revision": "882d51161c9d9db681d3b8efb81fab1f90752c64590b214a0367a9a05a2ef64d",
+      "bytes": 8544
     },
     {
       "url": "./apps/games/BENNYSCONNECTFOUR/script.js",
@@ -1225,8 +1225,8 @@
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/audio/vo/index.json",
-      "revision": "f14a792afe4f71d3ffc28e4326a280c616b62fed3f608e7e3fe3f81083718af7",
-      "bytes": 5807
+      "revision": "08226de6392b61e0a7fde7d1fd2439a8a6c53df9b5059447436ee0c3c180be09",
+      "bytes": 5998
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/audio/vo/q01_nudge.mp3",
@@ -2715,28 +2715,28 @@
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/art.js",
-      "revision": "cebd915713ea47fc33db01a4915378cb5f08761090d230336e4ec875c57e45da",
-      "bytes": 154182
+      "revision": "b7db63e0eda573140df320631001a642ff68b5a6507ba885a7bfe83d2bf9fe2a",
+      "bytes": 157522
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/audio.js",
-      "revision": "72fc0b8fb7bb3b4a0f54220f68e869d4b08ee4b0386f1180da3540d7ade5af11",
-      "bytes": 25410
+      "revision": "576b28d5190202fd474b2ab7d9519bb86bd01823a9951eb5aba2e417883f12a2",
+      "bytes": 26055
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/content.generated.js",
-      "revision": "0f6f755c21c487f6aadc5fdb5b0d4708c90c2ab5f08b0886e5e6f1a7eea0e969",
-      "bytes": 112219
+      "revision": "3b2bab01127a5562387f8d1cca218706c19c331901d46613d3a6d1d5ebeaaea9",
+      "bytes": 115540
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/data.js",
-      "revision": "c97f74f7d27a0afa42c3b99c0640269760f86798444bc70725758cb1a8245cb2",
-      "bytes": 15907
+      "revision": "c131956a73f5bdd5ffb6c58b545d6417cbea57cda0d6705d57e578a725ba39b2",
+      "bytes": 16199
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/economy.js",
-      "revision": "a4b4346bc4878551428905d51e802b66bd22699b853a2ee21c1ccb076c455df0",
-      "bytes": 9160
+      "revision": "93d85888112c9dc6b84d4c7668f968a381d74a8d0bcf0639cf88a5d352e0c142",
+      "bytes": 9384
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/game.js",
@@ -2745,13 +2745,13 @@
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/icons.js",
-      "revision": "1470b5e63a282920243990c0cb4d8ce1870c45d00ef583a91d011b85b33cd9b4",
-      "bytes": 2282
+      "revision": "371e3bbd6c35d72b2bf7c59ae91ee1c8d34e9563ba11dbe517869aa74bb48e26",
+      "bytes": 2339
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/lake.js",
-      "revision": "a865463208fae6d07c9f58f45939838c62b5b6dbccd2923e1901d2a4972a6aa6",
-      "bytes": 13684
+      "revision": "76f394f705aa0ce544cbc21908e0bc8b9564437d9e14fd0d6400e887f123454b",
+      "bytes": 14007
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/main.js",
@@ -2760,18 +2760,18 @@
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/minimap.js",
-      "revision": "987ae211b6bdd68bf9fd470b7ac2ed672e8525ad9916337407216a8683731272",
-      "bytes": 46590
+      "revision": "c5ae843a973f89535ff7640c1a1b2923bbde016b0d0a3d61c1cb7e807caadfbf",
+      "bytes": 47741
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/quests.js",
-      "revision": "1870f86c5c39c35ceaec9cb82d79a7fdaf2dbb4d5c46d29b577fdc261ebbaced",
-      "bytes": 6271
+      "revision": "a252fc6050a438da42351e182bab6aa9a9ebafb7cd83916bf226d5032da6b7dd",
+      "bytes": 6414
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/ui.js",
@@ -2780,13 +2780,13 @@
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/util.js",
-      "revision": "e1c5640b24e3f7e41eed94ddefe409c9b3cf48c6a2bc6daedcd732e324961293",
-      "bytes": 16403
+      "revision": "3c61aa3b2cdb5d36f3f446f015bc210ceb7a8d8f5f33f064f3d1af3bff1ee5b7",
+      "bytes": 16785
     },
     {
       "url": "./apps/games/BENNYSFISHMYSTERY/js/world.js",
-      "revision": "36f68f5e1388a3ebd0bc4e4d5ab5671a78ffdc195cb6c2809ca5afe613a12fc6",
-      "bytes": 23832
+      "revision": "1b8ac1161b0ae5864f3efe72112c26a0072f89f95ecc14bea4f318c55d12b981",
+      "bytes": 24348
     },
     {
       "url": "./apps/games/BENNYSFOOTBALL/images/black-helmet.png",
@@ -2890,8 +2890,8 @@
     },
     {
       "url": "./apps/games/BENNYSFOOTBALL/js/choice-canvas.js",
-      "revision": "6057300850bb939e4d411a15cfc373fb00b46cbfb2727431bcd1bc6dc5c0cde1",
-      "bytes": 9288
+      "revision": "93495487d99e61c1a183dbbf8f30cba3868ff6a7c09837440630cd7405009c7e",
+      "bytes": 9346
     },
     {
       "url": "./apps/games/BENNYSFOOTBALL/js/constants.js",
@@ -2905,8 +2905,8 @@
     },
     {
       "url": "./apps/games/BENNYSFOOTBALL/js/motion.js",
-      "revision": "6e091a8f2684f31d7a00657ad06ee4bcd5d55d7a99f84f1c49f200048e4ce3c3",
-      "bytes": 13597
+      "revision": "c7592cdbe8f954a9037f8102502990213cd772133581125f7c11a3886a5ecac3",
+      "bytes": 13877
     },
     {
       "url": "./apps/games/BENNYSFOOTBALL/js/scenes.js",
@@ -2925,8 +2925,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/assetManifest.json",
-      "revision": "751af588ac67d73527c8154c2ed85785c0bff42df1706303fe3129c01929aeaf",
-      "bytes": 223
+      "revision": "0f175573159905c949ddcea3a0fb6e3aa4137bc463ec6781f435c30b6acfbe3f",
+      "bytes": 231
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/editor.html",
@@ -2945,13 +2945,13 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/CREDITS.md",
-      "revision": "4eb3680cf3fbea6c6a58972c727dba37de594e21a9fab718e88e4b0bdfc0e22b",
-      "bytes": 104280
+      "revision": "a2fe0058a0ec6833e25fce145a300159136a47e419800128c3eb4bfa5ad60595",
+      "bytes": 104941
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/animals.json",
-      "revision": "a297dbe986e02debb41fbc8e1d33a187a4b84330872433e01b461fc72682736f",
-      "bytes": 44574
+      "revision": "60a0eb3b37f4a1a99f6c60b4f28caf9740177ad96975f1b3c2afdd40c005f57a",
+      "bytes": 46043
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/birds/canary.mp3",
@@ -2965,8 +2965,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/birds/cardinal.svg",
-      "revision": "959f98941c2793d10e95ee46bda11e606d12a039d7a231b87b5c9bfe05906acf",
-      "bytes": 4640
+      "revision": "e899e73b01fb4c94ac562de24a6e3d599a39d38f114527f8ef6934c6f15afc34",
+      "bytes": 4641
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/birds/chick.mp3",
@@ -3460,8 +3460,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/cherry_blossom.svg",
-      "revision": "c0feabc2f5aa40b64d0102fa14a7dea30ff8f8d8a422bca18d27e1e2f3608121",
-      "bytes": 7664
+      "revision": "fc3277b94ddf2a41e56359e7c08a3941af2a410842173b9eb8c7162c2a038c5c",
+      "bytes": 7665
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/crocus.png",
@@ -3505,8 +3505,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/hibiscus.svg",
-      "revision": "91e4b7401690e6213e0fc264616556d332b311ab1ffb9fe48a90d2c043f441d7",
-      "bytes": 4119
+      "revision": "170ae8a507f6423922b98f0ae8a10ea90612eb622b9110a82102df1d10c89375",
+      "bytes": 4120
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/hydrangea.png",
@@ -3565,8 +3565,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/rose.svg",
-      "revision": "600e2254b9b32a77c170949d94ac2ed4b43bb9b75469e2631b02990557b53c44",
-      "bytes": 2126
+      "revision": "62ee1f2cd98b04e11dbedc0cfdd2a90124263e5a51b2ac46e026dabe43abfbc6",
+      "bytes": 2127
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/snowdrop.png",
@@ -3575,13 +3575,13 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/sunflower.svg",
-      "revision": "b0e8dddc9c0310806fbdab7ef9a68ff9119f21770ecd888751c1b7baeea72747",
-      "bytes": 3008
+      "revision": "430a3558b2460e434ba7d475921fe72ce0d946f4f755d0318461641fbdc32a85",
+      "bytes": 3009
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/tulip.svg",
-      "revision": "f2f2ca15186051347a6203c13d036e8774b71dfd7d59815860eaf792ad84a168",
-      "bytes": 1838
+      "revision": "ed4bb77cd11ec232cc4c017aa874c7d98e8cb4f58a2eb2fde151fc1f3d61d25e",
+      "bytes": 1839
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/flowers/violet.png",
@@ -3595,8 +3595,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/food.json",
-      "revision": "9ec0cdfe67374c85251aa5d1330daa3df72386681278423da02ea35f839ca43e",
-      "bytes": 28914
+      "revision": "121da22779261d05c68fcdb75c7d24762ca355c2dd15d6462b52b051056c1629",
+      "bytes": 29819
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/fruit/apple.png",
@@ -3690,8 +3690,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/fruit/mango.svg",
-      "revision": "ef82d014d1f9262ccdddeaee8c3d9d8d1d1f2892b12ffa2147a8aefdf28fc717",
-      "bytes": 953
+      "revision": "2a47d91492c0a20d4ee7a3e5772f3f8fc1f6094cc62ef1a1781dee41279681a7",
+      "bytes": 954
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/fruit/melon.svg",
@@ -3805,8 +3805,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/vegetables/chili_pepper.svg",
-      "revision": "7108845a317e9084f1790834ddc7f5186e3a670658d772e2e7afc8e39313075a",
-      "bytes": 1795
+      "revision": "d14085f5b59c9db5566eb1161da3b53f49a06b1ebf5fab751a85dd46d6938f24",
+      "bytes": 1796
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/vegetables/corn.png",
@@ -3820,8 +3820,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/vegetables/eggplant.svg",
-      "revision": "fb6f233c1ca65fa6c62c8219bf41fa797e77d40d3cacdfd25cfafb72dfb1ee5a",
-      "bytes": 1520
+      "revision": "1f62a4cd002a100fb6a87ecc120f82ee1005398459d7c4151404e5c0bfa153e0",
+      "bytes": 1521
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/vegetables/garlic.png",
@@ -3925,8 +3925,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/burrito.svg",
-      "revision": "1cfa6ac739559dee1426cd2ce22081807eafb759db049e51522a5f6e10443544",
-      "bytes": 15763
+      "revision": "d991ef6bcb6b2ca37cac9a7ed021fd371f7f8e33af8a8098c593ef4e5881e974",
+      "bytes": 15764
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/cake.png",
@@ -3940,8 +3940,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/candy.svg",
-      "revision": "448ca52cc15cac330d9bf130cd7d95bd1fd66be3bc05b1917efd3db6f29f27bb",
-      "bytes": 5345
+      "revision": "7f8f76abdbf099fddbf97de817a640c3a44b441a89e9bc4dfaffeb42083ea6d2",
+      "bytes": 5346
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/cereal.mp3",
@@ -3970,13 +3970,13 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/cookie.svg",
-      "revision": "9667a3887c7759c1eb81c3daeb488e4bc4556b96fefdc7fb6a2b65d84cf62a6d",
-      "bytes": 3437
+      "revision": "def3635ee99404cbbf00f9c2d929fcfc5ae0f27c9bb6b39c867d51a884d9e139",
+      "bytes": 3438
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/cupcake.svg",
-      "revision": "bad9a82563e74db34ee0f65f78a7761556eb2bc4e9415c98cca4c653c002942c",
-      "bytes": 3684
+      "revision": "4dc9d7ad72a8789f867ef52024c1be1de3320104353f770a5771a1a0d7bc557c",
+      "bytes": 3685
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/donut.png",
@@ -3990,8 +3990,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/french_fries.svg",
-      "revision": "cdf2a12c04e6212e9b74709a04d4bd83a23946e8dbdeaf2f9119656d99795982",
-      "bytes": 7447
+      "revision": "9d3aba8615517938ecfd771fa6a3b22e39c655e1777e23ac67e050e3e17ae55d",
+      "bytes": 7448
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/hamburger.mp3",
@@ -4005,8 +4005,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/hot_dog.svg",
-      "revision": "bbda240c76282dae3fd9b3bc44517c0ecf9af1e90707c04f2498dadeeef1c1de",
-      "bytes": 2285
+      "revision": "62f9d6cf09f1b374f36c49d7f5404b7a83558fe6e4ba4b27bd5dcd836a4980e7",
+      "bytes": 2286
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/ice_cream.png",
@@ -4065,8 +4065,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/pie.svg",
-      "revision": "5569e25bec40daa960cd768ed490d8d8cbe1a18425e116d8c4aa41f98bf77e6d",
-      "bytes": 10315
+      "revision": "a99589b54339fc5e339c07c2b16fa096abcbd390c969a31f967c17500fb1a912",
+      "bytes": 10316
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/pizza.png",
@@ -4080,8 +4080,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/popcorn.svg",
-      "revision": "83cecfbc84c1aaed1aef67325de08fb36b302796c8957d71d78760cd3fb8fabd",
-      "bytes": 17493
+      "revision": "5b74f155b1d3c9306cbb1f48a6ed6e7f2ab0dc53a8fd79fa649de98777ba8547",
+      "bytes": 17494
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/potato_chips.mp3",
@@ -4140,13 +4140,13 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/sushi.svg",
-      "revision": "528645832c517ee8eb09280a2fd900e5090951dbc07f104f07bb65cede79f4c9",
-      "bytes": 6808
+      "revision": "69c7084f5f9e8a0570c533644d3616674f638a486a15ed1beb8ec5b806220c58",
+      "bytes": 6809
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/taco.svg",
-      "revision": "bf5ab1fd7e32a76a83f792cf86e717fca2ba11b9899873c85cd4745f1fda374f",
-      "bytes": 14497
+      "revision": "60e71bbb7b531a747481b53badbca67dc6fe4355aac141d591cf6226632e5675",
+      "bytes": 14498
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/food/yummyfood/toast.mp3",
@@ -4165,8 +4165,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/alarm_clock.svg",
-      "revision": "b27e0169567be0c2f35c69872c183134e268128a8641a7387326231541a6b1d9",
-      "bytes": 3351
+      "revision": "3e7db2026616ab576444c43087b13b0131481360f78f951f0e4dd09f3311a721",
+      "bytes": 3352
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/bathtub.mp3",
@@ -4175,8 +4175,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/bathtub.svg",
-      "revision": "b00789f1821ed5417e206f360a1c34285f76fa03f3e7317d6162b910972dbaac",
-      "bytes": 2845
+      "revision": "a523540863fedd17edfd07428851fd388546c6b07cab07fbc0ccd9bc89fa043e",
+      "bytes": 2846
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/bed.mp3",
@@ -4335,8 +4335,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/light_bulb.svg",
-      "revision": "c3b0215030e98f45eafb2187a74e3c1fb7a47656b4df577c681a17d831617cd5",
-      "bytes": 2743
+      "revision": "124dd0556370b2b015bebefb7e44d4b32a87ccb789394da040433a0d23a5c774",
+      "bytes": 2744
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/aroundthehouse/microwave.mp3",
@@ -4490,8 +4490,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/home_and_hobbies.json",
-      "revision": "fae574be7f550ac56b78632d98b6f1c0cee311cc9b7f1292bed5eb27cbbc10f5",
-      "bytes": 29013
+      "revision": "e48fc6eccacaaa76ac4378b47c90ddedcf0d5a112c1dde8555cfdb6b31b69f69",
+      "bytes": 30001
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/musicalinstruments/accordion.mp3",
@@ -4895,8 +4895,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/fencing.svg",
-      "revision": "81ff65e015d2881b5540eb374c13dc17dc459528db2f30276311d448bb3bb21d",
-      "bytes": 5636
+      "revision": "d4a2a327ba48ff3bd8af7be21cfcc7b21e3a1aab9eb3f44104bbacd3e14e2f9f",
+      "bytes": 5637
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/fishing.mp3",
@@ -4915,8 +4915,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/football.svg",
-      "revision": "8afa5445096bd0905900d790878d6b4d8939c6b3cb3496b85e6448cc0e3fb8b1",
-      "bytes": 3302
+      "revision": "22a4b5307dd553b8a1c9888786284a8246f07a26abb5bea1f3a32e4586e98727",
+      "bytes": 3303
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/golf.mp3",
@@ -4940,8 +4940,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/hockey.svg",
-      "revision": "906986205b5754e4b6916a13a00f3ebb36606c1c69661c27a55ecbf775524b12",
-      "bytes": 2140
+      "revision": "4bdbe05264d9057d8253dde3aac8551af3e605e943c261b10de293480c7a6712",
+      "bytes": 2141
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/ice_skating.mp3",
@@ -5030,8 +5030,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/snowboarding.svg",
-      "revision": "bd94108e84c3b381ce629103e21edc611818edf41bd65c37c04dd2a98143a832",
-      "bytes": 6093
+      "revision": "7d1f52c20a2129833b054ee36aa2eb07c01bd5c0de53e9838fc6e30fd827c8ca",
+      "bytes": 6094
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/soccer.png",
@@ -5045,8 +5045,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/surfing.svg",
-      "revision": "e2c5b65241f79d676806b9c7d3674c5133843983d8a517f402a047f1120e2958",
-      "bytes": 5054
+      "revision": "33c5a1d5dfdd66b9ca66e9000029da873b2ef20e897d85f37b100e60f1f8c6c8",
+      "bytes": 5055
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/home_and_hobbies/sports/swimming.mp3",
@@ -5100,8 +5100,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/influencers/influencers.json",
-      "revision": "0f9e16cdb97cc9b8ba02483ef9e1017529a6bb70bc069e6b472f7b52f84ccae3",
-      "bytes": 5245
+      "revision": "c4d37c2ad4a307749f46427b1368268a5e3bfd7cffd86169d0f8f5b2aaf4f42d",
+      "bytes": 5413
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/influencers/jenhamilton/BIRTH_VIBES.png",
@@ -5650,8 +5650,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/miscellaneous.json",
-      "revision": "0e6714d43a49d0eaf3e42b8166427de2d1f54916b1fabefbdd26d6586b029c98",
-      "bytes": 28257
+      "revision": "6e7b0d6309466708754ed892342c5bf06234aa0cfbe25df3ab992c5d4468cf73",
+      "bytes": 29183
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/seacreatures/anglerfish.png",
@@ -5680,8 +5680,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/seacreatures/crab.svg",
-      "revision": "b7ecf63ec37d9cecef646148b9c3fd232f19b4260ecde1716801d6bc5adf739b",
-      "bytes": 10998
+      "revision": "132181959c262b79dbbcd762183fae03bf0e6c130457521a087f198cbd4823e3",
+      "bytes": 10999
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/seacreatures/dolphin.mp3",
@@ -5760,8 +5760,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/seacreatures/pufferfish.svg",
-      "revision": "80c397143b069e908547a4ae376d8f5f0eb0f830a0475f49eb965086e91a9869",
-      "bytes": 4196
+      "revision": "9e943cb2764717f37ad06fe493abab6bd2181e9df63f58f9d2a6f1fe22f79077",
+      "bytes": 4197
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/seacreatures/sea_turtle.png",
@@ -5890,8 +5890,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/smallanimals/fish.svg",
-      "revision": "07842670b23a09c974d00cc73ca66964ac5476233f832cf173ebb1a5c143a9a5",
-      "bytes": 3868
+      "revision": "bca846daa2ac42a41237e96d71c55f25dbe808f3b4c0020dfc8a3b8a6e1f39e9",
+      "bytes": 3869
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/smallanimals/fox.mp3",
@@ -6055,8 +6055,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/smallanimals/turtle.svg",
-      "revision": "081026c927c01b0da7c24553f10d005e32d44848a9d5726bd1046e9120db52cb",
-      "bytes": 3290
+      "revision": "777ea7a9ad20defbebc46dc1697819fc3935a4f18eb78733c7fd920a2953caa0",
+      "bytes": 3291
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/airplane.mp3",
@@ -6065,8 +6065,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/airplane.svg",
-      "revision": "f5369a82def6265f0abbe8c1dbb9c788169bffc2eb65d652ca2ea0220cd14007",
-      "bytes": 2818
+      "revision": "db0e07018aabe2811273b931082e866db10b0c80fea455c0409f23b0d22a7dc9",
+      "bytes": 2819
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/ambulance.mp3",
@@ -6225,8 +6225,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/minibus.svg",
-      "revision": "9081499109cf79760a735533da62d3681ecdcff23150def37f1b5c518c2fa885",
-      "bytes": 3825
+      "revision": "cdb297500cccec03fa8dc3c87c289453ce6b9e48425cb180a3b1f5c64fb7cd3d",
+      "bytes": 3826
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/minivan.mp3",
@@ -6265,8 +6265,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/police_car.svg",
-      "revision": "0f2ee12f02c1f63498c88af930845364232628cceea95356daf3f6ce540469a8",
-      "bytes": 3839
+      "revision": "b0d8b38853236020a369520f5b6ede53380eb046d918fa8850b7ee03a79467f7",
+      "bytes": 3840
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/rocket.mp3",
@@ -6320,8 +6320,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/speedboat.svg",
-      "revision": "20a594853449899dfc9e2ea6674ac71bbe0c84142884cabc78c3e217b1b99b87",
-      "bytes": 3546
+      "revision": "374ad3419a38c381f2613f6942b0679972f329e56c79dfb573436a3ee9daaa8e",
+      "bytes": 3547
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/vehicles/submarine.mp3",
@@ -6575,8 +6575,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/weatherandnature/snowflake.svg",
-      "revision": "f7815b54aab7eec708a6c9f37a689583e5d202a411ed73c77e941fc290f89c46",
-      "bytes": 2924
+      "revision": "c8fb596ab6330c0f97e5e6e1e0493b2d69d8d463631822eeddb972679d268f4a",
+      "bytes": 2925
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/packs/weatherandnature/star.png",
@@ -6645,8 +6645,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/scan-access.js",
-      "revision": "1504a6c31bee69ae96ac947d7de7081264d5dd4455205a4b69cac540344b1d51",
-      "bytes": 7979
+      "revision": "737ebf18c9be9ff34afd4a205e45deaecc7462f1acd4ece064753ef0ada8a527",
+      "bytes": 7995
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/script.js",
@@ -6655,8 +6655,8 @@
     },
     {
       "url": "./apps/games/BENNYSMATCHYMATCH/style.css",
-      "revision": "54a239219ae93d415d6acaf0a4b4dfeb833ad1e1c37a771a3b7b084d68636db4",
-      "bytes": 13126
+      "revision": "1b263886c2721df36f6e56ed4ffa60d0c2be7192bcc064105b42a3a47b75e1e0",
+      "bytes": 13661
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/COURSE%20CREATOR/editor.js",
@@ -6675,18 +6675,18 @@
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/courses/benny_s_9_hole_challenge.json",
-      "revision": "44204de183d9d3bf9ab0ae5214ad85777aca7f647a2c249d7732d12d992d9c9a",
-      "bytes": 25852
+      "revision": "f06b4660f9b4f658565364f29e117c0fbf8039a24edbb63c9fe6271636b85ff6",
+      "bytes": 26987
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/courses/bennys_backyard_18.json",
-      "revision": "a1d4e6fc375065131fde694d4d71d77172e65cecb9cef2b7b583a37c0ab1e297",
-      "bytes": 65481
+      "revision": "cf494f108007877a2b6993488b16ae70d4296f3742c8626700ddd128a4d86725",
+      "bytes": 68290
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/courses/bennys_big_ball_9.json",
-      "revision": "5431ed34d21d1b043417ef86de25f280dac4c2f422ad803d556514343a701d81",
-      "bytes": 21943
+      "revision": "87e2d5e03e1a9d511d7720d7a53e99ffbc513a4aec77699568d06d264718101c",
+      "bytes": 22897
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/courses/course_list.json",
@@ -6715,8 +6715,8 @@
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/js/input.js",
-      "revision": "1753cfcbf4fed51a2c8c34985771b7d11f9c79b14d3991a2cf17a2d6e022a175",
-      "bytes": 9334
+      "revision": "4dcc76810057046dd50ae6d7ee3f6569490abca68675057c96e4d1bfb54ba529",
+      "bytes": 9347
     },
     {
       "url": "./apps/games/BENNYSMINIGOLF/js/main.js",
@@ -6770,58 +6770,58 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/bennys-original.json",
-      "revision": "2428277238405f7ed3bb98df663af814044e0aa3944f7d1faa05030e1aef306f",
-      "bytes": 106056
+      "revision": "53410efecd99fbb5e2d41eacef7fa1499ef1ac3d5afd1ff59e00889694909e39",
+      "bytes": 107324
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/cozy-lantern-garden.json",
-      "revision": "9fdb778e9afc920b5259c3735804d0a8cf2586dcf40cb5b75e9164e0fa6d5bc9",
-      "bytes": 67737
+      "revision": "497a32156929e777a4aded825c9e399ad6bb1909527f8163d658cc42a14fb568",
+      "bytes": 68982
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/cozy-moonlit-lake.json",
-      "revision": "ed1569b71ba0a26bd1e568b6efbb80bca367ef8f84ea9e547c63cdca815acf99",
-      "bytes": 67969
+      "revision": "1136cf90c051a7f710509992755ccd6e20c4a9542bdcce5b424578357f978048",
+      "bytes": 69242
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/cozy-snowglobe-hollow.json",
-      "revision": "95bbd5eb1d00cc1ae9975f042593ceb38b7102052cf8e9201a32231a0c5a69ec",
-      "bytes": 67864
+      "revision": "df63620df05568cfc01aaa4bb888ede69f44e1290394717b2b66a88f4fd6385d",
+      "bytes": 69109
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/hyper-neon-highway.json",
-      "revision": "a3c76d97efdaf397d21510eddf103d54470b93015489fccbd4a6ce3212934404",
-      "bytes": 135972
+      "revision": "694d1c4337e2607952cf1229ae83b33f05c9347a87a5402191a04090eb535bc7",
+      "bytes": 137720
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/hyper-quasar-core.json",
-      "revision": "60e9e4df2e0230c13ec0306e83c191a469a651808eb02a82c46607673db39cfa",
-      "bytes": 163409
+      "revision": "cf48ad81dacb7703ab015e290819d322cbcc43c212f997459371403cca1f9731",
+      "bytes": 164942
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/hyper-starlight-warp.json",
-      "revision": "06b8b58944e6299b16a6d11cc76679b8666a98c26b12f12055931f61ce5ed9a7",
-      "bytes": 113187
+      "revision": "069a79c4d7de1c0e183d84166854047034c42a6ebab6bd66338285a9329cd899",
+      "bytes": 114537
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/index.json",
-      "revision": "c18a89a9761dceba38817847fdc3cc9d93a00fd2f315b5c0c0c257b504edf7aa",
-      "bytes": 3561
+      "revision": "a33f5515b3bd0d50bbb005c71244e13a32b1e1ffc1adc0a68e66b29c407d61c7",
+      "bytes": 3667
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/vivid-carnival-skies.json",
-      "revision": "c60835e782867e804bc774dae34f74a9794334c3cccdbd84316eb9f871c4da5b",
-      "bytes": 116964
+      "revision": "d52c86f0f7fc1ec59f8fc57168e57eecfe80695afb32bb32432d324a920d89f6",
+      "bytes": 119004
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/vivid-coral-groove.json",
-      "revision": "862e8086745eaeb421d7106082fa33723801c60fcf5978003961b463ab7a5a56",
-      "bytes": 84559
+      "revision": "dff5d47dd1a195aadad3854f84147b7b7e4fc304a611caafba79c023ae386217",
+      "bytes": 85954
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/campaigns/vivid-sugar-rush.json",
-      "revision": "4dfe07bb4bb5051cb357de008e6a74e09131cf15a8a65aa6b7965dd3da813c5a",
-      "bytes": 93983
+      "revision": "005eb36eb219e0903be30ffde01bef6eca564e67e8a1170eb16fd04058ecdb06",
+      "bytes": 95719
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/covers/bennys-original.jpg",
@@ -6875,8 +6875,8 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/css/editor.css",
-      "revision": "c0e1f8006c0a872ea04ffbf1b446e906b32928a7bcbd4bd05454cf94a8878959",
-      "bytes": 6903
+      "revision": "7f20295dc51692c770881537ae60178d4b2299600fd23df2b3f4977f59db700b",
+      "bytes": 6914
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/css/game.css",
@@ -6885,8 +6885,8 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/editor.html",
-      "revision": "2989b1f1c836acc405a41fddb593443b0c2ac1cab5dd356d0e858a88caa80a37",
-      "bytes": 865
+      "revision": "7a16b88f712aa0c5d794219c1ec935e5c180ed909ef8da47a6263baa334051d8",
+      "bytes": 881
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/index.html",
@@ -6900,13 +6900,13 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/audio.js",
-      "revision": "9945a53517cfa60f620fc51fcf4931f3bbe74b3f5a94f33fe32363941cdd56cd",
-      "bytes": 212466
+      "revision": "7a446368b37138d37b64c024626b0e85daea8681351ad03d76b893f2a066c1b6",
+      "bytes": 216335
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/backdrops-cozy.js",
-      "revision": "6024ca78549983963fcb3b471bfc6097af61c457205f8c0363312f79bcf97330",
-      "bytes": 79129
+      "revision": "ab7a0ee30fd30a5d6970c24b01a4a821474e164f9b5abe472fdbed3f7b707e90",
+      "bytes": 80600
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/backdrops-hyper.js",
@@ -6915,13 +6915,13 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/backdrops-vivid.js",
-      "revision": "9276aec196c54a61b90c131e73cb08c39f97c83e5103a532b170bbffaba745d3",
-      "bytes": 21089
+      "revision": "51f700be85ff0ff214efe8f5bebaf41a48d3a55f346de03acd11082ed39aefb0",
+      "bytes": 21372
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/backdrops.js",
-      "revision": "11e49ba21f53386e55690b3a7ec84ba4efbfbb0121680dc79c4b959df7a5298b",
-      "bytes": 8917
+      "revision": "d4b5d9e3ec2449a404453ab363879b973e2bcef86e4ef7ac5561ac18f6548a7e",
+      "bytes": 9095
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/board.js",
@@ -6935,28 +6935,28 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/editor/bot-worker.js",
-      "revision": "1106d6f27271ba692ae7f42ccd7ef6e115e1d5cdccd7995010f6af331e603706",
-      "bytes": 2966
+      "revision": "ff3df0d2b1bf2893d78dcf63b935ab053821a3d4be84c34e599eba6a227599d6",
+      "bytes": 3005
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/editor/editor.js",
-      "revision": "f8794d93b67e375d69c21b95f613917510d94a866b20a05d602dd787ed43832c",
-      "bytes": 41831
+      "revision": "7353445945732ea8c6b4f81cbadd06f570a0f676c47a930e861b893ff1bf3498",
+      "bytes": 42181
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/editor/model.js",
-      "revision": "b7f6cf948a9c6801c5facb80ca86d200f9e07e80e3edb03fe42470bc763bec3b",
-      "bytes": 6738
+      "revision": "82035463c20db17f1a126e9c0cec64bee55891d32b195a4b3268035b21838376",
+      "bytes": 6840
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/fx.js",
-      "revision": "2e7afa05ee6bd05cabb2e9d3a5f1e560e10c72246f8f0d1d80b418fd29468925",
-      "bytes": 10606
+      "revision": "ab246f705a99c709b17bcb66ade4c413614970860b838c2488e6617323fb55e5",
+      "bytes": 10812
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/game.js",
-      "revision": "8bc9145b800674a4bba38da1a08bbf68f793682c2a8cf5045edbbccd2604badd",
-      "bytes": 35353
+      "revision": "02877fdbdef67682d22e07b17253d2c6a0169375f022bd0f94b0f96817d33df4",
+      "bytes": 36063
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/icons.js",
@@ -6970,8 +6970,8 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/levels.js",
-      "revision": "3f3ea960c684a9d7bf7487a4f037d88ef658b8071fbbf2ede6ca2f0b94ccb98c",
-      "bytes": 18038
+      "revision": "493998d05f65d5b6356e0d310a921bd5641e72995075aa110bd7bba5e19eeae7",
+      "bytes": 18425
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/main.js",
@@ -6990,8 +6990,8 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/post.js",
-      "revision": "ba20379db49bd248c161835a9ec3c22fd1fe8bafec933d100bde1e7d76af0a92",
-      "bytes": 11720
+      "revision": "f801243f2529843fb6eee2e8d05951319e013288f116a7e6e76037cbd36a4648",
+      "bytes": 11979
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/themes.js",
@@ -7000,8 +7000,8 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/ui.js",
@@ -7010,18 +7010,18 @@
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/js/util.js",
-      "revision": "848ff37615db262fd60f2b773c9db96533c58a3e06713c74bbd5a55b495acb82",
-      "bytes": 7088
+      "revision": "08e865bbd61c273a5a05efc7b03fb35d4a2d4c90c2e4ad9341655545880a2397",
+      "bytes": 7267
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/levels/Bennys_Campaign.json",
-      "revision": "d2b57c006f00752492515c409b31ceb9581f09a107d8464e5fd32528a69d8850",
-      "bytes": 152954
+      "revision": "f989b75254131938173b165aa710f0b669bdd08ad3d77ed775350beea0fc9b3d",
+      "bytes": 160564
     },
     {
       "url": "./apps/games/BENNYSPEGGLE/levels/level_manifest.json",
-      "revision": "f086259d0221928ff43c0f0a3840708b19506ed9a4dbd2f681fac19fa3c55d88",
-      "bytes": 210
+      "revision": "74f58b379a16b360a69046f9542df6b9ccb81c0bef7c3ccb5202d343a426a2c7",
+      "bytes": 220
     },
     {
       "url": "./apps/games/BENNYSRACETRACKS/index.html",
@@ -7050,8 +7050,8 @@
     },
     {
       "url": "./apps/games/BENNYSRACETRACKS/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/BENNYSRACETRACKS/js/ui.js",
@@ -7060,8 +7060,8 @@
     },
     {
       "url": "./apps/games/BENNYSRACETRACKS/js/util.js",
-      "revision": "f36bd8e9ca63b781351045cd95bf90260c01a4bcfe263edc5693ff510e4db014",
-      "bytes": 3954
+      "revision": "1f36ea579baf70f257ccb02d6c6e6d7b8a2db071b6803241be5c368384ad3959",
+      "bytes": 4072
     },
     {
       "url": "./apps/games/BENNYSRACETRACKS/js/world.js",
@@ -7070,83 +7070,83 @@
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/assetManifest.json",
-      "revision": "7a91d4c42405b49bf1d86f1f72db022c96bcc5f40b21abc13d204cf8c2daa8ab",
-      "bytes": 231
+      "revision": "ec40d6f6dbbba9e5ad9b8acab3c0a81e8a51e2a88eb802d33f8df19c1c6f1751",
+      "bytes": 239
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor-ai.js",
-      "revision": "b43e98b4c6b94b5a7016bf5e293f727d2b270f5139f476f9ad9e815d10795a01",
-      "bytes": 9849
+      "revision": "0ad3e84a4285ea74ad51a74d2c8357831020f3080c4609a15588c5fc98d5a2ee",
+      "bytes": 10052
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor-emoji.js",
-      "revision": "f434d22b73953072b919af77fbefb83ec3db048d3962227bd2123025a591ce5e",
-      "bytes": 5035
+      "revision": "8beef6177b0d45d4cef917dbeb072a54864e592db88a620f60cfd15f42ef6a6e",
+      "bytes": 5135
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor-frame.js",
-      "revision": "e44baf5987105a79050820626c550df26677c24fc699f8b60cee42117b79ca52",
-      "bytes": 9733
+      "revision": "7b36166db49ab194c813c6df853b7ba2afcc3f0d78bf5e82546152f3b3f8e1d4",
+      "bytes": 9967
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor-photo.js",
-      "revision": "c8642dbd410214bf74841e74e0cad8650987597633ebe07a9f7b31be62e8cc68",
-      "bytes": 17593
+      "revision": "b67ce92fd46606874a6d37b3177713b4a557db746611c168d52fbe547f13c36d",
+      "bytes": 18050
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor.html",
-      "revision": "fc3de64cf8bdb8623fe35139ab58ee74f236eeb4ebbec9423044d2e4ceff1402",
-      "bytes": 28735
+      "revision": "561f24ec9f5cf61f35b3656175f4c4c02e964a1e9739f4568d5bc60f1937a6b0",
+      "bytes": 29161
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/editor.js",
-      "revision": "cf64aa3330cb965d75a207747028459cb762f74a9a1c8ccc9dfd805b61fc706c",
-      "bytes": 78588
+      "revision": "28288ce3b80e5911e1b3795c5474e4917df5b0f28de73db846b4c9afccd76093",
+      "bytes": 80412
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/index.html",
-      "revision": "3317525cf35f5438be99db6cdd008264c09da64115d8acdf77b8a2e70a065f37",
-      "bytes": 1906
+      "revision": "84c35514ff53888da805925c565651fffd7d5fc64e9419455020990e96456ce1",
+      "bytes": 1959
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/audio.js",
-      "revision": "f631b1e233774d084be47b08a3a2df7aad345758e342e91c5e9ff0666f7bab96",
-      "bytes": 12687
+      "revision": "e707f88f654b5785873fa3d43fef87326a712274aafc246a1105bf2a9183ce49",
+      "bytes": 12986
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/choice-canvas.js",
-      "revision": "6057300850bb939e4d411a15cfc373fb00b46cbfb2727431bcd1bc6dc5c0cde1",
-      "bytes": 9288
+      "revision": "93495487d99e61c1a183dbbf8f30cba3868ff6a7c09837440630cd7405009c7e",
+      "bytes": 9346
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/constants.js",
-      "revision": "451fe2e7ee952d9044bb10c6951a4015135c8908ab2b8553fdf67e674c40083a",
-      "bytes": 11371
+      "revision": "cee41d6be2d301f819c0bbfe43580466dc42136cba7dbb948b3f75fd7aabe9c5",
+      "bytes": 11597
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/game.js",
-      "revision": "a5fbba26673b3beee9df6d9bbee1eca7f3f3227ae18e6ecac3413c723fc75722",
-      "bytes": 4554
+      "revision": "4974708b7e56c0cb24e8fe193b6323cdc9c2dc5e0556e144674ea891858556d8",
+      "bytes": 4652
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/packs.js",
-      "revision": "34539b7abe528de744b71b3a6dc6cab9ad862c65469bb389a5e4ed2528e06df6",
-      "bytes": 10479
+      "revision": "be5a8ed23e29a6af088fe1cedd4910b9419e96c9318cdeb3c012247226713904",
+      "bytes": 10710
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/scenes.js",
-      "revision": "d21879a6b671870c7fba4bb54e6a0105684a4d26612a916549e012c517154ab2",
-      "bytes": 59800
+      "revision": "2c8fcd7cf120e375fa8e4f7c46ebb4bea695e1441aeaf7e8b2e7c8cbaf1f4dde",
+      "bytes": 61128
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/ui.js",
-      "revision": "223749df9e17bcf62dee9555f65dfe52d661f036b76b08af0f6519131cea4ed3",
-      "bytes": 33652
+      "revision": "678da699f660714027c51e5a7bf2e4b0e74dc3515c6e20fec28b5c3ed85da1ab",
+      "bytes": 34360
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/js/wheel.js",
-      "revision": "2dd7b4cda58d0df17cb57362c72e0e63eae57af83bca8df9ca407092b739037b",
-      "bytes": 36205
+      "revision": "011b93fac7e40162643fc4117cc426c5bdf839e3e0126e95d9ffb0ce50a95a6e",
+      "bytes": 37043
     },
     {
       "url": "./apps/games/BENNYSSHOWNSOUND/packs/demo/demo.json",
@@ -7400,28 +7400,28 @@
     },
     {
       "url": "./apps/games/BENNYSSLOTMACHINE/index.html",
-      "revision": "8b70f1c13fe1ba39de8572062741caf14798b8cf745c31a05e1206b354dcac0c",
-      "bytes": 2629
+      "revision": "ab096c665faf0391213f7c01b3e7defbec951422d5155039e913f606cbc35892",
+      "bytes": 2697
     },
     {
       "url": "./apps/games/BENNYSSLOTMACHINE/scan-access.js",
-      "revision": "0eaea435f1a457c992c2dc805d064cebe0389a38c8d482cb508490d8bd0de6d7",
-      "bytes": 5829
+      "revision": "d0c7c304f4772f6611065e591b9f1ae21c6548c88b14c09fd376679f5cfb5988",
+      "bytes": 5847
     },
     {
       "url": "./apps/games/BENNYSSLOTMACHINE/script.js",
-      "revision": "67b27ed03ab11196d106aadd256669ebfe4bd65c88efd84fb8b7dde85d73a219",
-      "bytes": 99991
+      "revision": "636b867391fe1ebc27fce98ea860d8eab2ac53d31e034a286353c20dcbb5e2f6",
+      "bytes": 102750
     },
     {
       "url": "./apps/games/BENNYSSLOTMACHINE/style.css",
-      "revision": "bbde48b7d04dbfd65d9ec5d6485deee26baf50be921ce7b5c9f7ec0baaa06812",
-      "bytes": 38949
+      "revision": "e99308d29d4084d2ee755df20d1490dc684a7d5b59df5118d8b2c34a55c2afb3",
+      "bytes": 40572
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/CREDITS.md",
-      "revision": "0cc8e368c4bf4dd4071344c440192100804abc3fd505c054fbd9b3eb84b80dcd",
-      "bytes": 115
+      "revision": "737bd2df9b3b0888a89101b3632148229d9b594a7464abe3eee2413d0e6573e0",
+      "bytes": 118
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/audio/crowd/bed.wav",
@@ -11585,8 +11585,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/audio/vo/index.json",
-      "revision": "defff757491d22a23220338d3879374018204821964779718dc06a598f38db3d",
-      "bytes": 129707
+      "revision": "e9fa5e82131f753f11474dee80b69fee91c4a7e6170de1bd4ec7eaf49396b945",
+      "bytes": 131378
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/audio/vo/intercept_call/pbp_int_3_a.mp3",
@@ -15889,9 +15889,14 @@
       "bytes": 11040
     },
     {
+      "url": "./apps/games/BENNYSSPHERESPLASH/content/voice-lines.json",
+      "revision": "3378fc7f0c3f93f909963f7abde37130c630aa3a83c344b5c195a354207f05de",
+      "bytes": 9094
+    },
+    {
       "url": "./apps/games/BENNYSSPHERESPLASH/css/ss.css",
-      "revision": "70404b61fed7da45dc66c4592ff288b1611306feec701889028362c75d67a4f4",
-      "bytes": 38765
+      "revision": "5c6ff3c5a3c81e8ffbcfe70308a40f56528960890a112c7ce744e2316d684834",
+      "bytes": 39199
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/index.html",
@@ -15900,8 +15905,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/ai.js",
-      "revision": "b1fe2f7287c746616e2e6be6356037ed827b532c9396b610d4d584d2cb50327f",
-      "bytes": 12847
+      "revision": "b1b4470326098c31a814d2e4f3491830fc9fed1b59fc7e511c55bed8b291fa6f",
+      "bytes": 13090
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/audio-files.generated.js",
@@ -15910,8 +15915,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/audio.js",
-      "revision": "c7c883b05abc8c5887311186872705d126a04fca03f6d9b8d866180e20950b5f",
-      "bytes": 15334
+      "revision": "9790f2e7ee151f05e680ebcda8044a7b4eda0b68311066c576960fa760b396d1",
+      "bytes": 15615
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/broadcast.js",
@@ -15940,8 +15945,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/main.js",
-      "revision": "5db317c8d43336887875180fc519850aba442a270c488c137bd0c712c4ccfdf0",
-      "bytes": 6548
+      "revision": "a3f1ce091d74b07176da66dc4462b0acbf5e8dae61c636dbafb5187d2b867b23",
+      "bytes": 6671
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/model-data.js",
@@ -15950,18 +15955,18 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/models.js",
-      "revision": "071f1cc4b255a6b8fdf87e1997828f35f8521ca038931ceefd232fdd64d506e5",
-      "bytes": 35916
+      "revision": "286a07d4b22e4a24c6f3d4cc6b031f0aad791aebd431210a1659d30cc5aa457c",
+      "bytes": 36546
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/modes.js",
-      "revision": "83fbacb3a03d1a0440d9a2e1984bf9fb55599ecf815e32e2e43644ed75bef14d",
-      "bytes": 3219
+      "revision": "744158cac2c2e140048780fc916f780b5c1970d3b37e506620802c09251bf681",
+      "bytes": 3270
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/moves.js",
-      "revision": "509ba9413068e5a8828a6a56dbe59b9e5b6b3085e5036615d1b2192475b13e85",
-      "bytes": 35998
+      "revision": "9adde6f229d5c9a2039e621ad06ab7276a474968578b8d734fcec01d1d942dbe",
+      "bytes": 36591
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/replay.js",
@@ -15970,8 +15975,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/rig.js",
-      "revision": "ec4326f7d449eadc7b64c9087aa8d582d35d2ef550783b6a31a24972eafaf789",
-      "bytes": 4263
+      "revision": "e5c4be6e409016385f76ed16c561b93bada2313e92476b60ee3b4712238f4ba2",
+      "bytes": 4349
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/save.js",
@@ -15980,8 +15985,8 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/sim.js",
-      "revision": "e8aa1acc8bf63ed3dc1d0abe986e42e402e610136f5bf4a5ac825b2b8af7d9e4",
-      "bytes": 41827
+      "revision": "89b78b7fcb7739ef2f20176ec754f74e5c77923afb41222db4db896d75d8b0a3",
+      "bytes": 42642
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/theme.js",
@@ -16005,13 +16010,13 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/vendor/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/voice-index.generated.js",
-      "revision": "a72edc677b20294e8d7bb90cdc97c5a268aa9f3fd79c97243c0525daa7c857b1",
-      "bytes": 129877
+      "revision": "84674dda8f57b75e4a256058802c167c31e053a04dc7a951166dd62afeecca95",
+      "bytes": 131551
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/voice-lines.generated.js",
@@ -16025,23 +16030,23 @@
     },
     {
       "url": "./apps/games/BENNYSSPHERESPLASH/js/worldui.js",
-      "revision": "f79b0c61becd40507b333d30cf035869af3998e2142287e2e9c6fb74ec8a0813",
-      "bytes": 6589
+      "revision": "a2ef66c97824fc91faf69fc2312df775e035da6c65c372a31d0fd64c1c3726b5",
+      "bytes": 6721
     },
     {
       "url": "./apps/games/BENNYSTICTACTOE/index.html",
-      "revision": "0b9a6efa96e794003f4626439774a524b796a7c218e0047f4e5dcf368789c220",
-      "bytes": 1493
+      "revision": "de18e3577abef6ca06c6853fc2ede54a68b1be63a0945537a85f99f16caa9977",
+      "bytes": 1499
     },
     {
       "url": "./apps/games/BENNYSTICTACTOE/scan-access.js",
-      "revision": "07c6b86096564af853bf6df6044d9cb0ad0359b6e3a99298ab057fa1f47a42fd",
-      "bytes": 8470
+      "revision": "23e136ecc0977788c2de3cc75606b78a67c07fc3a9cc0bd3e8e598958af50fcb",
+      "bytes": 8536
     },
     {
       "url": "./apps/games/BENNYSTICTACTOE/script.js",
-      "revision": "2ee7778ade8624c91f780fab6f373e67a479acadb218df918cf5c186fc01b87b",
-      "bytes": 38443
+      "revision": "5edc7a9ca9e3000c84ce7a490b6775b01647cf49f98a2aa00d4990358201c8a4",
+      "bytes": 38448
     },
     {
       "url": "./apps/games/BENNYSTICTACTOE/style.css",
@@ -16060,13 +16065,13 @@
     },
     {
       "url": "./apps/games/BENNYSWORDJUMBLE/game.js",
-      "revision": "43559700e1fc2b9c1238c5d1237780303a7c0a561c6d4b1c8aa61c59cf5898cd",
-      "bytes": 64906
+      "revision": "6096661ab92c85f2f30ccb4000652f81890f1c3cd829b5baf4ab74f44e48a07c",
+      "bytes": 64964
     },
     {
       "url": "./apps/games/BENNYSWORDJUMBLE/index.html",
-      "revision": "65bcbf65ca4ac7bc7714e65defbe1bfa2e5b783e62b461db390eaa205b1537cd",
-      "bytes": 1272
+      "revision": "ff898d5144fddf09c46908194c7d322e3361d92df712e1340c0007d16e9c2920",
+      "bytes": 1277
     },
     {
       "url": "./apps/games/BENNYSWORDJUMBLE/style.css",
@@ -16079,29 +16084,99 @@
       "bytes": 79566
     },
     {
+      "url": "./apps/games/BENSBURGERBAR/js/core/items.js",
+      "revision": "7bea18bdf2fb0114891479c45ebd521019be5d5fc48af1ba62d520281a24a431",
+      "bytes": 6997
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/kitchen.js",
+      "revision": "7cfb5afeb0b2bec1ca7e90572f7a048763564d88869015968b4a4b1060aa133b",
+      "bytes": 5073
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/menus.js",
+      "revision": "38b7079fe8c983128bd82bef2c81ec73cff51db5e75039d403b6d36ccc853ba2",
+      "bytes": 6188
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/orders.js",
+      "revision": "eb815f978cb19dbfe8c2c79af838cdebd2b03f0786ec000922bf79151b0753b7",
+      "bytes": 6913
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/planner.js",
+      "revision": "71ae49b8350bbcbd3eda9dfac4957919e4237635a2f45365f71ef14fff0c9c1e",
+      "bytes": 21718
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/progress.js",
+      "revision": "3cd624f9f06b6a4e6749897aed05a95bc9504175aafd612ffdf75ec89bedc8ef",
+      "bytes": 4236
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/rng.js",
+      "revision": "d5d3df006383181c44bc0f7814023ba552469d51a2a2668e032c5d37a733a841",
+      "bytes": 1500
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/savefmt.js",
+      "revision": "7669430a59862ba4e5286437d4366507e036a3785f62585233a021dd27549e5a",
+      "bytes": 4523
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/schema.js",
+      "revision": "c2931428d7b318b7e369ad5dbd87f4e48b3c2ac3996c8335c3cfa7fc6b682a9d",
+      "bytes": 10576
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/scoring.js",
+      "revision": "a4e8c7a336c868c2a8f0cca970dfa59fb541a156181794c7461b32a50d349620",
+      "bytes": 10420
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/shift.js",
+      "revision": "e0003498463fad8f66dc1c9a80b09564308d72cff8b60bc00deb5dbf4a2bacee",
+      "bytes": 4738
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/verbs.js",
+      "revision": "d22c5afaca0ead8c3cb8834dcd2eb0f1078baa7b73e6e0839731c16ae7ad757e",
+      "bytes": 17986
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/core/words.js",
+      "revision": "4282bd94e6bb2bf71dfd958ff17a21facd2ef7b8e1ad0a54b9d518849f4b4759",
+      "bytes": 7827
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/packs/diner/pack.js",
+      "revision": "901bad0c4735464f17591b9c2f9e832289ab587bf1f88ef86ab52c500b2eb90c",
+      "bytes": 28833
+    },
+    {
       "url": "./apps/games/CHASINGRAINBOWS/CREDITS.md",
-      "revision": "b0949c83c53853cb68937c11588f20f9a2cf68fe46a3c28e6964f98d8f916ca9",
-      "bytes": 587
+      "revision": "bdd4e0bf0a51f438ac9217f35d15b62f2499647e5f193f80ca824fdc308d64c2",
+      "bytes": 598
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/LICENSE",
-      "revision": "488e039ac9c322edde65e60207957f0526b3dbef8236ac3e5f501f8457041a5a",
-      "bytes": 3710
+      "revision": "070e1c7cc3e25fd9da34449b95237d8f58900033a3c0974befa259a9472536fb",
+      "bytes": 3774
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/NOTICE.md",
-      "revision": "e6ad68e97abdecc2f13d40152ef3d87c5e10f9d0c7b2c89581bc36fa4a5c08f4",
-      "bytes": 4498
+      "revision": "6cb37a84250581da627751d5239ba228279fd95d470093c203fd96ee05623605",
+      "bytes": 4580
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/README.md",
-      "revision": "6acbc1f0a2828f8535acb4e850326df0181fbc456188c6e46558d63432d08861",
-      "bytes": 9869
+      "revision": "5f1156d2e9e3e5b716d3db7577c75803f18ae4775e605ac0cbe97decee4f77e0",
+      "bytes": 10030
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/css/style.css",
-      "revision": "d23d96d89927ce6aee797c114bdf795c85e76a9451588d6396bf95d2b7995cd2",
-      "bytes": 52084
+      "revision": "31c1adabd715b943f156c9b4994b7ab6fa6ee7564719c61c246f03bbffd47c28",
+      "bytes": 52855
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/fonts/Nunito.ttf",
@@ -16110,8 +16185,8 @@
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/fonts/OFL.txt",
-      "revision": "580df76c95a1ec5ab878ceb25bb3d85c6a076804e9c970c8c6972aea775fdf65",
-      "bytes": 4385
+      "revision": "656f26016ddc144bc5f77951bc9c3dd4e3b4fc3dcf1c37ac1c4d6f7bf75e3cee",
+      "bytes": 4478
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/img/cards/back.webp",
@@ -16210,8 +16285,8 @@
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/ai.js",
-      "revision": "de5374aafd29471f303e5955d461b0c3aecb2257a99a29fd6ce1d3b61f08552f",
-      "bytes": 13431
+      "revision": "0c013096819f215e68deabb5e78ea48439fb98cc2c127d94e3f4d8324b13fada",
+      "bytes": 13703
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/app.js",
@@ -16220,53 +16295,53 @@
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/audio.js",
-      "revision": "aa8e17044c67c3a07efbc54135ae39d446dca913441e8dc44bcba2bc1633facf",
-      "bytes": 2816
+      "revision": "8b08b6a108e5327df843aa13a2bb47a0233c69b2d0e678971b89e43548222a2f",
+      "bytes": 2874
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/cards.js",
-      "revision": "3522033149db66ed3b58a15980cf76c895271911289d87c21709fd2e2975f6da",
-      "bytes": 5663
+      "revision": "0f772c1c54b3013944e266d5982991a3e8ef1ba390edbd80c73488deb9333400",
+      "bytes": 5767
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/display.js",
-      "revision": "0de577c4c073e98ac29b5087d3c512f4a7cb39f2c6517a0dd9fba6e2da88d99e",
-      "bytes": 4050
+      "revision": "45bb0d9f14dd549dd8573caa286e84fd7d01d052aa55cdb7c575f09fb13ecaa4",
+      "bytes": 4135
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/engine.js",
-      "revision": "be48cecaf0f15a02708bb397b20f9bfe1c7c2021d60f3636ec36c9c0efde8d23",
-      "bytes": 21928
+      "revision": "cd378061b9c2e2f70ac1c1740a99f96aafbb4651553ae3ffbf634de88f597fad",
+      "bytes": 22422
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/fx.js",
-      "revision": "083f393b0efc73a3cae86962b395364012a29d308a22d37c66ad1157b08ddb78",
-      "bytes": 6518
+      "revision": "0f3d61834a2626f1665589a6440720e6eb1e88ea8ad5bbefebbe394fdab17c65",
+      "bytes": 6674
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/menus.js",
-      "revision": "43c6cc03e8b69ebebb12253120e2e604595cbad1185502ac8791c749abb5f424",
-      "bytes": 11665
+      "revision": "deac42888f4e52b1cb4335575b89c793d0f457aecfe9ecaac8a86059b4d90f45",
+      "bytes": 11875
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/narrator.js",
-      "revision": "a8d93e9ac9653c0594c3f99879a347cb2a224d4dc9335b096fd5a70385a302b8",
-      "bytes": 3639
+      "revision": "2a251f80eb3334306db78efec61a35a32d2fa0cfcc4237e3e94fdb20343e1440",
+      "bytes": 3735
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/sky.js",
-      "revision": "b287575497aa089cd7c215324fb3c66bc842888ae921b82a0271b2c9988d000a",
-      "bytes": 78698
+      "revision": "1d067495bc11ea0d07731aa69dd690b547ec8ea2104d6c8db29394a8645be814",
+      "bytes": 80149
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/table.js",
-      "revision": "a970a3cb595c3f7dc080197babc8f75f938e22359197793c5a4e2d775c501c13",
-      "bytes": 20393
+      "revision": "75809865b27ace457ac03a7b6a1cb3f2bd4c619f830eb6cea4b0ca701839d64f",
+      "bytes": 20781
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/js/words.js",
-      "revision": "aabf02aece85e34c342bc714a3d5767b4b3ae800af8ff146213017e2eb526ff5",
-      "bytes": 12518
+      "revision": "8ca0e383a7f1367cf84431550950ab8c3ba1c7c12f79a963ebf7b907bd059b7a",
+      "bytes": 12712
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/sound/card.wav",
@@ -16375,18 +16450,18 @@
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/categories.json",
-      "revision": "3dc25f10a299b9b276f93f29d6f79daacd037047495608338331266087d1f4fc",
-      "bytes": 17080
+      "revision": "2a831ee3a3806dbcfaeadc837d514204fad10c9d71b3e4edfac3729400205e6c",
+      "bytes": 17308
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/editor.html",
-      "revision": "4730ecbdaef4dc497311124892513187a1ebfb9ac0454e240103565fbe047a5e",
-      "bytes": 10602
+      "revision": "2faa63e2824cd9f7e1526cd691e84bd36f35ef488239b7489124c8d4137bff8b",
+      "bytes": 10874
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/editor.js",
-      "revision": "6155b1c389bf9412979318056e5cf87ed3ad2c1588f420f5935cbada453c9c68",
-      "bytes": 14267
+      "revision": "85dc16f9a8ce92ac04e052700d0e96003e98db4972541ad2cc8d34b2b0dab17f",
+      "bytes": 14640
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/game.js",
@@ -16395,13 +16470,13 @@
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/index.html",
-      "revision": "303b8732f276ac16aa99681d654f57cc558b8ae461b8de56d1ddc43a3c380b9a",
-      "bytes": 1180
+      "revision": "a19c73cdcb8ff2f04fa7d424943e51d13d144f15e05479d8faa6fb8d5feabc92",
+      "bytes": 1208
     },
     {
       "url": "./apps/games/ELOUISESWORDSEARCH/style.css",
-      "revision": "d451ce0d8ed6c5f2c4d50d6d4d9408dbbb950bc077f4b41029aae5517b72ff43",
-      "bytes": 14697
+      "revision": "c73737c950a48ab56b715e584e06603246a96f7ea634652201800df50044befd",
+      "bytes": 15262
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/css/style.css",
@@ -16420,38 +16495,38 @@
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/audio.js",
-      "revision": "7eb70673f341bb0c741a2084f1cc4a6676b1699faeae72a41df2b8da3c1ce61a",
-      "bytes": 30703
+      "revision": "304105e43ce8bbe84b3eca59a76f76d8783644ce7c39e40a62d375948b951656",
+      "bytes": 31317
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/facts.js",
-      "revision": "0f715ae7e3c7dcecdc99f1359635b8cf54c2c4c6a34771bff01f5c4a8d57bbd5",
-      "bytes": 43160
+      "revision": "c9a3f00387a3131d2f78dfec878dff77509b77455dc636f636580bc357586901",
+      "bytes": 43889
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/gamesong.js",
-      "revision": "ad71972e3685c678c6012f8fea49043ac8554393883cc288f5672bd3beedb173",
-      "bytes": 26538
+      "revision": "6bc4ae9e718e90a88e77795b07d439407b0ff4c22bb53bdf4b7a39bbfe4073c3",
+      "bytes": 27190
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/input.js",
-      "revision": "2bbcf2180ad559736a4b23de7d64eaab07fe5ac3b527c416b0949901495b6b94",
-      "bytes": 15199
+      "revision": "12a599b0f7ed8f19087567715aa33ce3f93db4b7ed61e4b5094b345b61e4ae40",
+      "bytes": 15556
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/main.js",
-      "revision": "aaef8432dfcfa50a18b2d9fd8a492d1e6ac20b6a532eccb68e888d050a4c6d14",
-      "bytes": 15811
+      "revision": "f861b1284e17ee70e37e52a22c06dc82af4832ec4fc77b85359e5eefdaa55edd",
+      "bytes": 16212
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/music.js",
-      "revision": "537c2971b26827dcde3ed836dc818bca29ba2f86b86ba609aa016702e5d9ae79",
-      "bytes": 23261
+      "revision": "990eeedb6f2a0322239b08a3da03ca0aa10f884a32d7ed094898d05c6c73c646",
+      "bytes": 23838
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/reveal.js",
-      "revision": "eaf6356b9ffebb367dd1acc6361cc2d0fff2869fbeb360d32dcb7a9308524213",
-      "bytes": 13810
+      "revision": "86fb386e0f5e50fd75537e737b5f89212385a65378fbdf82e2f06340831b7d27",
+      "bytes": 14127
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/scenery.js",
@@ -16460,13 +16535,13 @@
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/settings.js",
-      "revision": "a8e9174e8d1d37b40c3e9ef755596e21a24ca757d910073a424625b8e74dcc9e",
-      "bytes": 23867
+      "revision": "2578e1618b6a2e6e5c61f2d0d28652e79bfe16aafffc1beb4519f20649f17173",
+      "bytes": 24416
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/stage2d.js",
-      "revision": "75b891737087d32f40be3259d5b3654ad5d8b4096874363e0856457b5b7a8f81",
-      "bytes": 13419
+      "revision": "5da836e1a9bae7868fd63a4a0fc614eda7d516645a608421bfa00bbb2fe55e14",
+      "bytes": 13781
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/stage3d.js",
@@ -16480,8 +16555,8 @@
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/js/zones.js",
-      "revision": "ae08e94f1d93a9e3b8af43589c866d84ba3a5d1ccbac36e7060aa91bd1cd15d1",
-      "bytes": 19031
+      "revision": "3a5120886ba92d0d29361481df2b7a778410aba9bc9ed8fce855fda989a11221",
+      "bytes": 19436
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/music/aquarium.mp3",
@@ -16805,68 +16880,68 @@
     },
     {
       "url": "./apps/games/NARBEANIMALFRIENDS/vendor/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/CREDITS.md",
-      "revision": "e9a91a4730133d3630bf144d9f56dd5b91a4b6c5db6903c4338d7755a1a570a0",
-      "bytes": 36
+      "revision": "b2525e2c6d27ba815d8946654e9ed37f8f21efa8179c184e0b26569c54380d9e",
+      "bytes": 39
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/css/style.css",
-      "revision": "743a72b1e12a715eadf0d69027eadd851f395a67c0036dbe3b1ab23b49e44318",
-      "bytes": 13713
+      "revision": "f060fd22446a706c70aecb90e6bda38cb2ee589825013309105b5f1df91a1a74",
+      "bytes": 14151
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/index.html",
-      "revision": "58ebb007b68fc2eef83545e7316e326bdd8ad2b79f4048a1ffa438fed965244c",
-      "bytes": 1776
+      "revision": "7ee132c316c48deb592a4ba30153d265cac48a6f80a62b712064d3680680fc55",
+      "bytes": 1814
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/config.js",
-      "revision": "3795ce5ea6f67d89831147ca62e396ca69e0f74e4832431ddab167849ff3ac64",
-      "bytes": 5462
+      "revision": "24d4b2563c3776264885ae312977103dd21fdeec114e8703a3afbd5120dd20db",
+      "bytes": 5576
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/input.js",
-      "revision": "605b122245d0643b225d6f1e91c1539e356a724e3adf7c0da246fb9ccfaf475e",
-      "bytes": 15425
+      "revision": "b09ee8b5433cff7fe48b705d0789a85ff4c44c841d4b4dda559a6254f6f3196e",
+      "bytes": 15820
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/main.js",
-      "revision": "037d7090ac3a922915999bf40153f3328160c5b8b585b1ae8d60db90e104058d",
-      "bytes": 2388
+      "revision": "d1a283c1f9c0665326e6b0c112f84c4fc39e02f504b45a4f986b6e11304ec473",
+      "bytes": 2476
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/scene.js",
-      "revision": "834152eceaa465e61266441aa878257aab4cf59a1b67d653ca9bbb30cc8a2c02",
-      "bytes": 22063
+      "revision": "b183c6433ac1b819aab5764054287a7d760373b52956a959b623737214263332",
+      "bytes": 22559
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/settings.js",
-      "revision": "9afecd9a015dd364d2058825205b55f5698c30a427a038a7ab415305d722ef3b",
-      "bytes": 5529
+      "revision": "6f82a40020c08943b9b374e9dd30d983e17c4086d0ff5c8184c880d004b63841",
+      "bytes": 5664
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/sound.js",
-      "revision": "123e8fcdaa9c95480d7a74a25eab103f3c01bba38a0995dc3a59a5fe20cc7368",
-      "bytes": 14273
+      "revision": "0cf6f41e6498a03a08384ea6a72770db9e06518e268d57e0c0d0d43f3d9ec824",
+      "bytes": 14582
     },
     {
       "url": "./apps/games/NARBEGLOWPOP/js/ui.js",
-      "revision": "b80c813e42826861962b5b3155e9a7c568a21cdc1fba34f055123c14275faee1",
-      "bytes": 32727
+      "revision": "4ebb365917d284184dc79ac6aceee1c78c9abd01daa8bc129258241f0267a7c8",
+      "bytes": 33403
     },
     {
       "url": "./apps/games/NARBEKART/css/mobile-race.css",
-      "revision": "c8b539b87290b28c0192cd2200c63aa922913812725189749b8ce9afe46f7595",
-      "bytes": 7739
+      "revision": "6e3d9b81ec48a18ef2c28cad5169ee3b0cd62314812731e28d68fdacb7d4b53a",
+      "bytes": 7869
     },
     {
       "url": "./apps/games/NARBEKART/css/nk.css",
-      "revision": "ba03e2c32d1d3434532c18e8de4ce1c4b01eae35b3635690db92381d83c4c593",
-      "bytes": 48772
+      "revision": "7164a3acab5ab2767ec5ec0e48f5933c09c890e1bceeba3fdded29fc2988422c",
+      "bytes": 49765
     },
     {
       "url": "./apps/games/NARBEKART/index.html",
@@ -16875,18 +16950,18 @@
     },
     {
       "url": "./apps/games/NARBEKART/js/ai.js",
-      "revision": "f056c2ecdfce84ed662950b27419dc8af511438afab58f0645e4ea54877a32b2",
-      "bytes": 2442
+      "revision": "2fcbd6bccdaeb8c2083a0fe13921f0007631add68447a819f393c57e5d9fa176",
+      "bytes": 2501
     },
     {
       "url": "./apps/games/NARBEKART/js/art-items.js",
-      "revision": "b204fbe3c283cb5beb79e82bc4d90fc38a415d93954845c80b6f1e105901ad34",
-      "bytes": 127271
+      "revision": "914050f636d2a94f6838b43cfcb1e7df21823ccf6af0eff0a387ae68347ae8b1",
+      "bytes": 129776
     },
     {
       "url": "./apps/games/NARBEKART/js/art.js",
-      "revision": "050343b737683f2c61883f172164a3e9c99b343679f80d5b30e3d4034ddc59c1",
-      "bytes": 20640
+      "revision": "746b2ff48161fed633e97b43c5d82ae6ba6ce9f3c74b79b4c994fd35eebffb9c",
+      "bytes": 21131
     },
     {
       "url": "./apps/games/NARBEKART/js/audio.js",
@@ -16895,48 +16970,48 @@
     },
     {
       "url": "./apps/games/NARBEKART/js/camera.js",
-      "revision": "f8e08c3fc916b317b4d5124fb3656566db05a982333a7fb0e5f450683bc9a6fe",
-      "bytes": 5040
+      "revision": "132e09a0f646d6b04e64d93b224512c4030dd73bcc35da00c463bf8e8812ea1a",
+      "bytes": 5132
     },
     {
       "url": "./apps/games/NARBEKART/js/constants.js",
-      "revision": "c0189e9f6a7d87e86c69ef50af68c9b05594c408cf1fe9c5572fe5fc1e2ff883",
-      "bytes": 8607
+      "revision": "d06eace7c93dd9cf1c2a806af56e1366a8f97d56fba62cecf0d9821d2f25453d",
+      "bytes": 8763
     },
     {
       "url": "./apps/games/NARBEKART/js/controls.js",
-      "revision": "d5c075b9234ee51bd187a4e52fc6f32c2bbcdfc0072d0c9541b38229a4c8b041",
-      "bytes": 18328
+      "revision": "922e7e16edfa98e4da0caf64dacd4cfa322fc2335f2e608772178650e42cf930",
+      "bytes": 18805
     },
     {
       "url": "./apps/games/NARBEKART/js/game.js",
-      "revision": "4aae3dea06b81a08c2b751d233e6abb4fc56d0dd91af627eb7e4cf1c7274176a",
-      "bytes": 23422
+      "revision": "f9ba5a63b5130bdacb4e7f05c1575cb57afe62ea35bc29c9b90bc869963859be",
+      "bytes": 23794
     },
     {
       "url": "./apps/games/NARBEKART/js/guide.js",
-      "revision": "1a6ffd6421f21371533a154fcb161f26c31e885824b6613b3a2efaeeb34b1cb1",
-      "bytes": 10949
+      "revision": "0e991e5dc378a0fe1279bd391bdd27facba898162f987ae5c8753cbd6e9631d4",
+      "bytes": 11150
     },
     {
       "url": "./apps/games/NARBEKART/js/hud.js",
-      "revision": "3c3be7f383101e8b25bdefc8b1ceddbffb2189eb566615df55a4452a201082c2",
-      "bytes": 29477
+      "revision": "810ec61eba16cc8bf74fb757b7705aa8903ebc919d97f0777c0e1e126c7bdcbc",
+      "bytes": 30163
     },
     {
       "url": "./apps/games/NARBEKART/js/input.js",
-      "revision": "a6b798a002012ce571ec2e4eea927fd58f3883e0ad1215c9199892afa30cb27a",
-      "bytes": 5756
+      "revision": "a8358c5a40e86b5e4249fc85c0e40afb980b5381d89c55de5ef91548ed5d3922",
+      "bytes": 5904
     },
     {
       "url": "./apps/games/NARBEKART/js/item-icons.js",
-      "revision": "e600a604c897bbec857de2d246aac3958d081f8be46690280ff15d74bd4fd6a9",
-      "bytes": 24331
+      "revision": "7d43255a51bb38e8749ac73f6a828bc6662d8943eb3d0881cbc4bcee9f6004c9",
+      "bytes": 24805
     },
     {
       "url": "./apps/games/NARBEKART/js/items.js",
-      "revision": "f41251002c2247e2b3e000866454452956331b21dda05a9a29880410ef815b6a",
-      "bytes": 13314
+      "revision": "a9d69f07e434b0209f502ed48f03bd3b4c198fe4e8132aa7d5d2aa3b39887306",
+      "bytes": 13576
     },
     {
       "url": "./apps/games/NARBEKART/js/main.js",
@@ -16945,68 +17020,68 @@
     },
     {
       "url": "./apps/games/NARBEKART/js/props-dream1.js",
-      "revision": "a3a8d444c5be5a77946b8ea314079d3ddf44cc076c9e791a577ce2206cd52cfb",
-      "bytes": 148888
+      "revision": "03aac1dc7ad163f4b37b15bb91b243147eee09a2a981fd5e2aa73780a90e485a",
+      "bytes": 151426
     },
     {
       "url": "./apps/games/NARBEKART/js/props-dream2.js",
-      "revision": "0f2ff577a17f10f2656c5eb38fdb4ec9e4c669d7f2d8aa4a17b655ab8cee0f6e",
-      "bytes": 147772
+      "revision": "dde66f5e57ffa2ca3f3ee6583b61fad9c181d3e6b787faa3c8fdbf1e92b7a3eb",
+      "bytes": 150226
     },
     {
       "url": "./apps/games/NARBEKART/js/props-gaps.js",
-      "revision": "1d6ad955bb0e789bb12bfb2a1b67f7cf4444d2292dd8e601fff69733925a1194",
-      "bytes": 98930
+      "revision": "983a91e3688f7aa3f9b202d9911014a5816a2bbe1a12fc72f32f75b3e668a4f4",
+      "bytes": 100604
     },
     {
       "url": "./apps/games/NARBEKART/js/props-moonlight.js",
-      "revision": "8f81cf6adc8cd6e4e42324f4ca620b5779a6c66456ee201d1febe0e99c642e80",
-      "bytes": 29729
+      "revision": "2ffbc763b648335ee488d90a1c2e68332be3fa667d9a502a0aff47bcb662e550",
+      "bytes": 30241
     },
     {
       "url": "./apps/games/NARBEKART/js/props-sunshine.js",
-      "revision": "39e5179ed966f37f19a2ae11792686856fdd600ae6f13741125863f704c8c4da",
-      "bytes": 78877
+      "revision": "e7ba9fba2db406c029ef6e9ee6046aa5e81472c56afe49eebcc49365af609be3",
+      "bytes": 80344
     },
     {
       "url": "./apps/games/NARBEKART/js/props-wonder.js",
-      "revision": "5fc7267dd0a7500ea54aa2586bc7523528a1bfbd74c57788cbc32bd518aaac91",
-      "bytes": 110390
+      "revision": "1133c54ff1b3806c991eda43b831756578a267ffe25403b88fb385ddce5b878a",
+      "bytes": 112382
     },
     {
       "url": "./apps/games/NARBEKART/js/props-wonder2.js",
-      "revision": "23a53152b32d1a91db42878d5013f1c16c722e675a9c1dca6c3729a497224b04",
-      "bytes": 157982
+      "revision": "157d975a4ad3179324226f5e1df44f74b0bfce80da1984f6ff493768dc7eac4c",
+      "bytes": 160736
     },
     {
       "url": "./apps/games/NARBEKART/js/race.js",
-      "revision": "d48c51885f88504ed3411d08205be25cfda202c387d53e0616f33bab314b5210",
-      "bytes": 36071
+      "revision": "38c4de822f60738aef8aa5c9b86161bf78e471cd52ce40eedea0033df65f346d",
+      "bytes": 36870
     },
     {
       "url": "./apps/games/NARBEKART/js/roster.js",
-      "revision": "5d10e07bd9c788800e91326694bf5642738b4e23f78bebb5f6e501c7b8f21bd5",
-      "bytes": 75624
+      "revision": "c50778c9e3e12ce2f2033cca9fae4ad9a267f01d7837a469af782fa09914335b",
+      "bytes": 77004
     },
     {
       "url": "./apps/games/NARBEKART/js/spline.js",
-      "revision": "a359a54ea88fc6bea9a186594d901026af0417dc84ed9ea12773af7e856cb4ef",
-      "bytes": 20784
+      "revision": "bff7fb4ab1cd8628adf3a778ec96812777d0c83d888aef19627989d17dc79be9",
+      "bytes": 21287
     },
     {
       "url": "./apps/games/NARBEKART/js/themes.js",
-      "revision": "9746810eeb64bb47ada6662601e76ebfcf6cc2869aec9c318caf7eb2b6a47f9b",
-      "bytes": 25930
+      "revision": "cb043c2679917fd4b21b816fe5e5e552778fa8ac45ee72ba2aee528db9e0835d",
+      "bytes": 26471
     },
     {
       "url": "./apps/games/NARBEKART/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/NARBEKART/js/tracks.js",
-      "revision": "c13e3ea428004b68d43b40358e256b6ea80576a10abb80ce43634c6fd54bc317",
-      "bytes": 32567
+      "revision": "04b5d9dd0f3414698266c2b966fe2566c5e41b1196693fe506f8f9bca68f2132",
+      "bytes": 32965
     },
     {
       "url": "./apps/games/NARBEKART/js/ui.js",
@@ -17015,88 +17090,88 @@
     },
     {
       "url": "./apps/games/NARBEKART/js/util.js",
-      "revision": "a55c59c63d8febbe102c835043a6ae0b03b944394c07a122e8732ad4872e407c",
-      "bytes": 7305
+      "revision": "a2910b5e9c61ba134d184e57101135a7602e942c15ba7074669b8ffe93410587",
+      "bytes": 7506
     },
     {
       "url": "./apps/games/NARBEKART/js/world.js",
-      "revision": "5e3f6a335eae15da3c222ccc88efcd3bf774ee11b7918b2615d5492a02476781",
-      "bytes": 179125
+      "revision": "dd5f7b70ca46a6f2ced48245524d59e77143b916beb998d142f7f281bd1ce46e",
+      "bytes": 182605
     },
     {
       "url": "./apps/games/NARBELOOPS/css/style.css",
-      "revision": "3bb17881faf131a9dccf8fb99cbb447f08abf17c158dcc52c1535b6325f67ed8",
-      "bytes": 16591
+      "revision": "249cdba307ce0cd17a292cbaef84e5f0f452c146dd87a21add901067547f2816",
+      "bytes": 16959
     },
     {
       "url": "./apps/games/NARBELOOPS/index.html",
-      "revision": "b1a867ca2c36792eebec7bd87f171b7a8243d2917dbd729943a06eeafea80f7f",
-      "bytes": 2101
+      "revision": "a52854f9c3cd21ecae532a5e8f254008d7a4f7581df8c86d81f8cf382de31010",
+      "bytes": 2144
     },
     {
       "url": "./apps/games/NARBELOOPS/js/beat.js",
-      "revision": "f2246e65c4f4dbdbfb3a0f897bd6cd6f79af81cdb920468e74cc6ad75fa3f587",
-      "bytes": 8367
+      "revision": "9f10fc105cbdd041496a3d71eed6eda55ad1565a9420138fa65130d87c332e73",
+      "bytes": 8510
     },
     {
       "url": "./apps/games/NARBELOOPS/js/input.js",
-      "revision": "b8874724dd0930fb326dfee43f96f8badc8b5f652ccdc3e19abf4308e26c0c9d",
-      "bytes": 14020
+      "revision": "82e601b37a60b40630de84c7d8c0dc29ab24a2d31c1e73e08697eb94a5771750",
+      "bytes": 14374
     },
     {
       "url": "./apps/games/NARBELOOPS/js/loops.js",
-      "revision": "b552fdc7536ea5d8ebb4bb2d10859945affbda851f69d796ff21894dd05669b1",
-      "bytes": 1476
+      "revision": "1483238092cd849996be23a16a387c7183a4fa9edd02e36c298d147705dd578d",
+      "bytes": 1507
     },
     {
       "url": "./apps/games/NARBELOOPS/js/main.js",
-      "revision": "75129a552b75eee4c55915b7ad05ebae7558b970b8fa7f45816e78305a5e6684",
-      "bytes": 2289
+      "revision": "9e54a02a283fca68fb1c4db2a77a5a62eb9d3572708395095db2226f886484eb",
+      "bytes": 2370
     },
     {
       "url": "./apps/games/NARBELOOPS/js/music.js",
-      "revision": "e2b64911ebd42334d117dbbe8dc3de15b4d8203dc4a04c20986e0daa61918dee",
-      "bytes": 4608
+      "revision": "3647f0b6e21c354703f9be9a2052aa9ec561c9f0d590b229f7fe2a940ce92636",
+      "bytes": 4708
     },
     {
       "url": "./apps/games/NARBELOOPS/js/settings.js",
-      "revision": "40500cb03d839ced8cf34a1c12d1d4d47fb6d5fe7a2220d362d644d54cf86396",
-      "bytes": 3317
+      "revision": "711f19c71beab32cbeb506b2373ad54c25381bca9084e7fd25660ed0c6093b3e",
+      "bytes": 3401
     },
     {
       "url": "./apps/games/NARBELOOPS/js/sound.js",
-      "revision": "4159a44397b7a7f234928c118432e148819ef7597b3ca76b87751fae09898c14",
-      "bytes": 7844
+      "revision": "e8548b62700066227839da406efb0996140729c74bc402e7aae1b59bc16faa19",
+      "bytes": 8022
     },
     {
       "url": "./apps/games/NARBELOOPS/js/synth.js",
-      "revision": "bc557a28155e33a7da2d80291a5d453b38c25f24590ddc366297d209ef725f1e",
-      "bytes": 9665
+      "revision": "e162da16535a1067ced78eb4c333ca54d2d44d2cb19b03fd4eb487cdf6d4552f",
+      "bytes": 9869
     },
     {
       "url": "./apps/games/NARBELOOPS/js/ui.js",
-      "revision": "5dffc247dff2f15033bd074f8fef6b94c79aa56c73d560874015a070ee7f48dc",
-      "bytes": 38388
+      "revision": "b95cbdad8ad04d70950ff29c1e3ef21bf9b600f7127bc6a41cb84fdcd380c8cf",
+      "bytes": 39030
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/css/style.css",
-      "revision": "cab11956102a3ef8c9fda255f4c78e6c2b9d35cd2d85331895c27c36866183d7",
-      "bytes": 17189
+      "revision": "afc717ed04d293dfb2bf69dece9b13d963025e6b911b9b1042e69ef27ccda3c9",
+      "bytes": 17728
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/index.html",
-      "revision": "21744206b1f86de8ea57f3e5aa51f5846706ad27cf226cd0c64865fa478b9ec7",
-      "bytes": 1785
+      "revision": "3f287f0ea55109c98283f84fd1b8c563bf1b1229f4ce23dd93bdfb78b9b91708",
+      "bytes": 1822
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/input.js",
-      "revision": "75f1250605f82bf0c7aa525f272e022e1c9365a983fc7227842fa61368e94910",
-      "bytes": 16339
+      "revision": "66e0324552a163607ad02cbcb89d02d16314523505724e1f39b4e13b25f9786e",
+      "bytes": 16753
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/main.js",
-      "revision": "1c43c37ede5a34bb8287b9f378c2bbc8935e6fbd52592449d3664fa9e6744a31",
-      "bytes": 3492
+      "revision": "b1b56b86416a7bf5480c46ea6978a82df9090015c5b7ec3bf0e790c42941494f",
+      "bytes": 3604
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/scenes.js",
@@ -17105,53 +17180,53 @@
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/settings.js",
-      "revision": "995ce908b716a422902c9ddd3e55a7bf3dea87c9b82c7ca71d16566e173bfa64",
-      "bytes": 6536
+      "revision": "a29cff4c1ef3a3af6d47e8f378172fcff7d54f211505d5146720ac40d673b321",
+      "bytes": 6693
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/sound.js",
-      "revision": "a2d3b2335f7b7c4c76aabe345914df6458518fa0487faf47789a9bf2838f3fb1",
-      "bytes": 26896
+      "revision": "42911ac340283104c85fbb117a5268685cf79a05dbbeb97343d9593efe617311",
+      "bytes": 27493
     },
     {
       "url": "./apps/games/NARBEMAGICBUTTON/js/ui.js",
-      "revision": "4e0d312c8fc0eb8fa8bc3b680244637c00e81145a92185dda5dadb4a424bd91f",
-      "bytes": 33406
+      "revision": "81b439877ffd1100c7d49665dd04b29f83284e2c9d79f9869dc705e98fd98ede",
+      "bytes": 34076
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/courses/course_list.json",
-      "revision": "58267de967c422db28c443994e1e5100f08bb1b8c1aca243a3a8f63769dddbfd",
-      "bytes": 76
+      "revision": "69901fc6f5c062cbae5569110b2fdefb991049a3eb9c548e137531ab32889d64",
+      "bytes": 80
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/courses/glow_golf_night.json",
-      "revision": "53ca5fcffdf604115b4576dc8f4b2f2b7721669e4a8e53041771758ec201901a",
-      "bytes": 29739
+      "revision": "9cf21903bb2a44209e7ed7f1acd778defd65b006dba37cee52b815d35109f308",
+      "bytes": 31390
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/courses/sunny_meadows.json",
-      "revision": "e5eddd1781d1d9a564d4283c178255b58e5f4365c0696fed8c4d419355f14855",
-      "bytes": 49766
+      "revision": "8122524b44891d8f6c1b9511a6126a485192ec039ffa982442da574b23b11e7a",
+      "bytes": 52174
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/courses/sunset_lagoon.json",
-      "revision": "b0c82b0f3914c6eedd0efcac884cda09ac7c59473608bc32873d2439fe73e5a9",
-      "bytes": 115331
+      "revision": "4aab704779444c62ea2efa6fae7e8fd7b0a9ef4cc12fd5b5479ae2e981d3d2ea",
+      "bytes": 120364
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/css/editor.css",
-      "revision": "172ecace7d62d6cc065e29f841dcdd9fbc82507022cde48b946f1b10e2e97f68",
-      "bytes": 6649
+      "revision": "472710b1896108d11c6127d2626cd41fb457fb810046a0714b1189510b2e05f7",
+      "bytes": 6739
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/css/style.css",
-      "revision": "a571d9eea69ac3291b0fb8bdec51aa79117953c286ae9e60f8698b7b09701651",
-      "bytes": 19972
+      "revision": "d28ae4819319938b9f7fcb82d5f5eaf1393743a8d0c94e22e065eeda4e567138",
+      "bytes": 20356
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/editor.html",
-      "revision": "0e32ccd1b1ff94ca15bbbc9ae814257f119722b77e3bd17b8c415bca15bf221a",
-      "bytes": 6615
+      "revision": "ec001fa1e2da49b31f6e84e067fcc02489f80b33abd981dbdf2d9ebee0f2972a",
+      "bytes": 6749
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/index.html",
@@ -17160,43 +17235,43 @@
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/art.js",
-      "revision": "829fa492dd796f2f3486ef3bf27297dd29dc0b5706681320002e27b93fd9cb2b",
-      "bytes": 46139
+      "revision": "c3ba6d53cf9f5ed0400001cf5f206e1fcea2fbf5f451af379f98ad3c4b1cbf89",
+      "bytes": 47150
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/audio.js",
-      "revision": "ae571ae98eb63849bed1fbd7f80c5fe1b550f8de58cb74d4e02c4d5440ce21aa",
-      "bytes": 9527
+      "revision": "0e10dd55eba5feffaad3545684c6f61b947ba740a02758ba20f289d1a3703d20",
+      "bytes": 9760
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/camera.js",
-      "revision": "6c86debcf35e4a1bda54676028e300c9005aae372f380bddb47b897608d9878b",
-      "bytes": 15503
+      "revision": "4f5167598485bab33a3f0e28009be488c9a93066fd5339771e78f3d5b1fa9d70",
+      "bytes": 15858
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/course.js",
-      "revision": "5ec9d0a2d7998c1052817e0d009fb65a07498732f348ac8c6ba03d3ce45e4813",
-      "bytes": 27107
+      "revision": "686e27d38f0a6c35fdf45750c6843931c79a57fdd6032f2c7086eeb781b902e5",
+      "bytes": 27708
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/editor.js",
-      "revision": "57a8ef674704c7c496203f6acadcf9e1823a27c44599ea81a06a933100008122",
-      "bytes": 74454
+      "revision": "99cf0c8b4bd6b02ca6c10ef35a0099c10b42b4f98e6aaac082329a84a9d6af97",
+      "bytes": 76019
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/fx.js",
-      "revision": "84146da44b5691f530353893320d9aa25b84f2f52a28bde35900426bf356a48e",
-      "bytes": 25321
+      "revision": "5702a3ad1c5c786f9efb8a3849f5c50ee77a2b8afc8e91fad78f782f94619370",
+      "bytes": 25860
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/game.js",
-      "revision": "013a638aa0ea4e483ee7174daa21e5c7774c6b18bf8ab09937795962f1258138",
-      "bytes": 64173
+      "revision": "281d479eb84404015fa8646f31e7e62b646129d3f370a2dbc193ab34396a2b87",
+      "bytes": 65630
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/gator.js",
-      "revision": "c0ea25cf32de51bbf6af37447b2043cca61b98ac959132baf1b5b100c719850b",
-      "bytes": 31524
+      "revision": "200d07745bba48f0448ab687c602d66883ab5b9e06e67e57ae873e01ec75ad28",
+      "bytes": 32178
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/main.js",
@@ -17205,28 +17280,28 @@
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/physics.js",
-      "revision": "800b7bf5a18b73bdd61a50cde756a9827ed0ed981920f6d1d0d207854597b72c",
-      "bytes": 33500
+      "revision": "88d82ae7d2621019755fb48d8a84f37de48c2d6ed9d2fcbce589b5986e4950d3",
+      "bytes": 34328
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/scene.js",
-      "revision": "746a2c7426239073d0eff426c6d6679fc264f631dedd7f8d9bd90a10a3e6b756",
-      "bytes": 50296
+      "revision": "e285e916a550fdc12027941d11b4ce2a3ae8258baf4be2bb25d77bf8b2fb8b43",
+      "bytes": 51447
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/ui.js",
-      "revision": "cb00bdbb86afc799facdc52cab38d03638de6bd6b516b1e7169467342ec72cf1",
-      "bytes": 60047
+      "revision": "20221606ab72e611497f65939ff1d993fb704a2272fe7c880856f3a9d83959a1",
+      "bytes": 60052
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/js/util.js",
-      "revision": "43531efd88fb0b3d93ce4679613a3a65f39d5cfa0c6746c0f584d9caf7381769",
-      "bytes": 5406
+      "revision": "93410d078f778f71185c7b576dc5026caa5445312f7dd69818a5f69fb1f15bad",
+      "bytes": 5549
     },
     {
       "url": "./apps/games/NARBEMINIGOLF/sounds/ambience.wav",
@@ -17255,128 +17330,128 @@
     },
     {
       "url": "./apps/games/NARBEPETPALS/css/style.css",
-      "revision": "e33ba6182b27e4220169a76058f7a3a135c6d779120744c78bd3eb19434118f0",
-      "bytes": 19577
+      "revision": "cc827763ad54854c7d0da6273107107cbff85fc2681596ef5a23d7b2eead2a7f",
+      "bytes": 19784
     },
     {
       "url": "./apps/games/NARBEPETPALS/index.html",
-      "revision": "734960c9efa15bfb783c102f1a18f333d38f46e4a2c711114f5c29dd0cb080e2",
-      "bytes": 10858
+      "revision": "c0823cb700f04dbe6a96400eb074201cfbd7795c1674a534e94ce73975280acb",
+      "bytes": 11026
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/anims.js",
-      "revision": "bf0f1ded2397e741dcb5f6ab35d5b52d53b6180ebb0fe049809ddef6b6a076d4",
-      "bytes": 93264
+      "revision": "ee52fd46cb5d2c757a2feda642d45beadfc50ab959fcc0f8c49fde46df2d8037",
+      "bytes": 94084
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/arrange.js",
-      "revision": "40c13e3d300b59a57f557b53c26b296b0e3a08bfb89284e1a4b4435dea83c9d6",
-      "bytes": 10506
+      "revision": "5af29610fa02f08517fc42370b2a9370ef4823cfc39e2d28ce0a1c3ab0af14b7",
+      "bytes": 10609
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/companions.js",
-      "revision": "dd1d766e9eddd1a135dc2930b6850c4bf3c8735d025073c80413b5b89ab6405a",
-      "bytes": 52279
+      "revision": "9adf9c4ec680d8203b8940bf1dce6e6a523c1d6b32db93213e16e7d0c9518e4d",
+      "bytes": 52730
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/core.js",
-      "revision": "241cd7198e3f9e0fbd4f435c1c7e888b1ef4a0c01c1da9cf32895230dfb8b786",
-      "bytes": 6664
+      "revision": "a96e23b284c2dc27cd3182e44dec698b4e2571eaeebaa40f6e181d25ab131c7c",
+      "bytes": 6745
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/game.js",
-      "revision": "4e9fbd1f2b72857483a7a5e7ce3134ace930ae9288972440bb895f4f55922984",
-      "bytes": 118768
+      "revision": "51286efab2a91522a208a8a5a5b0c33e480b6d8bda3f5039be7eead7b094cbff",
+      "bytes": 119904
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/howtodemo.js",
-      "revision": "c7753055bca8cce58cedc013bdb14371db8677859bce1f5975a575461e8f898f",
-      "bytes": 8838
+      "revision": "fd7ccfaf135c022ab6eaaf80e33811ff23c60e473abfc3f6e1f471ff1d87f1b1",
+      "bytes": 8935
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/music.js",
-      "revision": "0c7e63a55ad229aeb7ad2c67e6df31862c7e78e640961a4b5e29007850e6c5cf",
-      "bytes": 22052
+      "revision": "2906e8cfe741ca266a651499e95c35688de4758581dc6d898b390d14bae7d566",
+      "bytes": 22281
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/mypets.js",
-      "revision": "d82fc899f74c57de19faedf5e222ce3730955a06da57d2dd57a2f75d9accc34d",
-      "bytes": 8709
+      "revision": "bc9d9ec1f382a47807e199090991686061fd93c147e10e9897ea4f4eb53c6555",
+      "bytes": 8798
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/outings.js",
-      "revision": "814502828157f5de359b1061c78e40277ad3464ccfe68223ccc42110f9a7caab",
-      "bytes": 48997
+      "revision": "3df4689808b2277392ac4a55131dd320013ed06dd4b06473394930d4e8a9287a",
+      "bytes": 49424
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/pets.js",
-      "revision": "fcef7c9cf2b7b3128cdcc72761d5d0a9e27cc706aeb2d9dbce20a6f829d858ed",
-      "bytes": 41213
+      "revision": "5c8608a79de70ff2a1d686e85c9b0d799f49a49c81d38d999e0c3ce5163fb1e9",
+      "bytes": 41599
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/petside.js",
-      "revision": "1e42dcfa9f515e843069be4d34799ffe447cd4a8d104e52e60d4267c638fed3a",
-      "bytes": 22464
+      "revision": "be65e5713e355a4793dd422c7637eadd3f2a0bcde0a9e3cb0c2457c9f5ad7381",
+      "bytes": 22696
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/pixel.js",
-      "revision": "dabf838e92c507024ee2380195a8df13b3ed3615b8cbcb10b72feadc269e5185",
-      "bytes": 14929
+      "revision": "340342c0efd5c0b19a59f6ed21cef2fd97302c734356134d18d65f95f083db49",
+      "bytes": 15084
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/places.js",
-      "revision": "ee92529eb8812fe1b2ca23278b718df6d7f93d9f5646fb50c14fc2574b1ddea4",
-      "bytes": 22117
+      "revision": "1b75b736e2492832e0b2507547272ca629e45467dea89732fa1a4a5c7b654715",
+      "bytes": 22312
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/props.js",
-      "revision": "93e3bd81b4b407dd9008ecc4d81fc2b3839ee59ef0294baee56ae18daa5f89bf",
-      "bytes": 15250
+      "revision": "1ba7deac3628f7e71534e6bd66668f45fa91a14c3ac15635da9d0aa29d68d193",
+      "bytes": 15414
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/room.js",
-      "revision": "76edea7cadcad084ecdd91716d516b1888db0576731183bc50386b459b82aaf3",
-      "bytes": 40372
+      "revision": "22b78242e9d92ab20fce00f3073057da98e0d3d94c3ce99dd9cd653af03a6c7e",
+      "bytes": 40669
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/scan-access.js",
-      "revision": "e9e2fd62bec8b5273fb9b3cdb732e1f70700b0cf894c1f6ce82ac617b9c37d77",
-      "bytes": 5411
+      "revision": "21840bfe2a47250bbd8830c407d92f7097ecea33cdfe6671cce6493f50c501c7",
+      "bytes": 5455
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/scenes.js",
-      "revision": "752e42256af165f6a4d5a81f221e98d70e5406eb4246d61d963076ce65641f5f",
-      "bytes": 16903
+      "revision": "9f8339e4be249225143fef90157803ac405ff484475a681bfaa976805e9ac2ea",
+      "bytes": 17065
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/school.js",
-      "revision": "9a279315ac78c69dbd5e1c5b629fab45796928ff662bc8b8844ff8da1f0bb012",
-      "bytes": 52343
+      "revision": "3de627a1df88d10081f1d84f699ab6669268d5821ab095d1e41d99ac5f65b523",
+      "bytes": 52813
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/seasons.js",
-      "revision": "a1e6bf0cabfb267ca9644241503eabc29e23395db4da5c75de661be2fc0c5449",
-      "bytes": 55009
+      "revision": "36ca26d8f896059a54fd2f7138794e9d863a06da526ebceed2396101d75be409",
+      "bytes": 55393
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/sound.js",
-      "revision": "50203904383a768250f414e0be654226d833c03f4dd2493afef72314f8c6fde3",
-      "bytes": 21313
+      "revision": "1a102bebfd5098bcc71396b8702868d6ff5d8b6d08f945be4b31145374cad500",
+      "bytes": 21581
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/sprites.js",
-      "revision": "5f333c7546538bba758f535d0af3251928fd8c13f443c85b862ec490641753b8",
-      "bytes": 15237
+      "revision": "39f874d41dde07f5c448de667ede89dbf044f2a84672901ea89aa2a5aba5ef7f",
+      "bytes": 15356
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/tricks.js",
-      "revision": "b3fe20064491acd274a7fa77ae97f37d803b27e7212243aef45a8b47b63f72c2",
-      "bytes": 17030
+      "revision": "9dde1e649633d5f1fdf10c67913b566d7d8a9d02497b92e3867aff0219ac3995",
+      "bytes": 17195
     },
     {
       "url": "./apps/games/NARBEPETPALS/js/ui.js",
-      "revision": "4a5624bce491f790dd0065e03a44dfb449bdf0bb268776d2a777aa6f25daa2d5",
-      "bytes": 24697
+      "revision": "d31b42bd71272947ffb8c807efc3fb958b7acf3b033406d3930ef56a434b0c23",
+      "bytes": 24969
     },
     {
       "url": "./apps/games/NARBEPETPALS/sounds/cat%20yawn.wav",
@@ -17540,8 +17615,8 @@
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/THIRD-PARTY-LICENSES.txt",
-      "revision": "e1a167a6e6747b8bd2073582029ad412e7367b42aca9e5252fa8627513f7d3a8",
-      "bytes": 1075
+      "revision": "0a339141dd70646fb0f97b2f7b6f61e14e9b8339afbf67cfdfb09444bd256258",
+      "bytes": 1095
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/index.html",
@@ -17555,8 +17630,8 @@
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/js/model.js",
-      "revision": "c3faa38a53e6e6a183d6f5a18ab7925e631b399523e3dc4b0e8d0291ff22c839",
-      "bytes": 14065
+      "revision": "946d250992ab0a2dd50f56b32b692c1f98ff9bdb9a0366c9a8c2ac31090caf9d",
+      "bytes": 14133
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/js/scene.js",
@@ -17565,38 +17640,38 @@
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/NARBEPICKLEBALL/style.css",
-      "revision": "2b85895b46b7a7f2dd934cb584e676bbc121f3badff8fdd1b84ea83f8aa309d6",
-      "bytes": 11472
+      "revision": "475f01cb3d843c12bac495576e3379f46b0287bd73bcb28f06441976af3e86df",
+      "bytes": 11495
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/css/freeplay.css",
-      "revision": "22ecdc016c0099efd7f8a8d7b2296abc0bb4565ccce1df75f1d08809444a4785",
-      "bytes": 10925
+      "revision": "def59ed1851d3ed7aba65308b06b8b54449aabe3517699b2858d94bbc03d2d9d",
+      "bytes": 11068
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/css/menu.css",
-      "revision": "e6c0d44cad41deabc4e0afbaa230d882fd2388463de4d5c063b4b9b5209b9fe9",
-      "bytes": 3388
+      "revision": "d1b5a5372319acee5b3a3d34564cbb15fd864ef452691b72f7482de6ba9ddb78",
+      "bytes": 3453
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/css/piano.css",
-      "revision": "da6293a5c428a23e2b422079203dfc2b93caa5caf4a1aa9001cb4992df6ad1e4",
-      "bytes": 8485
+      "revision": "7c94288d345fa034a0ca0b2d1f54bd71e18c54e3f26679a4b2207b86f2e5c022",
+      "bytes": 8590
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/css/playful.css",
-      "revision": "102479fe28c4d4c9b76a006cda8f004d76803c2da33f9637a15955c85fa3d5f8",
-      "bytes": 4401
+      "revision": "0eb257ff17bccbfe359a1a98b6b7a87118409c1c5e669c051e7b3b65bcd3f7f0",
+      "bytes": 4481
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/css/style.css",
-      "revision": "6d603af7fcd8093a8fb0f2291045260c656ef56e06f7705c49b29d4fd468657c",
-      "bytes": 18876
+      "revision": "d6400e380c53bf5b41b928946eccaab4c14accd1e644640ab007da9556e2e2ec",
+      "bytes": 19367
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/images/collections/calm.webp",
@@ -18045,83 +18120,83 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/index.html",
-      "revision": "7fa881984f5334e2c5f2fce4fd56637f5e4a9befe3ce3eb612252b3c0d11cd88",
-      "bytes": 2523
+      "revision": "4accfb633f99a5defca9fa17943a5ae5a0b6a545ab9f675d951dc5e0a7531deb",
+      "bytes": 2573
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/celebration.js",
-      "revision": "b864d90d57b11725870057811344d8016aa83b5634e029e9a179c7af0c700be9",
-      "bytes": 4098
+      "revision": "ab21310dfb830c23a748c0cade5fb94c70c8eb3485c1735f6480f9079f22f6e0",
+      "bytes": 4189
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/freeplay.js",
-      "revision": "3724eaa44ecca69621ac1b23451a4f64e7ed005457083bc7109f3fe5b279ecc5",
-      "bytes": 19303
+      "revision": "dd75fd9fecbf5278454b6d3e85fc000088654abbae270e19c50578f303e4fcd4",
+      "bytes": 19662
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/input.js",
-      "revision": "6c356252f1cb3ecbceb7db2628c2a51153d737e8665bce9457b2b59b3663cba0",
-      "bytes": 14628
+      "revision": "712cb0933d24d000ebb566d2fbb2ee7aee3010a62e597ecbebf4c0e144124bbe",
+      "bytes": 14999
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/main.js",
-      "revision": "d31ae52323d676eefa0ead9e1e0b6ac28c88384264a72b0cb7aa26da0b51361e",
-      "bytes": 3290
+      "revision": "02fe7f94c44204494c79977ee6c343176081970aaa6b766e8966979256ffcde8",
+      "bytes": 3391
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/music.js",
-      "revision": "4cd0f0cbfe58ffa27a089a3ee0a5e31122bd720d26deb9396a63a6daac37fc7f",
-      "bytes": 264
+      "revision": "945f872ee42874ee12cb9d32987881678e2dbded29455498d032e76885af4c5a",
+      "bytes": 273
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/scenes.js",
-      "revision": "a1f8789b8ae1897917ed22342dd3e58e8318d1cb66b7ae25f8e29272a4810722",
-      "bytes": 1610
+      "revision": "02530015b67803c1a295d3075832af52b2172dd83efc86cb24e8b954e69ffded",
+      "bytes": 1645
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/settings.js",
-      "revision": "670fe6819d6ce176cb8e3fbd2fd9b9fcc3ac262da8c973949e8bdc3dea2bc91a",
-      "bytes": 3585
+      "revision": "0b10a1bedf142daebc2f0e813446de71bc065d94cc0702458d30fe3967243cd1",
+      "bytes": 3674
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/song-library.js",
-      "revision": "a223245bb0b4b784a2fe5983735743814db58775526106c2331c32f56a2fbdcf",
-      "bytes": 13960
+      "revision": "e1be0d28e6437231e8fc473f21a305b1997470bb9f7c24c3592117f5e6145fd2",
+      "bytes": 14184
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/song.js",
-      "revision": "2520a6f2698d48b60a56d0f409841e708642dc8601c702064ecdb90ecb8eccd3",
-      "bytes": 2680
+      "revision": "88d8b071d702ba1038b6686087989b1fe5edd91815f0158b02cd03f2e4e296f9",
+      "bytes": 2766
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/sound.js",
-      "revision": "2fecebe6aecb7a11f01c2fad92ef8e6f46b7c9d025508e299579ce8c6336a159",
-      "bytes": 9378
+      "revision": "930c7813b877f6293a55bd779e9938f205f781c355ebe6aa197d72bdb19868ed",
+      "bytes": 9605
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/synth.js",
-      "revision": "72547cb57ea2f87726ce6828946fef49a6336a7d708c7ffe1d78ba20952acdc2",
-      "bytes": 7750
+      "revision": "4e56c29bf4b72ad117e43977deb6b6437b43ca61a7c67772bb19f342f17cc83c",
+      "bytes": 7940
     },
     {
       "url": "./apps/games/NARBESWITCHSONGS/js/ui.js",
-      "revision": "3dd3b79b7070c33bc54e953852e65d12598ec29a238e19eefc25c81197e9f502",
-      "bytes": 34924
+      "revision": "305840ecf2d66b7d42fb79f82883e87cbf089f10fa01bd0d82ae524ac610421c",
+      "bytes": 35659
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/CREDITS.md",
-      "revision": "80a6f2019c4e73deaf7e44602594cfa4f465583ca9c6c5aff9dd8d770973f55e",
-      "bytes": 585
+      "revision": "a70a1a255edbc0cccb70f64a82a5fb03d46fe3eef3e3fbcc5aaebc1a015dbadf",
+      "bytes": 592
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/IMAGE-DESCRIPTIONS.html",
-      "revision": "94da1222576be09c2982d99e2c3857f80d35505a5228bfcec539b3d25c3869ab",
-      "bytes": 37309
+      "revision": "675dc33a0347b07c0b35fba5bf9a418d898445b6631c1adaaf03d6207c7fcaa4",
+      "bytes": 37479
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/css/style.css",
-      "revision": "26958e1aac2208830b343d14492cc284d83b284bdca79dc9dc3d49ae22c33bac",
-      "bytes": 33172
+      "revision": "5bb88c9a409210eeb61e59dd7b0a33248c14df98c5e637bdc3ce6823b164c0ec",
+      "bytes": 33951
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/images/library-background.jpg",
@@ -18130,103 +18205,103 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/index.html",
-      "revision": "af62dbe4ab8d9176ab63e4723aa219ea6f6040afbd12641a613c998a913becdd",
-      "bytes": 3451
+      "revision": "9efe1a9f644aaf4b07d9c22f0236ff58637a6c977adbcb5d119d15da143512f6",
+      "bytes": 3516
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/beach-walk.js",
-      "revision": "3ca2e23d0e60b2c033893a9a1be6083afcd87dff27d26f04f95deb4466e36e90",
-      "bytes": 4923
+      "revision": "da8903349dcbeba702297f582d8e5d8829b804c1a1eade529f366bbcce1a3a0c",
+      "bytes": 5005
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/braille-books.js",
-      "revision": "73c571c6623b5a43e53dbb65bcd03a9135505e1c81729b37dd4e39ba731c269a",
-      "bytes": 2596
+      "revision": "87e7e3f5c4b11cbc23058f535aa4e6696d9ab27933ce7c682620c4481c912ad8",
+      "bytes": 2643
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/config.js",
-      "revision": "89d559e9c423a8ed009ac0729b2cae6ea421d8b3fef919b369fc38f7c198533e",
-      "bytes": 8237
+      "revision": "8728c7c8baaaf9eaf72bd6500b83c0eb0f810c6bb271cbc341d3b7544c8dba01",
+      "bytes": 8387
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/descriptions.js",
-      "revision": "a12489d9759f0906222fffd726c01f6444d1e584dad8004e613f23eeeaa2c277",
-      "bytes": 4965
+      "revision": "f79caeffb414d6cf9c6b8a096dfe75b9b37ba4f23213d891a898052986828c17",
+      "bytes": 5066
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/final-actions.js",
-      "revision": "bc20a361d5d5e8c4da249c29083b8eed31888c13bb21fa39651e51683414f170",
-      "bytes": 8306
+      "revision": "0e86b97ef6d8c3195386ae24200b1b078dc6ea8d98197d8bcb9f0cf62c755f95",
+      "bytes": 8438
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/illustration.js",
-      "revision": "67b583bc583ebbd51fc1af3dd4e19601ee428bc551c89385176ab7e1fe3e489f",
-      "bytes": 49315
+      "revision": "085c91b375513f56d851db5a4a554c0ea5f8e11e01ae926a4d0e7b14dd2965a3",
+      "bytes": 50165
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/input.js",
-      "revision": "66e4a5295616366f380163b75782d1a3dba411fd0b686084c386bb571bf60074",
-      "bytes": 16922
+      "revision": "59a6df4783da00924ad08dca2743da0f2533ca9426dd67ff8556e912d86a6b91",
+      "bytes": 17357
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/library.js",
-      "revision": "6f488b683425bcaa9a31e6eead44ecc71d14f621e016d9ee3f82a688bc9cadae",
-      "bytes": 25334
+      "revision": "a2dec6ceedbadd9cfd83107de6dbc30f6b139812c4d499210020a1cca5d9f4f7",
+      "bytes": 25801
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/main.js",
-      "revision": "ca110d11ee72891afec8cf38edc3fc2082e120d5d31be57a1c9e7a9163050821",
-      "bytes": 2772
+      "revision": "be0c509294da7f80838c3cdb57e53ebca9ea30e5e76c75bae5347462d4075fc1",
+      "bytes": 2872
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/ocean-listen.js",
-      "revision": "7bb177d6d4718a421d1857874e2492310f5700adbd23b5e1d3005255575999d4",
-      "bytes": 2491
+      "revision": "cd8fea454737a20df18b8ade572498e4e66cbb46a437b13933a9a097a062d243",
+      "bytes": 2533
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/reader.js",
-      "revision": "994fc00944043d865015c3bbba52f7ac196288c6aa8555245c6e3a460710387b",
-      "bytes": 3467
+      "revision": "1b72773e4c94960709f3740b1c17e8058bf0acf2b3afe62a58afecabf4a44812",
+      "bytes": 3555
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/reading-history.js",
-      "revision": "35d4ae5d3de2c0ac07e04a37d1e4125aca947aa2f294af84238d05f6c2a917a0",
-      "bytes": 1550
+      "revision": "99cf57b0222b640e8d01f349ed3c1a2113bbf8c228926bada4679842a2b88cee",
+      "bytes": 1587
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/scene.js",
-      "revision": "4b57b9d3d71d275654ff2fcc5782a4420afd82cea224c794be34f88776964c86",
-      "bytes": 82651
+      "revision": "2d0456fa57c39e233dd94483d79e556952775bab052112464997679c41073257",
+      "bytes": 84168
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/sensory-actions.js",
-      "revision": "50340441d29a90fd834f07a20623119051c4093b1f222ec227b672f9e41b33fa",
-      "bytes": 16544
+      "revision": "d8bee6aefb35c0de211ed2072ba8267268348885522866af96a3890b5bdfe947",
+      "bytes": 16810
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/settings.js",
-      "revision": "090c72c9147c24eae7d57577318322c739c6c6b22a44ce62c18cf25a55b3626f",
-      "bytes": 4938
+      "revision": "ba3682b44ffe5ffc20e160b3631bc13d554b89e920980127882d146c79cfe661",
+      "bytes": 5059
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/sound.js",
-      "revision": "2b5a088ce47fe15956641d3a764d6b5e5336599823b411bbfac10ecb805b916f",
-      "bytes": 12306
+      "revision": "ab2a86ac5a027691e285a7bccae1d2e9d22904928a7a6f0752090bbb3b36218e",
+      "bytes": 12555
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/story.js",
-      "revision": "423cc1f85ccaa6369355f8266613cad6f5e48f1475ae6ffc1c3548b14ae60693",
-      "bytes": 16147
+      "revision": "15c612e7e13b7657b888e8fd3dedd9c121420bde3ac46c80241936f65d127a12",
+      "bytes": 16552
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/js/ui.js",
-      "revision": "d7ab2e18886cda32bd116a932e29d0c356a8c262135944e4564857a73604e81c",
-      "bytes": 56865
+      "revision": "0ad7b7ce506e60256205acb3f9aaf2d35fdd6be40a249300cfdc26ad038635b3",
+      "bytes": 57993
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/froggy-family-goes-to-cape-cod/CREDITS.md",
-      "revision": "3532ab69b810c55ce171a31fbe7409f14307c81204a23431d5480d4f0a5b8159",
-      "bytes": 2522
+      "revision": "4b92a449b004db79ee36c5ec99e7cd99e6b5e98316b30bf7f8395a6276146260",
+      "bytes": 2547
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/froggy-family-goes-to-cape-cod/backgrounds/beach-panorama.webp",
@@ -18535,8 +18610,8 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/froggy-family-goes-to-cape-cod/story.js",
-      "revision": "4ecc1f219a37efa0f8e995adef756a5b700038720ff034ad87f62bca087bf76f",
-      "bytes": 11593
+      "revision": "3ae1f83ecd6b3495ed2fed101046943f1bf4f1ddac8b9383b51131ab673b3a7d",
+      "bytes": 11746
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/lily-loves-books/backgrounds/bedroom.webp",
@@ -18610,8 +18685,8 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/lily-loves-books/contact-shadows.js",
-      "revision": "796bcd738321bf2e050b3824c6bf2a4c80c0623f3126f1bcc70c2ebdb7e8bb4b",
-      "bytes": 2528
+      "revision": "e651544af8852a3de09f87ee06e7fd19e8b5dde7c00d6c1d9320abb14ee8000e",
+      "bytes": 2550
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/lily-loves-books/sprites/eiffel-tower-cvi-outline.webp",
@@ -19005,23 +19080,23 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/lily-loves-books/story.js",
-      "revision": "aff6a02b469791dea277ba79ecf0c251f063ea87d0e08fcd22422a10127b5a55",
-      "bytes": 10233
+      "revision": "aed61f5afb7e605a3f6e678c9d7ea465a7f6757fab878d51846ac198516c3d4d",
+      "bytes": 10418
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/list.js",
-      "revision": "c32a98b258f8d7459793c108eefae2ee8d6c9c331f3faffcc83a9c26552e5022",
-      "bytes": 4101
+      "revision": "65e3b4807ca8709f97f8e7a6bb6e9240628412dd1f53805eff88f4aea9201b63",
+      "bytes": 4171
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/rocky-says-hello/audio/README.txt",
-      "revision": "1b8404bba8e81bb4d94560abc95a0b2e68646173dfb672970f4f800deb31f47c",
-      "bytes": 1242
+      "revision": "b517e59ad6d239097754766714784528a53d8a36ca1935721e074d56d2108649",
+      "bytes": 1268
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/rocky-says-hello/contact-shadows.js",
-      "revision": "4f61304ba65b44301d8cd7ea430f101ec77745ebe2811d5afd494da0c19ece41",
-      "bytes": 1101
+      "revision": "94b28d76bf9e9816a1f629057ff3926b63be5a876ff54fa0580d945540b230e7",
+      "bytes": 1116
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/rocky-says-hello/sounds/bark-happy.wav",
@@ -19260,13 +19335,13 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/rocky-says-hello/story.js",
-      "revision": "772641f8a3b9116da6684bdcfe8047b62a4c3530157dfd7234bad3bfc812d248",
-      "bytes": 4649
+      "revision": "09d671f8fed819e1dda7a1968f47b2e8249908d504698a8864cf75a4ecf19057",
+      "bytes": 4747
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/the-bright-night/CREDITS.md",
-      "revision": "bb132f97891dee140ebcdc556d2dec2f9054fd8aa5702d41733e567ce2733cea",
-      "bytes": 6242
+      "revision": "e659bec2cc2a8e960cc6e07218cd6735f36f887df984b1c2966054231ea544d1",
+      "bytes": 6338
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/the-bright-night/backgrounds/cover-blink.webp",
@@ -19765,8 +19840,8 @@
     },
     {
       "url": "./apps/games/NARBESWITCHSTORIES/stories/the-bright-night/story.js",
-      "revision": "8844fd6cae9d3bdb2c39162742091498c0a4d496444472f79a7b9603c9097b4d",
-      "bytes": 24853
+      "revision": "684f656d8be15330214ab21a18d821f267f3044aef555fb0eee6a6b84510caef",
+      "bytes": 25598
     },
     {
       "url": "./apps/games/PICKLEBALLRALLY/index.html",
@@ -19910,48 +19985,48 @@
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/css/stadium.css",
-      "revision": "6155b2f9215e47c5ace4441afed666e9c9eb3a386675875ea275a946e550ae1c",
-      "bytes": 30371
+      "revision": "bc5d9e6efa706b7b1f462d975f5e0c3e6acb62459ae6eb3e8996f1c8853bc1c9",
+      "bytes": 30715
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/index.html",
-      "revision": "ec69d7b36d0b2c3ae34e51cf94af5cb00dffe9bdb71dbf13a3d701f5361f15e7",
-      "bytes": 5098
+      "revision": "a29b511001fe3d945c5993e8faeda41a14fbc23226d77b25e62596a936e08bd6",
+      "bytes": 5180
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/audio.js",
-      "revision": "2a04b96ecf4ee1ccc62edf20cdb7fec96fab74f5f35a47329c9f68ce1a031ad0",
-      "bytes": 7129
+      "revision": "f02d710a731f77629babab9fef816caa5ba7c3504282b2085af1bfd571dad883",
+      "bytes": 7375
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/renderer.js",
-      "revision": "391907ecd7e776479773bc9974ccdb0744727815b42c0ab157b193acfdccad7c",
-      "bytes": 82053
+      "revision": "98b85a47d3c1cc6cf8c8c6deed1a1366d459829d33062ab693bd688a8d3d6172",
+      "bytes": 82976
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/robots.js",
-      "revision": "04d18c4e077a7234f8bf1296fe7d9c725064a4687575f3dcd5323b102010e980",
-      "bytes": 12374
+      "revision": "1667fe4786a8bf88d628a22547717c51fd9e1797e203381e4e3dde7490ee3791",
+      "bytes": 12553
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/season.js",
-      "revision": "e2eb3fbcf48dfee3a0a6d33bd55f7fc8b20d58805d93c34baba0afacffaac185",
-      "bytes": 14060
+      "revision": "4879481fb51c12293bf419f23a93e9d5546eb7080b7c6ba2a76aef08d0c3098b",
+      "bytes": 14331
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/simulation.js",
-      "revision": "d4a5fdf5ffd6d20a0e898c8c956a3922808802a9735f7b0f61ef3e3d544cb783",
-      "bytes": 124345
+      "revision": "4a19c106b0e28d3e133f214a0f85f4315405adb62a832d5c7942b267a6d738fa",
+      "bytes": 126261
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/three.min.js",
-      "revision": "ec0a84377f1dce9d55b98f04ac7057376fa5371c33ab1cd907b85ae5f18fab7e",
-      "bytes": 644798
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
     },
     {
       "url": "./apps/games/ROBOTFOOTBALL/js/ui.js",
-      "revision": "832697d44a1152471e162fd39956b2962dd87eaffd5601e2b368f605ca3f111d",
-      "bytes": 87992
+      "revision": "cec4478679cb63050d041facac8371c8d5e1e72d8deba6a69126917458319f1f",
+      "bytes": 88759
     },
     {
       "url": "./apps/games/TRIVIAMASTER/games_manifest.json",
@@ -19990,108 +20065,108 @@
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Geography.json",
-      "revision": "db60ede0491f548b20c0d9cadd9288d4ec21223c268a3be1faf5ee9095ebc36d",
-      "bytes": 143566
+      "revision": "e6f129a1e3e8de948129eaa7458f5e6eb41aa6534f211f2a3a0cc97a752114f1",
+      "bytes": 146398
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/History.json",
-      "revision": "02cce3a293b4978aa5a9553a45125e8619f9ad1d6e54a7ebbf769e24174b03ac",
-      "bytes": 171049
+      "revision": "52d4906cf356c3801ec95621e2444c374916fb1a53ab63fff709b3206de8c7fb",
+      "bytes": 173181
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Influencers.json",
-      "revision": "c4d7bcefd59b82c52a35efd5f646694ec6e5ed589e81da626cd4a132c14fa167",
-      "bytes": 37652
+      "revision": "7fb74b69ee37e523b23dd7f200aa0434cdaef46f51c65987f4da345fbd849bed",
+      "bytes": 37878
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Math.json",
-      "revision": "9119bf0bbbf522c94b738d6a1af7fab33ce52bd8b6bba63a6d710c7c8567d63d",
-      "bytes": 151890
+      "revision": "dbffc35c6a1296430e62ae3d62213a426f5a1e3afb5460605f7bd29a19748598",
+      "bytes": 154722
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Pop%20Culture.json",
-      "revision": "b2ac622e9b1a2966268325ce959a174b6c1a559caf32a9ae86657ec8ae0a5d96",
-      "bytes": 257721
+      "revision": "f29988c3887061bc41f7c7dc7a474e1d5e296cefaadbd83cb01478e55566389d",
+      "bytes": 260553
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Science.json",
-      "revision": "086c5f736744e6184c2873a3ab8cb70e9213e17b2ae75991123685aab2fdcf7f",
-      "bytes": 223645
+      "revision": "f1cac34ac03b72351466e318deb95024298bb6aa5c4e1379e52dafaeca7d2d79",
+      "bytes": 226477
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/Sports.json",
-      "revision": "27b012a7808dabbed5101f6487ebe6b9d2f1a5fe6a6a494f8805b3ecddd0aa98",
-      "bytes": 138360
+      "revision": "520be536b0f0869620de3964e5409f6e1f709baca140dc953ad12c0c823dac0d",
+      "bytes": 140492
     },
     {
       "url": "./apps/games/TRIVIAMASTER/trivia_games/TV.json",
-      "revision": "c9e4c1dd0764534c9e63d1811185cd353cd59ee5d264e64445a8c32a98da4123",
-      "bytes": 223368
+      "revision": "afc01bc38ae9ba9c5a0cce7c4319a45aba22f1ddd7007dfa35d909cee44b301a",
+      "bytes": 225500
     },
     {
       "url": "./apps/games/games.json",
-      "revision": "8f808d7a118cbd11f4168c790239c3f933077e2cf759b23a3205bfa4193f1f32",
-      "bytes": 16484
+      "revision": "077e2c732122ba2f9b19553384e57135cda2f50c09b3ac0da072db46da795654",
+      "bytes": 16864
     },
     {
       "url": "./apps/tools/dayhub/app.js",
-      "revision": "c2b4a681252c36d33ce42d03d670ad7cae0a81be09e88d90f22ad0976a25109d",
-      "bytes": 27449
+      "revision": "23643cbe2736cb1c1570afe6232b1bd2f14dcaf9ad6eee3e57c9ce74d1f206f6",
+      "bytes": 28202
     },
     {
       "url": "./apps/tools/dayhub/day-services.js",
-      "revision": "7199b141d517ec8df0c593960b24d294262af19e2cf9f53063395f352ce7c75a",
-      "bytes": 672
+      "revision": "f5ede416681601f2f258318d62c43e26730b54c5b44957991eaff00f59236b37",
+      "bytes": 678
     },
     {
       "url": "./apps/tools/dayhub/index.html",
-      "revision": "57552e2d2af9a8035dc926f05ad5b499a564eb82ed218b8c7d6c7ded0f9be34b",
-      "bytes": 7354
+      "revision": "aa51c0f5ec93dc84136e705f85d9616c3597bc1ce625e445b54e881025dcb575",
+      "bytes": 7363
     },
     {
       "url": "./apps/tools/dayhub/style.css",
-      "revision": "7d1812bf3aefe6bab880f4f18129593a7dac0a584f5f57bdd97911f39d53cc79",
-      "bytes": 7867
+      "revision": "a7d41b014167caf9d9b0c16f052b5e0220f053b3ba83857af1a7d1b057595346",
+      "bytes": 7870
     },
     {
       "url": "./apps/tools/journal/app.js",
-      "revision": "278fd44e277fe457a3536b4f4ba7bcd6fa322a0ad58af0d2e647166ae976b4e4",
-      "bytes": 48764
+      "revision": "977960d6a2252759ded77e250c40805bcb454d7a453b331a0037fc0fed051688",
+      "bytes": 50030
     },
     {
       "url": "./apps/tools/journal/calendar-view.js",
-      "revision": "e111dc2143277617c839408b7104a98fd6c4df24d78e813a4e347e85e048b061",
-      "bytes": 4921
+      "revision": "88529da9b8c75bd1a10f6ecba79673aac840f52ec85de90ef04e615c346c3870",
+      "bytes": 4985
     },
     {
       "url": "./apps/tools/journal/entries.json",
-      "revision": "364b37738032a28a72829f4d2192b70bd9353c9ee8dddfc5b70c2785f995d6ac",
-      "bytes": 20
+      "revision": "949085781997ff11b62aaa9827717f6b74d9df1bf1927ad5c9be509edd2930b0",
+      "bytes": 23
     },
     {
       "url": "./apps/tools/journal/index.html",
-      "revision": "2c4dbfa4214f8ffcee489eee813b9b483618ce52441e33242b65e482c6f1ae48",
-      "bytes": 8938
+      "revision": "e5e6aeee6dab7fe31fd74b412a6d202703ad81ce97a33f4c4727640a758346a9",
+      "bytes": 9120
     },
     {
       "url": "./apps/tools/journal/journal-look.css",
-      "revision": "cda74ffc1edba636bc8beee70fbdb9e6ddb9bb4fa7b6802408c6a4c06ae041c6",
-      "bytes": 9925
+      "revision": "36b641978d2ae1194f889e593a7a9b48301207f1cec27c0038a12b8ff7099a30",
+      "bytes": 9927
     },
     {
       "url": "./apps/tools/journal/predictions.js",
-      "revision": "58b750bc4ebefe7a222d9b18d706b546f032d236fe4f4796c1765f548e9fc012",
-      "bytes": 14129
+      "revision": "71ab93037912f4de61d71dee6df53588e6a65c1564fbf341ceec0ec819e9e8a1",
+      "bytes": 14510
     },
     {
       "url": "./apps/tools/journal/questions.json",
-      "revision": "8f69a44cacdb5e568b52e2e8d67f8cdab0341b65906e621475394960222597b6",
-      "bytes": 15251
+      "revision": "133ee2edcfbd43c55fd35d8600908c1c2968a3bc31b298cb2c3f306199d253d2",
+      "bytes": 15486
     },
     {
       "url": "./apps/tools/journal/style.css",
-      "revision": "6f84597d8a1697c43426fd2d8fb1766e893300b4f0d3e84a743c9e9df24ede7d",
-      "bytes": 12987
+      "revision": "405c21ac52aea4d613d0174d0fccf0ee478d55f5f65bdf122e3cf29c19f47078",
+      "bytes": 13679
     },
     {
       "url": "./apps/tools/keyboard/app.js",
@@ -20105,13 +20180,13 @@
     },
     {
       "url": "./apps/tools/keyboard/predictions.js",
-      "revision": "97c133cd123a564cae77d0ecc3e9b54836bc45eb99d91fef80aa30f30d5577a7",
-      "bytes": 14550
+      "revision": "6187ad113089e7041a1555da6a34008962885919fab523a78bfc8c8f57b3bbdd",
+      "bytes": 14981
     },
     {
       "url": "./apps/tools/keyboard/style.css",
-      "revision": "7f491d211581afcf5caaf28cca3a343e5b9465066b2485470709319caee45cf7",
-      "bytes": 16726
+      "revision": "d2fb19eccda74817c87ddf9c488e2200cd107b58db61a165e6a38e4aeab93b22",
+      "bytes": 16729
     },
     {
       "url": "./apps/tools/keyboard/web_keyboard_predictions.json",
@@ -20120,18 +20195,18 @@
     },
     {
       "url": "./apps/tools/phraseboard/board-choice.js",
-      "revision": "ceb43fa24fae422f012185c085e9be2d2d0de647116c0d56db8525ece335d7ef",
-      "bytes": 11522
+      "revision": "b762114b2288936544bf4892cee70a92f065bf0c3d306bc64da2eddf086340f9",
+      "bytes": 11645
     },
     {
       "url": "./apps/tools/phraseboard/board-core.js",
-      "revision": "c39ef1e9337e80e3b0a19407f490bfd3708869ded2284e136ab4d04a1d2d8693",
-      "bytes": 8225
+      "revision": "b4959c8f10571eee296322189f0c53cb80247b416bb59418c04bc9b9406fd249",
+      "bytes": 8360
     },
     {
       "url": "./apps/tools/phraseboard/board-enhancements.css",
-      "revision": "7786a947acde46ea050c94bc7d335837cc6a22069d35a2a0ce0162ca62c0094c",
-      "bytes": 4516
+      "revision": "d9e714c264b80f4eae46e9f231a0663798007cdc9e4a6b1561e8c2c82eabbeed",
+      "bytes": 4576
     },
     {
       "url": "./apps/tools/phraseboard/board-live.js",
@@ -20140,18 +20215,18 @@
     },
     {
       "url": "./apps/tools/phraseboard/boards/NARBE_Default.csv",
-      "revision": "759a95cb903d6d639064ea221eb09bd42a24eefad667f297417366d7a5c97407",
-      "bytes": 40890
+      "revision": "81cf7d9c855a67c05a86e5c6c0de7664694c63e4572e324dc9cb5569ef76e2b3",
+      "bytes": 41033
     },
     {
       "url": "./apps/tools/phraseboard/boards/NARBE_Words.csv",
-      "revision": "8f423476102d8952c888be207664957de5b84eab73ac299c03de61831298575d",
-      "bytes": 786880
+      "revision": "443799b9568a02b1ab603105796e94e9b45987401ffbb2bbba0682a7cfd43ad5",
+      "bytes": 789838
     },
     {
       "url": "./apps/tools/phraseboard/boards/YouTube_Videos.csv",
-      "revision": "a681b9a78e08a402b96098ec54ce21534c6a3501cfe030e91206cfc74a495423",
-      "bytes": 262883
+      "revision": "2b31fa5983091a383db1b35dbfadf32cf9cd3e45e656e5d48e7ccb8f1bbe5aae",
+      "bytes": 262904
     },
     {
       "url": "./apps/tools/phraseboard/boards/index.json",
@@ -20160,63 +20235,63 @@
     },
     {
       "url": "./apps/tools/phraseboard/boards/opensymbols-attribution.json",
-      "revision": "8d3ff82de18bab79a90fc8ef875c4ac414ce51ceeaf56897534a68cd586013d6",
-      "bytes": 2725619
+      "revision": "4440285bcd57ccbe44731d6a07d0bc92c60f11f3006bfb10085653cddd273f88",
+      "bytes": 2787999
     },
     {
       "url": "./apps/tools/phraseboard/editor-bulk.js",
-      "revision": "3425e972601976e829b222e0786e99b2d5da2425f436f8f517955786a4f188cd",
-      "bytes": 5944
+      "revision": "f1c9d0b89890e6847bcaa3e869fc9298caa81c6a8985a82d69f412d5e9d532ce",
+      "bytes": 6004
     },
     {
       "url": "./apps/tools/phraseboard/editor-default-boards.js",
-      "revision": "3614d71ccf24c7e84b6881792e4e504e37a9e94b0075013dafb65ab350a066ee",
-      "bytes": 4073
+      "revision": "17231c9729382f534c091932f324b6271ecd20a62f2daa075d69b02111f76a10",
+      "bytes": 4135
     },
     {
       "url": "./apps/tools/phraseboard/editor-images.js",
-      "revision": "fc0672bc0ba893024b783fd7c0faf8c26838b7863c635f28c1fcf9dbcd53c33f",
-      "bytes": 9825
+      "revision": "fec5e5d33d83459d3a3926b97f905a8148749c6417d450aa5b7da2e9f0af5145",
+      "bytes": 9940
     },
     {
       "url": "./apps/tools/phraseboard/editor-legacy.js",
-      "revision": "651fd077aa226b14042a86142363bf1f5eabc7dd77a951c608e67b7dc3af7f98",
-      "bytes": 10030
+      "revision": "accee4e203e4f24748673b3ef65f5e22944ab1e6b1e69ec7a38a74ba3bab0b7e",
+      "bytes": 10129
     },
     {
       "url": "./apps/tools/phraseboard/editor-map-viewport.js",
-      "revision": "67eb7d319366b6dc650fe7bcf994eb92cc3b5e57f4ee6665365f5517837cc5a7",
-      "bytes": 6672
+      "revision": "a457cbd6c0ff6447a95d09b7420753944467feb7a102ca17b4a7393ea5509854",
+      "bytes": 6754
     },
     {
       "url": "./apps/tools/phraseboard/editor-map.js",
-      "revision": "74900f24196faf90557ae8d79001cc8e615d1ab5c5eddfa2f9c4f8d8ce9cd6d8",
-      "bytes": 12124
+      "revision": "8c6955069d3f9d38a80f59721d151951306888999c9fcc050d4264017f72eb32",
+      "bytes": 12219
     },
     {
       "url": "./apps/tools/phraseboard/editor-navigation.js",
-      "revision": "cfc8f0752ceab4bb1e429cdb51b9a61558f819d8e072ef9b77996bfdc002db63",
-      "bytes": 2584
+      "revision": "338ad2df029dd973d41883ca52922f731352da1b8bf0fce3d967e226616450f1",
+      "bytes": 2624
     },
     {
       "url": "./apps/tools/phraseboard/editor-predictions.js",
-      "revision": "6af18702e5b2c047c922016c3ff5682d610cf75e86a21b9fe731d4384869f850",
-      "bytes": 5542
+      "revision": "199baea3cd05b57d5773e2d107b3c9b09dd61a6c96a8de4b790c1a4e917874ef",
+      "bytes": 5594
     },
     {
       "url": "./apps/tools/phraseboard/editor-search.js",
-      "revision": "d2a68f33adeea30a1188897eae3463155e7cd6b5e41926afee761783b8cf36fa",
-      "bytes": 4139
+      "revision": "e10fc601d172f25de094558050c8a670b0f4435aa65466ea39f2157d909c5b75",
+      "bytes": 4178
     },
     {
       "url": "./apps/tools/phraseboard/editor.css",
-      "revision": "1242518743a86351b54288641043cd6cdaa95a669a515b31fb31f0c6fd86e7ad",
-      "bytes": 23920
+      "revision": "5d4fce4159b9a4d780cb51b55f3a7b57f5ccbcfaf6866a308aa355a44a133e83",
+      "bytes": 24151
     },
     {
       "url": "./apps/tools/phraseboard/editor.js",
-      "revision": "4ac18f5db741cf97e2e38b829678a39d2720c6da81b36d1b93e7d1e655c9a46e",
-      "bytes": 22015
+      "revision": "53af62ead7e56d12a12fedd803db54db920c04bca727265c4651cdcd3db7666e",
+      "bytes": 22203
     },
     {
       "url": "./apps/tools/phraseboard/index.html",
@@ -20225,103 +20300,103 @@
     },
     {
       "url": "./apps/tools/phraseboard/phrase-builder.html",
-      "revision": "8cd3581ba434322d27cbcdb8ebdec7a96e4a53ba7a8b289784c4e1ee5ae0b968",
-      "bytes": 568
+      "revision": "5469d7d8e27defcdf5d44c403332b0b86f8619233dae9df6df84e3edba3da20d",
+      "bytes": 571
     },
     {
       "url": "./apps/tools/phraseboard/phrase-editor.html",
-      "revision": "0024fe0d722a4ab0d4fb7aa93c7bd6e5da6ab0b012261f107930026688526844",
-      "bytes": 14137
+      "revision": "6eea6014089da1777eccc56f3b942865c0c77d9baea9045f54de30a84bec3676",
+      "bytes": 14183
     },
     {
       "url": "./apps/tools/phraseboard/prediction-data.js",
-      "revision": "9366686935c42dd60405c0e4ce33daf6047e5e2818e5301009b74cb2d6211328",
-      "bytes": 2062980
+      "revision": "3d24f20a02fb33d65b36e32def53a918d7fb2d3df54351cad7103c6662cb4f21",
+      "bytes": 2062982
     },
     {
       "url": "./apps/tools/phraseboard/prediction-engine.js",
-      "revision": "da232b681ceffcf2b7f5f0afa637effa357f02fc251ff96097219b04921629e3",
-      "bytes": 14437
+      "revision": "9f675a4004572dbd2ec73510708f3b100ddf48b538bb32f87db34526b9b2c2e5",
+      "bytes": 14584
     },
     {
       "url": "./apps/tools/phraseboard/prediction-worker.js",
-      "revision": "621a8517e611db6018a87446fb26d8e11bfc7ab338bfa9fdfe14b497a62c2bbd",
-      "bytes": 3123
+      "revision": "15638c42bb7249658772ade114167b900586fcd72003265f8ff4917926798093",
+      "bytes": 3157
     },
     {
       "url": "./apps/tools/rtc-lite/THIRD-PARTY-NOTICES.txt",
-      "revision": "ff796dbc82ac2d661381e58e90478178018c6e3091fcd317b4027280daf384d2",
-      "bytes": 3823
+      "revision": "392a365a485ad88aee3e92808509d8a71c60cfc54aef89cca1a0c7b427450e56",
+      "bytes": 3878
     },
     {
       "url": "./apps/tools/rtc-lite/ai-generation.js",
-      "revision": "026a0e98e759417f94f7c2b8e773f65683b2a750fe664332207e1d000303a427",
-      "bytes": 2241
+      "revision": "49a2d062eebab553db83f7489c363ab447dea44c413d22cf291effad1c0ece89",
+      "bytes": 2278
     },
     {
       "url": "./apps/tools/rtc-lite/ai-worker.js",
-      "revision": "30c21c34275e0a08767d96538f1c792a4d67bbbc8191fbd201cf826e37261926",
-      "bytes": 1059
+      "revision": "8b1112eec9b3e01b651d5ab3f7fec1019e75a63ae45678472526453b9dfb739b",
+      "bytes": 1079
     },
     {
       "url": "./apps/tools/rtc-lite/api-server.js",
-      "revision": "0bb245ad926b06726eac5c1f8f4509a815802b1f33e63f4d9d695742472f3b5e",
-      "bytes": 2573
+      "revision": "931b5446ffef4f736ef7964c472f65bbfff2363e918d21a47ea0e5c3b1c32501",
+      "bytes": 2602
     },
     {
       "url": "./apps/tools/rtc-lite/app.js",
-      "revision": "15425db76a23faf243d3974be910dd56b2db8a352b507e69f7ea2854d08524ca",
-      "bytes": 57958
+      "revision": "9a2a213eadeff6b85cd6e3e51d66576a867db478081753995f00e1944f75e1c4",
+      "bytes": 58641
     },
     {
       "url": "./apps/tools/rtc-lite/core.js",
-      "revision": "55509fd745eaa0dd9c2bef93768f88410d99d5fffe397c4923d8fa10bc671176",
-      "bytes": 16139
+      "revision": "505e6421a786fdb31701703b14defcd8a3ca0cc825fd09096db38edcc646f962",
+      "bytes": 16284
     },
     {
       "url": "./apps/tools/rtc-lite/dictionary.js",
-      "revision": "d9670dd0f5dd76a5b3254d366cfce551db14b579a4f5fd6f1114f675333d7703",
-      "bytes": 5136
+      "revision": "92868eca134265bf45570b377833900bef8bc93727a28b17001ba545c6ae8085",
+      "bytes": 5164
     },
     {
       "url": "./apps/tools/rtc-lite/index.html",
-      "revision": "24ece2243796024c1083b5b83aa38b1c43483bb542150c0d1fe1471c337ab1b0",
-      "bytes": 40893
+      "revision": "f888e00a856b24acfeb5ad4225feb8ff709814d619d56d266efab9c11fb44556",
+      "bytes": 41164
     },
     {
       "url": "./apps/tools/rtc-lite/providers.js",
-      "revision": "1323206a9590135eddaad59bb36d33a6a1a7414c56699183ce5852b36b52fe54",
-      "bytes": 6768
+      "revision": "d11f3661cd42c76d4723d2377b4e6723f07335a734847c1f56f9db23417121e0",
+      "bytes": 6845
     },
     {
       "url": "./apps/tools/rtc-lite/speech.js",
-      "revision": "dedc24cc36ada0c5a3cd5e81932c5e6024623a6dc33ecd8ccd1805619de103c8",
-      "bytes": 14870
+      "revision": "35af8e32e9f7f6f7b731c43996bdaa1329bdea8ecc14830e33b9694f53aaf87c",
+      "bytes": 14939
     },
     {
       "url": "./apps/tools/rtc-lite/web-config.js",
-      "revision": "b86db69cd833a477dd1399a132ec0bfcae475391428463a7de3d8a750d01a4f4",
-      "bytes": 149
+      "revision": "1551c3019e325cdd035bb783a25319a2ae904b6cac7755d2a03ab9664f5d5ffe",
+      "bytes": 150
     },
     {
       "url": "./apps/tools/rtc-lite/whisper-worker.js",
-      "revision": "026945de658f9cb7358c6089ccaa2adbb3f04a9074c29ab940703297b0a6da26",
-      "bytes": 1332
+      "revision": "98a77640f9e3664068f76afaa3dffc8c27ef14c1770e5de672faad2f0757bbc3",
+      "bytes": 1355
     },
     {
       "url": "./apps/tools/streaming/app.js",
-      "revision": "45add9f776b5b2a8a36bdb2bf9743d4b1c6b249630cd8ca63c6f22aa8920934d",
-      "bytes": 85475
+      "revision": "e0f0085572dd883b16b9dd0e23f4b7e1fd4f2e630c865f96e84aabd0c8f305d3",
+      "bytes": 87637
     },
     {
       "url": "./apps/tools/streaming/collections/disney-starter.json",
-      "revision": "a921c536b06ceb7b76ce9b7918bf276d3b3a7a9d40257185968d8b80d5bf7c78",
-      "bytes": 95242
+      "revision": "dfe3f5d4b99ba3ca5f9bf11879fed857b29c8f72057b6323861757362bbd65bc",
+      "bytes": 96891
     },
     {
       "url": "./apps/tools/streaming/collections/hulu-starter.json",
-      "revision": "8e8b31131b35fd90a1fcee89aed54ea61b19699d291cfeec1bdfb19f9ddf61cb",
-      "bytes": 45147
+      "revision": "a36bb1ff59e68533e459cd9a4d877272271c31d5f335bbd70f81baca2655e4c5",
+      "bytes": 45966
     },
     {
       "url": "./apps/tools/streaming/collections/index.json",
@@ -20330,23 +20405,23 @@
     },
     {
       "url": "./apps/tools/streaming/collections/netflix-starter.json",
-      "revision": "2cfb72901da82b17501cd999c6638757af3dd7261d918e45560afcd9f4904da4",
-      "bytes": 52998
+      "revision": "62638babba32d99c8bf9b04606264cc219983e37c35926b756829036bbbda005",
+      "bytes": 54053
     },
     {
       "url": "./apps/tools/streaming/collections/prime-starter.json",
-      "revision": "41071907707d1ba4db5ba265a5c450e2bee7f8b1bf1955a1e66580a65cbdeac1",
-      "bytes": 15170
+      "revision": "f837b4f2987a0114426c9e3983d8165400133b0ce1df7772a9c4787429572713",
+      "bytes": 15431
     },
     {
       "url": "./apps/tools/streaming/collections/tubi-starter.json",
-      "revision": "270c04ad2fba1efd7446d7af74504a76f9113926d0d9321135eb0a8f35e463d3",
-      "bytes": 45467
+      "revision": "f54834d2cd12941bce42c7eb38a6dbc65214d1cac1b384256ba48f98616f18cc",
+      "bytes": 46266
     },
     {
       "url": "./apps/tools/streaming/collections/youtube-starter.json",
-      "revision": "c2559d712b39f996a46db8211e70f2d2b190a6b634adf48045af5d70924f2e5f",
-      "bytes": 5888
+      "revision": "758eb437e12d69739ec2e7e20ba52f8306f34ba4f1a39b468d7285f292663580",
+      "bytes": 6019
     },
     {
       "url": "./apps/tools/streaming/data.json",
@@ -20355,28 +20430,28 @@
     },
     {
       "url": "./apps/tools/streaming/editor-files.js",
-      "revision": "c8101a3b6e054e7ebf8a4c00a4a2c8c8ab01d5ed8207ae290f71e6d09b5e98c6",
-      "bytes": 3144
+      "revision": "39e863438a94defc1b99bd3c9e05ec231e6e20e72eaee051e54c9e05930f5a21",
+      "bytes": 3179
     },
     {
       "url": "./apps/tools/streaming/editor.html",
-      "revision": "d906f872c667d6d3b4899494d4c51964536a48f2c42835ad7871a543b83d7e12",
-      "bytes": 17226
+      "revision": "b38e0ac4880654457c6474c2f1fc875ca394057cfc1911cd7686d3582bcdbb54",
+      "bytes": 17554
     },
     {
       "url": "./apps/tools/streaming/editor.js",
-      "revision": "54f9b72c8254a34782849677e4f2115d55970bb1be652c468956031b8b8ea239",
-      "bytes": 57097
+      "revision": "26aa37588714d255914da7e68283eeb73aa876f7af3bdee1904cad921806d8f6",
+      "bytes": 58434
     },
     {
       "url": "./apps/tools/streaming/episode-editor.css",
-      "revision": "30cd80fb7ff0426fa5c2f0df3c7742572af3423d7d723fb5d29a8fe4276ea61f",
-      "bytes": 1797
+      "revision": "40f2f11e7aefaebae3e9391286a0c8f268c822142fc99e9f1b0642719f91fdb3",
+      "bytes": 1852
     },
     {
       "url": "./apps/tools/streaming/episode-editor.js",
-      "revision": "7a74cb10ab291fcd6a0d0b3d72c7e9012bcb5ea8eae2c898974750949c866cde",
-      "bytes": 9462
+      "revision": "2ff2d0ce6433e1f229123298b1069c2148c0a9ebcf7728aaf0087475de736b14",
+      "bytes": 9655
     },
     {
       "url": "./apps/tools/streaming/episodes.json",
@@ -20385,18 +20460,18 @@
     },
     {
       "url": "./apps/tools/streaming/index.html",
-      "revision": "e35fc9dae8b44ee1d27e3f67297d1ec7bb72eb7a7cae5b7c9f2cdf4024c10400",
-      "bytes": 10012
+      "revision": "f2e83e2cf28b01598cb71477affcd1d808d0afbc1c38356ff6c7f87d1a43b441",
+      "bytes": 10215
     },
     {
       "url": "./apps/tools/streaming/keyboard_integration.js",
-      "revision": "fad69e28a8e1fe424156d27d082e559a4334ca3b29f58c04105abf199b12c7f2",
-      "bytes": 15152
+      "revision": "f882fee06531ec6e30389c19db7161766d68e358ee8db332068f31834c38b856",
+      "bytes": 15531
     },
     {
       "url": "./apps/tools/streaming/library-merge.js",
-      "revision": "d0b730fd07e6d9bfc47edc7f9ea944a83d61e03f384fb81b4a4d5b75ba9d024d",
-      "bytes": 4072
+      "revision": "587e080b9247fe1eba4d6ff5657a4751b3b77fadb5ccc580c1b4d35d4794d2e1",
+      "bytes": 4123
     },
     {
       "url": "./apps/tools/streaming/logos/crunchyroll-com.png",
@@ -20475,38 +20550,38 @@
     },
     {
       "url": "./apps/tools/streaming/metadata-config.js",
-      "revision": "1b6eaebbdcf67b07b373ae3e09eea2b1a2fa7c008b62d931c4471408fad15e8e",
-      "bytes": 191
+      "revision": "75aa67f3c8baa2bffad5b6eaddb7a380b0f6ef80fd47726465f34414c8e6dddb",
+      "bytes": 193
     },
     {
       "url": "./apps/tools/streaming/playback-links.js",
-      "revision": "666b11a3618f949878325c69dbcbc5f2782d01ee8523a3c388ed1038aebb141a",
-      "bytes": 27525
+      "revision": "e766c555a4bb1dc73dc309214c9af7f8562c7e4332290f25ce3e0d73d5a0f0bc",
+      "bytes": 27759
     },
     {
       "url": "./apps/tools/streaming/predictions.js",
-      "revision": "a4d2fe5a1f39f31ddde1bc204da424e81011a3ce10147dfcf91066599af9f438",
-      "bytes": 4287
+      "revision": "52ec248750f27e19100ebf193d4bef2c1c6d9c6423c413f10fd0a3326c5e5756",
+      "bytes": 4400
     },
     {
       "url": "./apps/tools/streaming/quick-add.css",
-      "revision": "2a2a813ac28edcd8de168c01d3e2ada91632bc068654f6ce594f6cfa9420d5d9",
-      "bytes": 3511
+      "revision": "94133ccbd2a612d4964dd02bfb7a55052816b84e6b36754adafbd59eeaf61dac",
+      "bytes": 3516
     },
     {
       "url": "./apps/tools/streaming/quick-add.js",
-      "revision": "a997098fc5b5304f869e1cfe11b2be49fbbd4e152bd87ac3e636bd2775a2614d",
-      "bytes": 6735
+      "revision": "398d7ea2d3f3459abfba6c36c3d18840029ee47b95849c2fba1b9a8d9c2ca7af",
+      "bytes": 6799
     },
     {
       "url": "./apps/tools/streaming/services.js",
-      "revision": "46f9f1ce707d67822e64ef5b077b531fd35adc7f71d2d37b6d619cdfcb23b33d",
-      "bytes": 3763
+      "revision": "af759623beb2c0ee63b0975e66baf08704f4cbdbbd582ef3b6da8cb24ad79d3f",
+      "bytes": 3835
     },
     {
       "url": "./apps/tools/streaming/style.css",
-      "revision": "ed302a5c95873823bbac880e3d73c06d4b9c0480785c9c181bd7e1d9ce863a40",
-      "bytes": 25795
+      "revision": "34ee3a8bda1c14b947fe9009fad9a52ee8c9aa23c572405e414a50fbb3b5d786",
+      "bytes": 26785
     },
     {
       "url": "./apps/tools/streaming/tmdb-logo.svg",
@@ -20515,23 +20590,23 @@
     },
     {
       "url": "./apps/tools/streaming/web-streaming.js",
-      "revision": "28a21fb23a305f0f6422654a3400df202f86a16a437bddbcfd108d35b8c6f8db",
-      "bytes": 11778
+      "revision": "a39faf38fbdeff60ac1f1905a05d5ef5e0093ae718e20e0c5dfd0cbca25c0c48",
+      "bytes": 11947
     },
     {
       "url": "./apps/tools/tools.json",
-      "revision": "16c1044e89d876307649fbe7462e064a42d1754f6c783d35a8c51720339337d3",
-      "bytes": 2343
+      "revision": "f502a19996b036bf4936e12b4ad661c732e2dc9476535768c305530f181261c7",
+      "bytes": 2426
     },
     {
       "url": "./apps/tools/ytsearch/index.html",
-      "revision": "3807a11c102c5b0ce77dfd4d2713c89d90744c282d718e9565fb3478d15ae425",
-      "bytes": 17500
+      "revision": "e87045e265a9dc338fe340c421ce0344db0e39ea526f2f19dbb48e6e92329cbd",
+      "bytes": 17827
     },
     {
       "url": "./apps/tools/ytsearch/js/app.js",
-      "revision": "ec18c0970080930880aa0bedbd6b5a7f7446d49b1df155a477ddbb0bb58198e0",
-      "bytes": 35455
+      "revision": "ba6e3fdb28dd530400ba8d1f9a701627ae25213e342ff16a5822848b0d0e27f4",
+      "bytes": 36474
     },
     {
       "url": "./apps/tools/ytsearch/js/history.js",
@@ -20545,13 +20620,13 @@
     },
     {
       "url": "./apps/tools/ytsearch/js/scanning.js",
-      "revision": "4edf93e7370c6dd8809d39a053c0023cd23dde6b1a8e0895860079a8ce265323",
-      "bytes": 8610
+      "revision": "b690037e99a05be1a382b73c5d815bebaf7201b8f979e7a37065834e79fa4294",
+      "bytes": 8664
     },
     {
       "url": "./apps/tools/ytsearch/js/search.js",
-      "revision": "fb225770e43f58612ecab063e78c21db6ebc85f93db48404097c08764162c012",
-      "bytes": 34514
+      "revision": "44350918f8d0e3645205bce8ba1f0b2d7e11f7075f82b4dbacc6add0ca504d04",
+      "bytes": 35434
     },
     {
       "url": "./apps/tools/ytsearch/js/speech.js",
@@ -20560,18 +20635,18 @@
     },
     {
       "url": "./apps/tools/ytsearch/js/startup.js",
-      "revision": "6e0adc30620c6e6e9ae501fce4660c3f63a9ab94998c37f331dc68aaa445a630",
-      "bytes": 3537
+      "revision": "2e2d22db3249da93430927b6fac29e4ab8a26d0b73c252dc76799290a8f66fc0",
+      "bytes": 3571
     },
     {
       "url": "./apps/tools/ytsearch/startup.css",
-      "revision": "ac3b1091081333569eb8b08547a6c88058b6bed1e2bf9a3c34e57047fcc82041",
-      "bytes": 588
+      "revision": "b560353600d479b5e46ea0a8e4c0829a72290f10148ee1e2794ba1d5c6c055b2",
+      "bytes": 589
     },
     {
       "url": "./apps/tools/ytsearch/styles.css",
-      "revision": "6312c95ca567653bac2f5b89217241a55dd7f90f89bd5613e53d84800fee7870",
-      "bytes": 17179
+      "revision": "47d7bb340084bff3d653e7d0aea74371700e8a3cc8eb23e569353c8d31a562d1",
+      "bytes": 17183
     },
     {
       "url": "./companion-privacy.html",
@@ -20840,38 +20915,38 @@
     },
     {
       "url": "./index.html",
-      "revision": "f4df9f1887f2e0395c95104ef8e21dc26e41d106a6087b7a4f9f8cdf63b7fcf1",
-      "bytes": 131932
+      "revision": "fa40346b437cc3a83c9600cad850183d31c540cb3018739ce51d2a77fc7f48d4",
+      "bytes": 134692
     },
     {
       "url": "./manifest.webmanifest",
-      "revision": "d7ad05bc0e5809cd22968a51953e3168efdfaf513c6bca562d982108b476e7a0",
-      "bytes": 318
+      "revision": "b6c481e0d44de0ada61a6d2089ad0d699512bc6a3a63877b10537eaabe3c6ca9",
+      "bytes": 319
     },
     {
       "url": "./pwa.js",
-      "revision": "da9f1992d6d7a9852f6a8f943271e9b373dc174f229ac0e2ece8d3b93a1cbc89",
-      "bytes": 5226
+      "revision": "8797698a99cfcd0f3bfb6aec27f7092f1658d4ecb27690fd90dda66a3b16c176",
+      "bytes": 5321
     },
     {
       "url": "./setup.js",
-      "revision": "8fe736dedcc1735614cecda1b5b50fbb2756fe0ca12a56e5712b65ede34c66e9",
-      "bytes": 2029
+      "revision": "cdf52959cf2a1ae995b204d13c749e75793a1f2657e73e78e5657221aef47ec1",
+      "bytes": 2068
     },
     {
       "url": "./shared/app-storage.js",
-      "revision": "5970b7caa4ae597ca02b5089da9cee22d2dfbda36d0879205e49d1a943a6eade",
-      "bytes": 13661
+      "revision": "eab78edc894123efa07050530f3f5723038a9ec55b898f9097d90f04a62fff09",
+      "bytes": 13817
     },
     {
       "url": "./shared/byok-client.js",
-      "revision": "e0a9ea3d6239034b35bba53507fc9562d99e98250ef7fd0e1f804ef699b65ca4",
-      "bytes": 4707
+      "revision": "8e983caf45941e95f1af26ecb0e3879d78fa89389a007b173a6d153add5be780",
+      "bytes": 4759
     },
     {
       "url": "./shared/choice-scan-adapter.js",
-      "revision": "81961dda5a19962e920b5aff34a7d3342a7ca7e6b2f98fb2ea5619849b41a85f",
-      "bytes": 9824
+      "revision": "f2b8c26384cfd7e39a827103c219dc5f260e1a19b348ea10b2da00ab8008417b",
+      "bytes": 9997
     },
     {
       "url": "./shared/choice-scan.js",
@@ -20880,8 +20955,8 @@
     },
     {
       "url": "./shared/communication-channel.js",
-      "revision": "c549f4d15dc3e9fd17a9aadcc42116e0df3a903008ccd618ca7a0cd59f6ef2f4",
-      "bytes": 5630
+      "revision": "0f0a5674f5b56eee8639d097e0ecbd1d101b1f3a92312c643d139cf9ef844b88",
+      "bytes": 5633
     },
     {
       "url": "./shared/communication-companion.js",
@@ -20890,13 +20965,13 @@
     },
     {
       "url": "./shared/communication-fast-worker.js",
-      "revision": "018806fa43dc34935bad498fac8516b21483eaf6088d4b4c6176a6692efd5e01",
-      "bytes": 7323
+      "revision": "44a45dc3621609e797836c464d532b623494d3d2a36f5a22353ba16ef0227d4d",
+      "bytes": 7434
     },
     {
       "url": "./shared/communication-pocket-worker.js",
-      "revision": "965d1d7edfc555c7931a374072d506f34b8adb1c6a35b4f707274fc0b6ee11fc",
-      "bytes": 1892
+      "revision": "db36844639f5b53d549413c18608ec3a42180e8951f4c521b3dc6a97783330f7",
+      "bytes": 1926
     },
     {
       "url": "./shared/communication-pocket.js",
@@ -20905,13 +20980,13 @@
     },
     {
       "url": "./shared/communication-settings.js",
-      "revision": "6a47a766086b2f81d647988ceb0bb033eafd77f638a9df32be909d7337935060",
-      "bytes": 8729
+      "revision": "925dde88ec6395c94fec8a79d0d8281170ea6b83bd1df9790e9a4949e10ef82e",
+      "bytes": 8820
     },
     {
       "url": "./shared/communication-speech.js",
-      "revision": "ab9799caf6590a117ef4de3cd14a29c4f4e53b5f57f822ee19b7b0b54e06e510",
-      "bytes": 16303
+      "revision": "a21332d27709b58677e1ecde51a84b6ef7cc348e0293474ea2ccb6d4057b6ba6",
+      "bytes": 16478
     },
     {
       "url": "./shared/communication-voices.js",
@@ -20930,23 +21005,23 @@
     },
     {
       "url": "./shared/extension-client.js",
-      "revision": "e5d247d4d0513ce355a03ed9f07d7e9f363c86d9816d2f21ac15907352dff1ff",
-      "bytes": 3217
+      "revision": "70855dc98c8c8008bf6358fd000c635759b88d4ecd1b60ecc88b06434dff3fe8",
+      "bytes": 3255
     },
     {
       "url": "./shared/graphics-quality.js",
-      "revision": "460726fed487483796179e44454e3b944496ce93d0c7e6795ab25e163e160b17",
-      "bytes": 6249
+      "revision": "2ef05f74b1836f4f9e198a302c1ff80474349dd8045db26e31877698dbf0b877",
+      "bytes": 6374
     },
     {
       "url": "./shared/hub-library.js",
-      "revision": "b3e7aec373001da9240c4e95c480195330d988edfa99b63fd243bf50cdc52c6f",
-      "bytes": 3039
+      "revision": "8323808200d27784bbcd0522978e96752746feae853295f23bd2673a4da26c2f",
+      "bytes": 3097
     },
     {
       "url": "./shared/hub-toggle-cycle.js",
-      "revision": "b5127be0fa54dff723e6700a5a7ffcfcf4366090e6e8322dfb5698c278ceb75a",
-      "bytes": 2104
+      "revision": "00546f0bfea601d8ee7fd01dbfa16b3fe7abdcaf2918fd0f0b05ecba30776f4d",
+      "bytes": 2148
     },
     {
       "url": "./shared/ios-audio-fix.js",
@@ -20955,8 +21030,8 @@
     },
     {
       "url": "./shared/journal-storage.js",
-      "revision": "40066c7adcb4f083d3f9a4bad4cf6c30636c9b657cc9fb24e490fbc77c46299a",
-      "bytes": 12109
+      "revision": "468f613c0c436b355a643765430141cd7a365c0962c2881fcecb1d9a5942f586",
+      "bytes": 12259
     },
     {
       "url": "./shared/offline-vendor/OBJLoader-r128.js",
@@ -21270,13 +21345,13 @@
     },
     {
       "url": "./shared/scan-manager.js",
-      "revision": "f4d51c219776a47af04a0ba1007397c01f0f73130837d71792ad8948ef3477fd",
-      "bytes": 9360
+      "revision": "853c4b2f666c140be280f3911dc5712d853e0333d6bc97d925a0d57d819be25b",
+      "bytes": 9594
     },
     {
       "url": "./shared/scan-settings.js",
-      "revision": "0b9cb7379377c1cd0fb5ae6a851324518373f9b88a620eef441be2d24539fa8f",
-      "bytes": 6850
+      "revision": "39e2a717ca6619e102e536e42dd6a1c3f39398f3e1f04c97ec672ed19c0085cc",
+      "bytes": 6986
     },
     {
       "url": "./shared/scan-status-badge.css",
@@ -21290,8 +21365,8 @@
     },
     {
       "url": "./shared/tool-gate.js",
-      "revision": "b8f71ff8361141e7e1968c4cd211c98d616bb85dfa90458a655e5f92433a49ef",
-      "bytes": 5864
+      "revision": "e9106201343e07a357995b26c37bc8db51a59a76cc018a1276f5a6ea74e6c29e",
+      "bytes": 5938
     },
     {
       "url": "./shared/tutorial-modal.js",
@@ -21300,8 +21375,8 @@
     },
     {
       "url": "./shared/usage-analytics.js",
-      "revision": "49a3b79f9ddf24c5148dad4da147654f82b28d2626d32abac49319a0cc56d5ee",
-      "bytes": 6027
+      "revision": "5872545ded74b4abbe5bd830074eee4e0c0ab6a4172f165828f630903f46af6a",
+      "bytes": 6183
     },
     {
       "url": "./shared/voice-manager.js",
@@ -21310,18 +21385,18 @@
     },
     {
       "url": "./shared/web-data.js",
-      "revision": "7d5fd8327b345d91b2630444a6f5f456275bf0661d66b4508a889a0a6dff5106",
-      "bytes": 802
+      "revision": "87d30c4c50ebe37ed5bba9ad2d4ed68436d67258af7e22c0a372f618fcc68276",
+      "bytes": 811
     },
     {
       "url": "./shared/web-tool-ui.js",
-      "revision": "8a310d3a00c4990667047f85221943afe15f368e53d46cbb36d849703668d27a",
-      "bytes": 2480
+      "revision": "1b32b1ad3bbdf2cc79ebe2767169dbed3b1fee9470d4c4b17cc51348b8965176",
+      "bytes": 2490
     },
     {
       "url": "./shared/web-tool.css",
-      "revision": "fb3aaf9f73a818447bb0c9f5cec593199d05c5598247dfcd0efb924591ce8d1f",
-      "bytes": 2765
+      "revision": "ec571baf168b25df4f815814821f7fc38cfc958102bec8b6c31ac99ab9e9abf2",
+      "bytes": 2770
     }
   ],
   "excludedFeatures": [

@@ -2,6 +2,23 @@
 
 Detailed implementation and verification records for Benny’s Hub and the NARBE House website. This file was formerly SCAN-UPGRADE-CHANGES.md; its scope now covers all development. Historical entries retain the names and status recorded at the time. Start with [the documentation index](../README.md) for maintained guidance.
 
+## 2026-11-02 — Ben's Burger Bar M0 rules engine
+
+Scope: milestone M0 of the new cooking game: the rules modules, the whole diner as data, a planner bot and a test-only pizzeria pack, with Node tests. Electron port: **NO**. Branch `burger-bar`. No page, presentation code, catalog or `games.json` change; nothing is playable yet and the game stays unlisted.
+
+The rules (`js/core/`: rng, items, verbs, kitchen, words, menus, orders, scoring, shift, progress, savefmt, schema, planner) are pure UMD modules with no DOM, timers or `Math.random`, so they load in the browser and under Node. Every verb is written once and decides what it applies to by ingredient traits; stations, recipes, customers, silly-food rules and the shop are pack data. Auto-Fill and Hold to Pour share one pour rule, and Pick the Doneness and Time It Yourself share one stage process. The station menu builder gives stable ids and makes every legal action a single select. The planner bot plays through those menus and counts choices and highlight moves. Building the test pizzeria added two general rules (cooking a built item whole, preparing a part before it goes on) with no pizzeria-specific code. DESIGN.md now records the measured press counts (a cheeseburger is 29 choices, against the design's estimate of 17) and two small departures for review.
+
+Changed files (all web scope, Electron port: NO):
+- bennyshub/apps/games/BENSBURGERBAR/js/core/*.js — new rules modules (13 files).
+- bennyshub/apps/games/BENSBURGERBAR/packs/diner/pack.js — new: the diner as data.
+- bennyshub/apps/games/BENSBURGERBAR/tests/*.test.cjs, tests/helpers.cjs — new Node tests.
+- bennyshub/apps/games/BENSBURGERBAR/tests/packs/test-pizza/pack.js — new test-only pack (under tests/, so it is not published).
+- bennyshub/apps/games/BENSBURGERBAR/DESIGN.md — M0 status, measured press counts, M0 notes, file layout.
+- bennyshub/offline-manifest.json — regenerated (`node scripts/offline-manifest.cjs`). It adds the 14 new public files. Most of the diff is revisions of existing files hashed from this Windows checkout's CRLF working copy; production builds regenerate the manifest from the final files.
+- docs/history/DEVELOPMENT-HISTORY.md — this entry.
+
+Verification: `node --test bennyshub/apps/games/BENSBURGERBAR/tests/*.test.cjs` passes 35 tests. They cover every recipe for 3 stars in four cooking and pouring combinations, a single-press route at every step, press budgets, 240 bot shifts across the settings, exact save and restore, the pack check on both packs, and no pack ids in the rules. `npm test` passes 443 tests.
+
 ## 2026-11-01 — Ben's Burger Bar design notes for review
 
 Scope: the design document for a new cooking simulation game, for Bryan and Ari to review before any game code is written. Electron port: **NO**. Branch `burger-bar`, from upstream/main. No runtime, catalog or `games.json` change; the game will first ship unlisted, by direct link only.

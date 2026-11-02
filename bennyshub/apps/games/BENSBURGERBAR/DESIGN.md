@@ -13,7 +13,7 @@ disagree, this file is wrong.
 
 | Milestone | State |
 |---|---|
-| M0 design doc + rules engine | design reviewed by Bryan and Ari (2026-11-01); rules engine next |
+| M0 design doc + rules engine | design reviewed by Bryan and Ari (2026-11-01); rules engine built 2026-11-02, 35 Node tests pass (see [M0 notes](#m0-notes)) |
 | M1 greybox scan flow (grill, board, counter) | not started |
 | M2 every station, greybox | not started |
 | M3 art | not started |
@@ -373,13 +373,40 @@ they stay ordinary choices in both modes.
 ### How many presses
 
 The press count per order is measured by the M0 planner bot and judged in the M1
-playtest. A rough estimate for a cheeseburger with Pick the Doneness and Auto-Fill: about
-**8 choices on the grill, 6 on the board and 3 to serve**, plus the scanning between
-them. If that is too many, the first things to try are:
+playtest. The design estimated about 17 choices for a cheeseburger; the bot measures
+**29 with Pick the Doneness and Auto-Fill: 14 on the grill, 12 on the board and 3 to
+serve**, counting every Go To and every Back stop. A "choice" is one select, so 29 is
+also the one-switch press count. With two switches, the 85 highlight moves between them
+are presses too.
+
+| Recipe (as written) | Choices, Pick the Doneness | Choices, Time It Yourself | Wait at Very Slow |
+|---|---|---|---|
+| Fountain drink, lemonade | 13 | 13 | — |
+| Fries, onion rings | 15 | 13 | 40 s |
+| Milkshake | 17 | 17 | — |
+| Grilled cheese | 17 | 12 | 80 s |
+| Root beer float | 19 | 19 | — |
+| Hamburger | 28 | 29 | 4 min |
+| Cheeseburger | 29 | 30 | 4 min |
+| Bacon cheeseburger | 37 | 38 | 4 min |
+| Pancake stack | 43 | 34 | 2 min 40 s |
+| Double cheeseburger | 44 | 46 | 4 min |
+| Breakfast plate | 46 | 44 | 1 min 20 s |
+| The Diner Tower | 73 | 74 | 5 min 20 s |
+
+Where the presses go on a cheeseburger: Cook Until… is a row, so each side costs three
+choices (patty, Cook Until…, Medium), and Go To costs two (Go To…, the station). Each
+recipe's `budget` in the pack is its measured count rounded up to the next 5, as a guard
+rail against menu changes that add presses; it is not a target. If the playtest finds it
+too many, the first things to try are:
 
 - **Next-Step Star** marks the next needed step with a star and adds "next" to its label
   (no reordering, so the scan stays predictable).
 - **Orders: Simple** keeps orders to one burger with up to two toppings.
+- **Flatter object rows:** put the Cook to… stages straight into the patty's row (one
+  choice less per side), or open a station on the thing most likely needed next.
+- **Time It Yourself at Very Slow** is about two minutes a side for a medium patty (three
+  40 s stages to reach Medium). The M2 tuning should look at that first.
 
 ## Cooking modes
 
@@ -566,9 +593,9 @@ BENSBURGERBAR/
   js/*.js                  presentation
   js/vendor/               pinned Three.js and its licence
   packs/diner/pack.js      the diner's data
-  packs/test-pizza/        test-only proof pack
   content/voice-lines.json customer lines (M4)
-  tests/*.test.cjs
+  tests/*.test.cjs         node --test bennyshub/apps/games/BENSBURGERBAR/tests/*.test.cjs
+  tests/packs/test-pizza/  test-only proof pack (under tests/, so it is never published)
   tools/                   asset and voice build scripts
 ```
 
@@ -589,6 +616,33 @@ the repo.
 
 **The first release is unlisted:** reachable by direct link only, with no `games.json`
 entry, as Chasing Rainbows was. Ari reviews it before it is listed in the hub.
+
+## M0 notes
+
+Built 2026-11-02. The rules modules are in `js/core/` and the diner is all data in
+`packs/diner/pack.js`; none of it touches the DOM, timers or `Math.random`, and a test
+checks that no rules module names any ingredient, station or recipe.
+
+- **One rule per verb:** Auto-Fill and Hold to Pour both end in the same pour rule (a test
+  pours both ways and gets the identical burger). Pick the Doneness and Time It Yourself
+  both move food through one stage process. Food stops at Extra Crispy unless Burning is
+  on.
+- **Single presses:** a test checks, at every step of every recipe in every mode, that
+  each legal action is one select in the menu tree and that every menu leaf is legal.
+  Hold to Pour leaves are marked, and the same pour is a plain select under Auto-Fill.
+- **The planner bot** finishes every recipe for 3 stars in all four mode combinations,
+  plays 240 bot shifts across every Orders, Customers at Once, cooking and pouring setting
+  (every order 1 star or more), and drives the Next-Step Star.
+- **Saves:** a shift saved halfway and restored plays out identically to the original.
+  Newer saves are never overwritten, and a pack change drops only the shift in progress.
+- **The test pizzeria** (prep table, oven, a pizza baked whole, peppers chopped first)
+  runs on the same rules. Building it showed two things the rules could not yet do:
+  cook a built item whole, and prepare a part before it goes on. Both were added as
+  general rules, with no pizzeria code.
+- **Two small departures, for review:** the Shake Bar blends in the cup and has no
+  separate Pour into a glass, which would add a press for no choice. With two customers
+  wanting different amounts, Auto-Fill lists each amount, and Hold to Pour aims its line
+  at the item the burger matches so far.
 
 ## Later
 
