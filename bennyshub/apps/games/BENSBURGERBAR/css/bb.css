@@ -1,8 +1,9 @@
 /* Ben's Burger Bar - the look (M1 greybox).
-   The 3D kitchen fills the window. The station's choices are big plates in a column on
-   the right; the ticket is top left; captions sit along the bottom, clear of every
-   choice. The scan highlight is thick yellow AND a lift and bracket frame - never colour
-   alone. Cards (menus, settings, pause, results) sit over the kitchen. */
+   The 3D kitchen fills the window and IS the menu: every bin and every thing at a station
+   wears a label, and the scan moves between them. A thing's actions hang beside it as a
+   cluster of big plates. Ticket, Go To and Pause sit in the rail, bottom right; the ticket
+   is top left; captions sit bottom left. The scan highlight is thick yellow AND a bracket
+   frame - never colour alone. Cards (menus, settings, pause, results) sit over it all. */
 
 :root {
   --hl: #ffd54f;
@@ -15,7 +16,7 @@
   --paper: #fff8ec;
   --paper-ink: #2a1c12;
   --ketchup: #c8322a;
-  --side: clamp(300px, 30vw, 460px);
+  --rail: clamp(220px, 22vw, 320px);
   --ui: 1;
   font-family: "Arial Rounded MT Bold", "Segoe UI Rounded", "Segoe UI", system-ui, sans-serif;
 }
@@ -33,16 +34,35 @@ html, body {
 #loading.gone { display: none; }
 
 /* ── labels pinned to the 3D kitchen ─────────────────────────────────── */
-#worldLayer { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+#worldLayer { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
 .tag { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; padding: 3px 10px;
   border-radius: 10px; background: rgba(0, 0, 0, .66); border: 2px solid rgba(255, 255, 255, .5);
   font-size: calc(.95rem * var(--ui)); font-weight: 800; }
 .tag.bin { background: rgba(255, 248, 236, .92); color: var(--paper-ink); border-color: rgba(0, 0, 0, .35); font-size: calc(.8rem * var(--ui)); }
 .tag.who { font-size: calc(1.15rem * var(--ui)); background: var(--panel-hi); }
 .tag.lit { background: var(--hl); color: var(--hl-ink); border-color: var(--hl-ink); }
+/* A scan target's label: placed by World.pin (left/top are its corner, no transform). */
+.tag.pick { transform: none; pointer-events: auto; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  padding: 4px 12px; border-radius: 12px; background: var(--paper); color: var(--paper-ink); border: 3px solid var(--paper-ink);
+  font-size: calc(1.05rem * var(--ui)); line-height: 1.15; box-shadow: 0 4px 10px rgba(0, 0, 0, .3); }
+.tag.pick b { font-weight: 900; }
+.tag.pick small { font-size: .78em; font-weight: 700; opacity: .8; }
+.tag.pick .go { position: absolute; right: 4px; top: 2px; font-size: .8em; opacity: .55; }
+.tag.pick.serve { flex-direction: row; gap: 6px; font-size: calc(1.3rem * var(--ui)); padding: 10px 18px; min-height: 56px; }
+.tag.pick.lit { background: var(--hl); color: var(--hl-ink); border: 5px solid var(--hl-ink); box-shadow: 0 0 0 4px var(--hl), 0 8px 18px rgba(0, 0, 0, .4); z-index: 2; }
+.tag.pick.star::after { content: "★"; position: absolute; left: -10px; top: -12px; padding: 0 6px; border-radius: 8px;
+  background: #fff; color: #000; border: 2px solid #000; font-size: .8em; }
+/* A bin's own label, on its front. Greyed while the bin cannot be used (no room left). */
+.tag.binlabel { transform: none; padding: 2px 10px; border-radius: 10px; background: rgba(255, 248, 236, .6); color: rgba(42, 28, 18, .6);
+  border: 2px dashed rgba(42, 28, 18, .45); font-size: calc(.9rem * var(--ui)); text-align: center; }
+.tag.binlabel.pick { background: var(--paper); color: var(--paper-ink); border: 3px solid var(--paper-ink); }
+.tag.binlabel.pick.lit { background: var(--hl); color: var(--hl-ink); border: 5px solid var(--hl-ink); }
+.tag.binlabel b { font-weight: 900; }
+/* While a thing's actions are open, the rest of the kitchen steps back. */
+body.inrow .tag.pick, body.inrow #rail { opacity: .4; }
 
 /* ── the ticket ──────────────────────────────────────────────────────── */
-#ticket { position: fixed; left: 16px; top: 16px; z-index: 10; max-width: min(460px, calc(100vw - var(--side) - 48px));
+#ticket { position: fixed; left: 16px; top: 16px; z-index: 10; max-width: min(460px, calc(100vw - 48px));
   display: none; padding: 12px 16px 14px; border-radius: 16px; background: var(--paper); color: var(--paper-ink);
   border: 4px solid var(--paper-ink); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
 #ticket.on { display: block; }
@@ -53,13 +73,16 @@ html, body {
 #ticket .meta { margin-top: 6px; font-size: calc(.95rem * var(--ui)); opacity: .8; }
 
 /* ── the choices ─────────────────────────────────────────────────────── */
-#side { position: fixed; right: 0; top: 0; bottom: 0; z-index: 10; width: var(--side); display: none; flex-direction: column;
-  gap: 8px; padding: 14px 14px 88px; background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .35) 18%); }
-#side.on { display: flex; }
-#crumb { min-height: 2.4rem; padding: 6px 14px; border-radius: 12px; background: var(--panel); border: 2px solid var(--line);
-  font-size: calc(1.15rem * var(--ui)); font-weight: 800; display: flex; align-items: center; gap: 8px; }
-#crumb .bk { font-size: 1.4em; line-height: 1; opacity: .8; }
-#crumb.row { cursor: pointer; }
+/* The rail: what has no place in the kitchen. */
+#rail { position: fixed; right: 16px; bottom: 16px; z-index: 10; width: var(--rail); display: none; flex-direction: column; gap: 8px; }
+#rail.on { display: flex; }
+/* A thing's actions, hung beside it (World.pin 'beside'); Go To's sit above the rail. */
+.cluster { position: fixed; z-index: 20; width: clamp(240px, 24vw, 340px); display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; border-radius: 18px; background: rgba(20, 12, 8, .55); }
+.cluster.docked { right: 16px; bottom: calc(16px + 3 * 72px + 8px); }
+.crumb { min-height: 2.4rem; padding: 6px 14px; border-radius: 12px; background: var(--panel); border: 2px solid var(--line);
+  font-size: calc(1.05rem * var(--ui)); font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.crumb .bk { font-size: 1.4em; line-height: 1; opacity: .8; }
 .choices { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 0 6px; }
 /* A long list (the board's bins) reads down the first column, then down the second. */
 .choices.cols2 { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column; }
@@ -78,7 +101,7 @@ html, body {
 .plate.lit { background: var(--hl); color: var(--hl-ink); border: 6px solid var(--hl-ink); transform: scale(1.03);
   box-shadow: 0 0 0 4px var(--hl), 0 10px 26px rgba(0, 0, 0, .45); }
 .plate.compact { min-height: 56px; padding: 6px 14px; }
-#choiceStatus { position: fixed; right: 18px; bottom: 18px; z-index: 46; min-block-size: 0; padding: 0; pointer-events: none; }
+#choiceStatus { position: fixed; right: 18px; top: 18px; z-index: 46; min-block-size: 0; padding: 0; pointer-events: none; }
 #choiceStatus .narbe-scan-status-badge, #cardStatus .narbe-scan-status-badge { font: 900 1.5rem/1.2 inherit; padding: .25rem .9rem;
   border: 4px solid #000; border-radius: .8rem; background: var(--hl); color: #000; }
 .plate[data-narbe-scan-paused], .item[data-narbe-scan-paused] { outline-offset: -9px !important; }
@@ -98,7 +121,7 @@ html, body {
 #scanFrame.paused i { animation: none; }
 
 /* ── captions ────────────────────────────────────────────────────────── */
-#caption { position: fixed; left: 16px; right: calc(var(--side) + 16px); bottom: 16px; z-index: 12; display: none;
+#caption { position: fixed; left: 16px; right: calc(var(--rail) + 32px); bottom: 16px; z-index: 12; display: none;
   padding: 10px 20px; border-radius: 16px; background: var(--panel-hi); border: 3px solid var(--line);
   font-size: calc(1.3rem * var(--ui)); font-weight: 800; line-height: 1.3; text-align: center; }
 #caption.on { display: block; }
@@ -147,10 +170,10 @@ html, body {
 body[data-motion="reduced"] .plate, body[data-motion="reduced"] #scanFrame { transition: none; }
 body[data-motion="reduced"] #scanFrame.on i { animation: none; }
 
-/* Narrow or short windows: the choices take the bottom of the screen instead. */
+/* Narrow windows: the rail runs along the bottom, and captions sit above it. */
 @media (max-width: 760px) {
-  :root { --side: 100vw; }
-  #side { top: auto; height: 52vh; padding-bottom: 14px; background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .5) 12%); }
-  #ticket { max-width: calc(100vw - 32px); }
-  #caption { right: 16px; bottom: calc(52vh + 8px); }
+  #rail { left: 16px; right: 16px; width: auto; flex-direction: row; }
+  #rail .plate { flex: 1 1 0; }
+  #caption { right: 16px; bottom: 96px; }
+  .cluster.docked { left: 16px; right: 16px; width: auto; bottom: 96px; }
 }

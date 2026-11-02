@@ -125,7 +125,10 @@ function findChrome() {
     const tail = ids.slice(u.rows.length);
     for (let i = 0; i < tail.length; i++) {
       // Pictures of the grill and the board, the first time each is in use.
-      if (i === tail.length - 1 && !auto && /^verb:(flip|send:counter)$/.test(tail[i]) && !shots[tail[i]]) { shots[tail[i]] = 1; await goTo(tail[i]); await shot(tail[i] === 'verb:flip' ? 'grill.png' : 'board.png'); }
+      if (i === tail.length - 1 && !auto && /^(verb:flip|verb:send:counter|bin:tomato)$/.test(tail[i]) && !shots[tail[i]]) {
+        shots[tail[i]] = 1; await goTo(tail[i]);
+        await shot({ 'verb:flip': 'grill.png', 'verb:send:counter': 'board.png', 'bin:tomato': 'board-bins.png' }[tail[i]]);
+      }
       await goSelect(tail[i], auto);
     }
     if (process.env.BB_TRACE) console.log('       ' + ids.join('>') + ' ' + (selects - (playAction.last || 0)));

@@ -13,16 +13,14 @@
 <body>
 <!-- M1 greybox (DESIGN.md "Milestones"): box-art kitchen, grill, board and counter. -->
 <div id="canvasWrap"></div>
-<div id="worldLayer" aria-hidden="true"></div>
+<div id="worldLayer"></div>
 <div id="scanFrame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
-<!-- Top left: whose order this is and what it says. Right: the station's choices. -->
+<!-- Top left: whose order this is and what it says. The station's choices are labels on
+     the kitchen itself (worldLayer); only Ticket, Go To and Pause sit in the rail. -->
 <section id="ticket" aria-label="Ticket"></section>
-<nav id="side" aria-label="Choices">
-  <div id="crumb"></div>
-  <div id="choices" class="choices"></div>
-  <div id="choiceStatus"></div>
-</nav>
+<nav id="rail" aria-label="Choices"></nav>
+<div id="choiceStatus"></div>
 <div id="caption" aria-live="polite"></div>
 <div id="overlay"></div>
 <div id="holdRing" aria-hidden="true"><i></i><span>Keep holding to pause</span></div>

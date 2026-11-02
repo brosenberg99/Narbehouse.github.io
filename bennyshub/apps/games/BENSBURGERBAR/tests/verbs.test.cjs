@@ -11,7 +11,7 @@ const strip = o => JSON.parse(JSON.stringify(o, (k, v) => (k === 'uid' ? undefin
 function burgerOnBoard(rules) {
   const s = kitchenWith(DINER, [normalSpec(DINER, 'cheeseburger')], rules);
   go(s, 'board');
-  K.apply(s, find(s, a => a.bin === 'bunBottom'));
+  K.apply(s, find(s, a => a.bin === 'bun'));
   return s;
 }
 

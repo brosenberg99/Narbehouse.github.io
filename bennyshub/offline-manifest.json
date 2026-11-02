@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "d349c1ba8f19b85093b927d5b0ec7c7edfae5b8c5b54dc78f90853b766d98221",
-  "totalBytes": 538099805,
+  "version": "5358f448b315f25ecb98c74b914d5e68765ddb2bb24ff22834cab58ec51fba7a",
+  "totalBytes": 538107799,
   "assets": [
     {
       "url": "./apps/games/BENNYSAYS/index.html",
@@ -16085,12 +16085,12 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/css/bb.css",
-      "revision": "d560d3d081b063d3b0df2fdd17568a4168c7e73a0d6c4bc07c928d837d968c86",
-      "bytes": 11712
+      "revision": "da636f43c23b77c474ca6b483bd16e4ec659f0487be6342055e30c9b112ccfb2",
+      "bytes": 13939
     },
     {
       "url": "./apps/games/BENSBURGERBAR/index.html",
-      "revision": "e58c01806c3855b8f5aaea47a75d9cda7f190c1989a78365bed8574a1767e8be",
+      "revision": "1a5b801b731577fccd2aba56298a2249da9f40a7ce8101ca7901a86755441087",
       "bytes": 3187
     },
     {
@@ -16155,8 +16155,8 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/words.js",
-      "revision": "095f26be807d01bd3a48583e1352fc7268b5b5eaa61fca4b3d55b877b0f6f89f",
-      "bytes": 8138
+      "revision": "673a5260bc823a7c2846211aad824888ba6e4953bd2567a93bc5e2ce8b5f599b",
+      "bytes": 8864
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/game.js",
@@ -16175,8 +16175,8 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/ui.js",
-      "revision": "ee8f9552b326933368dd1768d80919ca8e941750db63c22d6fbb840201e9c4c6",
-      "bytes": 27972
+      "revision": "c6cc6a8a1cd89bfe6a40c47b2f806c7bd3c10406a2cbdb3fa35e2672deb25498",
+      "bytes": 31069
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/vendor/LICENSE-three.txt",
@@ -16190,13 +16190,13 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/world.js",
-      "revision": "44f61eab33dd8898d6a6d8860958d796dbd440cf7c82e6291838ecbaf21bc71c",
-      "bytes": 19203
+      "revision": "96479942056254675622913841a909cd7b34a999af4850f8727342263be5e194",
+      "bytes": 21278
     },
     {
       "url": "./apps/games/BENSBURGERBAR/packs/diner/pack.js",
-      "revision": "901bad0c4735464f17591b9c2f9e832289ab587bf1f88ef86ab52c500b2eb90c",
-      "bytes": 28833
+      "revision": "7c3d0dfaee92567b268ff5fcb9690e1a1a9870b7fae21fe7ef7b77d842d340ff",
+      "bytes": 28702
     },
     {
       "url": "./apps/games/CHASINGRAINBOWS/CREDITS.md",

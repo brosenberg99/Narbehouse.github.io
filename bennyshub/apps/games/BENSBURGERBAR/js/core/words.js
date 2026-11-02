@@ -41,13 +41,23 @@
     if (o.faces) bits.push(faces(pack, o) + (o.cooking ? ', cooking' : ''));
     if (o.mixed && o.mixed.s > 0) bits.push(lower(stage(pack, pack.stageSets[I0.mix].stages[o.mixed.s])));
     if (o.chopped && o.chopped.s > 0) bits.push(lower(stage(pack, pack.stageSets[I0.chop].stages[o.chopped.s])));
-    if (o.parts.length) bits.push(o.parts.map(p => part(pack, p)).join(', '));
+    if (o.parts.length) bits.push(o.parts.map((p, i) => part(pack, p, layer(pack, o, i))).join(', '));
     else if (I.has(pack, o.ing, 'container')) bits.push('empty');
     return [head].concat(bits).join(', ');
   }
-  function part(pack, p) {
+  /** Where a layered part (a bun) sits among its own kind in a container: the lowest is
+   *  bottom, the highest top, any between them middle. null for anything else. */
+  function layer(pack, container, index) {
+    const ingId = container.parts[index].ing;
+    if (!I.ing(pack, ingId).layers) return null;
+    const at = container.parts.map((p, i) => (p.ing === ingId ? i : -1)).filter(i => i >= 0);
+    if (index === at[0]) return 'bottom';
+    return index === at[at.length - 1] ? 'top' : 'middle';
+  }
+  const layerName = (pack, ingId, where) => (where && I.ing(pack, ingId).layers[where]) || I.ing(pack, ingId).name;
+  function part(pack, p, where) {
     const I0 = I.ing(pack, p.ing);
-    let s = lower(I0.short || I0.name);
+    let s = lower(where ? layerName(pack, p.ing, where) : (I0.short || I0.name));
     if (p.count) s = p.count + ' ' + s + (p.count === 1 ? ' scoop' : ' scoops');
     if (p.faces) s += ' ' + faces(pack, p);
     return s;
@@ -144,5 +154,5 @@
     return name(pack, sid) + (things.length ? ', ' + things.join('; ') : '');
   }
 
-  return { stage, name, level, list, thing, part, action, verbRow, item, ticket, status };
+  return { stage, name, level, list, thing, part, layer, layerName, action, verbRow, item, ticket, status };
 });

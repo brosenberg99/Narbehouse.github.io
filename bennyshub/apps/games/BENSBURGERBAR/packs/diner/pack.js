@@ -60,8 +60,9 @@
   ingredients: {
     patty:        { name: 'Patty', traits: ['cookable', 'twoSided', 'topping'], stages: 'patty' },
     bacon:        { name: 'Bacon', traits: ['cookable', 'topping'], stages: 'bacon' },
-    bunBottom:    { name: 'Bottom Bun', traits: ['topping'] },
-    bunTop:       { name: 'Top Bun', traits: ['topping'] },
+    // One bun, named and shaped by where it sits: the lowest is the bottom bun, the
+    // highest the top bun, any between them a middle bun (a triple decker).
+    bun:          { name: 'Bun', traits: ['topping'], layers: { bottom: 'Bottom Bun', middle: 'Middle Bun', top: 'Top Bun' } },
     cheese:       { name: 'Cheese', traits: ['topping'] },
     lettuce:      { name: 'Lettuce', traits: ['topping'] },
     tomato:       { name: 'Tomato', traits: ['topping'] },
@@ -125,7 +126,7 @@
       name: 'Board',
       slots: [{ id: 'b1' }, { id: 'b2' }, { id: 'b3' }, { id: 'b4' }],
       bins: [
-        { id: 'bunBottom', ing: 'bunBottom', verb: 'top', into: ['plate'] },
+        { id: 'bun', ing: 'bun', verb: 'top', into: ['plate'] },
         { id: 'cheese', ing: 'cheese', verb: 'top', into: ['plate'] },
         { id: 'lettuce', ing: 'lettuce', verb: 'top', into: ['plate'] },
         { id: 'tomato', ing: 'tomato', verb: 'top', into: ['plate'] },
@@ -134,7 +135,6 @@
         { id: 'ketchup', ing: 'ketchup', verb: 'squeeze', into: ['plate'] },
         { id: 'mustard', ing: 'mustard', verb: 'squeeze', into: ['plate'] },
         { id: 'mayo', ing: 'mayo', verb: 'squeeze', into: ['plate'] },
-        { id: 'bunTop', ing: 'bunTop', verb: 'top', into: ['plate'] },
       ],
       verbs: ['place', 'send', 'take', 'discard'],
       sendTo: ['counter'],
@@ -235,18 +235,18 @@
     hamburger: {
       name: 'Hamburger', price: 6, unlock: 0, kind: 'burger', budget: 30,
       item: { ing: 'plate', parts: [
-        { ing: 'bunBottom' }, { ing: 'patty', done: { pick: 'doneness' } },
+        { ing: 'bun' }, { ing: 'patty', done: { pick: 'doneness' } },
         { ing: 'lettuce', opt: 'in' }, { ing: 'tomato', opt: 'in' }, { ing: 'pickles', opt: 'in' }, { ing: 'onion', opt: 'out' },
         { ing: 'ketchup', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'mustard', opt: 'out', amount: { pick: 'sauce' } },
-        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bunTop' }] },
+        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bun' }] },
     },
     cheeseburger: {
       name: 'Cheeseburger', price: 7, unlock: 0, kind: 'burger', budget: 30,
       item: { ing: 'plate', parts: [
-        { ing: 'bunBottom' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
+        { ing: 'bun' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'lettuce', opt: 'in' }, { ing: 'tomato', opt: 'in' }, { ing: 'pickles', opt: 'in' }, { ing: 'onion', opt: 'out' },
         { ing: 'ketchup', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'mustard', opt: 'out', amount: { pick: 'sauce' } },
-        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bunTop' }] },
+        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bun' }] },
     },
     fries: {
       name: 'Fries', price: 3, unlock: 0, kind: 'side', budget: 15,
@@ -260,19 +260,19 @@
     baconCheeseburger: {
       name: 'Bacon Cheeseburger', price: 9, unlock: 40, kind: 'burger', budget: 40,
       item: { ing: 'plate', parts: [
-        { ing: 'bunBottom' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' }, { ing: 'bacon', done: { pick: 'bacon' } },
+        { ing: 'bun' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' }, { ing: 'bacon', done: { pick: 'bacon' } },
         { ing: 'lettuce', opt: 'in' }, { ing: 'tomato', opt: 'in' }, { ing: 'pickles', opt: 'out' }, { ing: 'onion', opt: 'out' },
         { ing: 'ketchup', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'mustard', opt: 'out', amount: { pick: 'sauce' } },
-        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bunTop' }] },
+        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bun' }] },
     },
     doubleCheeseburger: {
       name: 'Double Cheeseburger', price: 10, unlock: 60, kind: 'burger', budget: 50,
       item: { ing: 'plate', parts: [
-        { ing: 'bunBottom' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
+        { ing: 'bun' }, { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'lettuce', opt: 'in' }, { ing: 'tomato', opt: 'out' }, { ing: 'pickles', opt: 'in' }, { ing: 'onion', opt: 'in' },
         { ing: 'ketchup', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'mustard', opt: 'in', amount: { pick: 'sauce' } },
-        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bunTop' }] },
+        { ing: 'mayo', opt: 'out', amount: { pick: 'sauce' } }, { ing: 'bun' }] },
     },
     onionRings: {
       name: 'Onion Rings', price: 4, unlock: 40, kind: 'side', budget: 15,
@@ -316,14 +316,14 @@
     tower: {
       name: 'The Diner Tower', price: 14, unlock: 150, kind: 'burger', budget: 75,
       item: { ing: 'plate', parts: [
-        { ing: 'bunBottom' },
+        { ing: 'bun' },
         { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'patty', done: { pick: 'doneness' } }, { ing: 'cheese' },
         { ing: 'bacon', done: { pick: 'bacon' } },
         { ing: 'lettuce', opt: 'in' }, { ing: 'tomato', opt: 'in' }, { ing: 'pickles', opt: 'in' }, { ing: 'onion', opt: 'in' },
         { ing: 'ketchup', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'mustard', opt: 'in', amount: { pick: 'sauce' } },
-        { ing: 'mayo', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'bunTop' }] },
+        { ing: 'mayo', opt: 'in', amount: { pick: 'sauce' } }, { ing: 'bun' }] },
     },
   },
   /** Things that are bought but are not recipes of their own. */
@@ -396,10 +396,9 @@
 
   /* ── silly food ─────────────────────────────────────────────────────────── */
   silly: [
-    { id: 'upsideDown', kind: 'firstLast', container: 'plate', first: 'bunTop', last: 'bunBottom', line: 'An upside-down burger. Bold. I respect it.' },
     { id: 'allCrispy', kind: 'allStage', stage: 'extraCrispy', line: '…crunchy.', lines: { dale: 'Now that is how you cook a burger.' } },
     { id: 'cherryBurger', kind: 'with', ing: 'cherry', and: 'patty', line: 'Is that a cherry? On a burger?' },
-    { id: 'noBun', kind: 'without', container: 'plate', and: 'patty', ings: ['bunBottom', 'bunTop'], line: "So it's a… patty salad." },
+    { id: 'noBun', kind: 'without', container: 'plate', and: 'patty', ings: ['bun'], line: "So it's a… patty salad." },
     { id: 'pancakeBuns', kind: 'with', ing: 'pancake', and: 'patty', line: 'Breakfast and lunch at the same time. Efficient.' },
     { id: 'emptyCup', kind: 'empty', containers: ['cup', 'shakeCup'], line: 'Ah. A cup of air. Very refreshing.' },
     { id: 'tower', kind: 'count', ing: 'patty', min: 12, line: "I'm going to need a bigger mouth." },

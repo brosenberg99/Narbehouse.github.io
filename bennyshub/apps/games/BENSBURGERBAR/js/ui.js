@@ -58,12 +58,12 @@
       onContext(current) {
         if (!current || current.kind !== 'station') return;
         // The scanner left a row (its Back stop): drop the rows above it and show this one.
-        while (levels.length && levels[levels.length - 1].key !== current.key) levels.pop().dom.remove();
+        while (levels.length && levels[levels.length - 1].key !== current.key) levels.pop().remove();
         showLevel();
       },
       onHighlight(item, state, context) {
         if (!context || state.suspended) return;
-        document.querySelectorAll('.plate.lit, .item.lit').forEach(el => el.classList.remove('lit'));
+        document.querySelectorAll('.plate.lit, .item.lit, .tag.lit').forEach(el => el.classList.remove('lit'));
         if (item && item.element) item.element.classList.add('lit');
         if (context.kind === 'station') {
           const top = levels[levels.length - 1];
@@ -140,6 +140,11 @@
   }
 
   /* ══ the station ════════════════════════════════════════════════════════ */
+  // The scan's targets are the things in the kitchen. At a station's root, every bin and
+  // every thing gets a label pinned on it in the 3D scene, and the scan moves between
+  // them. Only what has no place in the kitchen (Ticket, Go To, Pause, what is held)
+  // sits in the rail, bottom right. A row (what can be done to a thing, a bin's amounts)
+  // is a cluster of plates hung beside its thing, or above the rail for Go To.
   const ICONS = { pause: '⏸️', ticket: '🧾', tickets: '🧾', go: '🚶' };
   function plate(node) {
     const el = document.createElement('div');
@@ -150,25 +155,71 @@
     el.addEventListener('click', () => pointAndPick(node.id));
     return el;
   }
-  /** One open level: its own column of plates, kept while a row above it is open. */
-  function makeLevel(nodes, rows, node, echo) {
+  /** A label on a thing in the kitchen: its name in big type, its state under it. A bin's
+   *  own label (always on show, js/world.js) becomes the target, so nothing is doubled. */
+  function tag(node, at) {
+    const el = (at && at.startsWith('bin:') && BB.world.binLabel(at)) || document.createElement('div');
+    const serve = node.action && node.action.verb === 'serve' || node.id === 'verb:serve';
+    el.className = 'tag pick' + (el.dataset.name ? ' binlabel' : '') + (serve ? ' serve' : '') + (node.star ? ' star' : '');
+    const [head, ...rest] = String(node.label).split(', ');
+    const more = rest.join(', ');
+    el.innerHTML = (serve ? '<span class="ic">🛎️</span> ' : '') + '<b>' + esc(head) + '</b>' +
+      (more && more.length <= 40 ? '<small>' + esc(more) + '</small>' : '') + (node.kind === 'row' ? '<span class="go">›</span>' : '');
+    el.onclick = () => pointAndPick(node.id);
+    return el;
+  }
+  /** The tray at this station, for Serve. */
+  function trayKey() {
+    const k = G().kitchen(), sl = pack.stations[k.at].slots.find(x => x.fixed);
+    const o = sl && k.stations[k.at].slots[sl.id];
+    return o ? 'obj:' + o.uid : null;
+  }
+  /** Where a root choice lives in the kitchen, or null for the rail. */
+  function anchorOf(node) {
+    if (node.id.startsWith('obj:')) return node.id;
+    if (node.id.startsWith('bin:')) return BB.world.binKey(node.id.slice(4), G().kitchen().at);
+    if ((node.action && node.action.verb === 'serve') || node.id === 'verb:serve') return trayKey();
+    return null;
+  }
+  function makeRoot(nodes) {
+    const els = [];
+    const items = nodes.map(n => {
+      const at = anchorOf(n);
+      const el = at ? tag(n, at) : plate(n);
+      if (at && el.dataset.name) { /* a bin's label: already in place */ }
+      // Food is labelled on its front edge, clear of the bins behind it; Serve stands over the tray.
+      else if (at) { $('worldLayer').appendChild(el); BB.world.pin(el, at, el.classList.contains('serve') ? 'label' : 'front'); els.push(el); }
+      else { $('rail').appendChild(el); els.push(el); }
+      return { id: n.id, label: () => n.say, element: el, ref: n };
+    });
+    return { key: 'st:' + gen + ':', kind: 'station', rows: [], node: null, echo: null, items, statusHost: $('choiceStatus'),
+      remove() { els.forEach(el => { BB.world.unpin(el); el.remove(); }); BB.world.resetBinLabels(); } };
+  }
+  /** A row: a cluster of plates beside its thing, headed by what it is. */
+  function makeRow(nodes, rows, node, echo) {
     const dom = document.createElement('div');
-    dom.className = 'choices' + (nodes.length > 7 ? ' cols2' : '');
-    if (nodes.length > 7) dom.style.gridTemplateRows = 'repeat(' + Math.ceil(nodes.length / 2) + ', auto)';
+    dom.className = 'cluster' + (echo ? '' : ' docked');
+    const head = document.createElement('div');
+    head.className = 'crumb';
+    head.innerHTML = '<span class="bk">‹</span>' + esc(node.label);
+    head.addEventListener('click', onCrumb);
+    dom.appendChild(head);
+    const list = document.createElement('div');
+    list.className = 'choices' + (nodes.length > 6 ? ' cols2' : '');
+    if (nodes.length > 6) list.style.gridTemplateRows = 'repeat(' + Math.ceil(nodes.length / 2) + ', auto)';
+    dom.appendChild(list);
     const items = nodes.map(n => ({ id: n.id, label: () => n.say, element: plate(n), ref: n }));
-    items.forEach(it => dom.appendChild(it.element));
-    $('side').insertBefore(dom, $('choiceStatus'));
-    const lvl = { key: 'st:' + gen + ':' + rows.join('>'), kind: 'station', rows, node, dom, echo, items, statusHost: $('choiceStatus') };
-    return lvl;
+    items.forEach(it => list.appendChild(it.element));
+    document.body.appendChild(dom);
+    if (echo) BB.world.pin(dom, echo, 'beside');
+    return { key: 'st:' + gen + ':' + rows.join('>'), kind: 'station', rows, node, dom, echo, items, statusHost: $('choiceStatus'),
+      remove() { BB.world.unpin(dom); dom.remove(); } };
   }
   function showLevel() {
-    levels.forEach((l, i) => { l.dom.style.display = i === levels.length - 1 ? '' : 'none'; });
-    const top = levels[levels.length - 1];
-    const crumb = $('crumb');
-    if (top && top.node) { crumb.className = 'row'; crumb.innerHTML = '<span class="bk">‹</span>' + esc(top.node.label); }
-    else { crumb.className = ''; crumb.textContent = G().stationName(); }
+    levels.forEach((l, i) => { if (l.dom) l.dom.style.display = i === levels.length - 1 ? '' : 'none'; });
+    document.body.classList.toggle('inrow', levels.length > 1);
   }
-  /** What 3D thing a choice is about: the thing itself, a bin, the customer for Serve. */
+  /** What 3D thing a choice is about: the thing itself, a bin, the tray for Serve. */
   function echoOf(node, lvl) {
     if (node.id.startsWith('obj:')) return node.id;
     // The customer is only in view from the counter.
@@ -176,15 +227,16 @@
     const a = node.action;
     if (a && a.target && a.target !== 'hand') return 'obj:' + a.target;
     if (a && a.bin) return BB.world.binKey(a.bin, a.station);
-    if (a && a.verb === 'serve') return 'customer';
+    if ((a && a.verb === 'serve') || node.id === 'verb:serve') return trayKey();
     if (node.id.startsWith('bin:')) return BB.world.binKey(node.id.slice(4), G().kitchen().at);
     return lvl ? lvl.echo : null;
   }
 
   function leaveStation() {
-    levels.forEach(l => l.dom.remove());
+    levels.forEach(l => l.remove());
     levels = [];
-    $('side').classList.remove('on');
+    $('rail').classList.remove('on');
+    document.body.classList.remove('inrow');
     BB.world.setEcho(null);
   }
   /** Draw the station's tree and put the scan at `to` ({ rows, land }), or on the blank. */
@@ -193,11 +245,11 @@
     leaveStation();
     ctx = 'station';
     gen += 1;
-    $('side').classList.add('on');
+    $('rail').classList.add('on');
     paintTicket();
     const tree = G().tree();
     let list = tree.items;
-    const root = makeLevel(list, [], null, null);
+    const root = makeRoot(list);
     levels = [root];
     to = to || { rows: [], land: null };
     const first = to.rows.length ? to.rows[0] : to.land;
@@ -208,10 +260,11 @@
     for (let d = 0; d < to.rows.length && choice; d++) {
       const node = list.find(n => n.id === to.rows[d]);
       echo = echoOf(node, levels[levels.length - 1]) || echo;
-      const lvl = makeLevel(node.children, to.rows.slice(0, d + 1), node, echo);
+      const lvl = makeRow(node.children, to.rows.slice(0, d + 1), node, echo);
       levels.push(lvl);
+      showLevel();
       const next = d + 1 < to.rows.length ? to.rows[d + 1] : (to.land === 'back' ? BACK_ID : to.land);
-      if (!choice.enterGroup(lvl, { wrap: true, backStop: true, restoreId: next })) { levels.pop().dom.remove(); break; }
+      if (!choice.enterGroup(lvl, { wrap: true, backStop: true, restoreId: next })) { levels.pop().remove(); break; }
       list = node.children;
     }
     showLevel();
@@ -220,10 +273,10 @@
   /** Enter a row: the scan lands on its first item. */
   function enterRow(node) {
     const top = levels[levels.length - 1];
-    const lvl = makeLevel(node.children, top.rows.concat(node.id), node, echoOf(node, top));
+    const lvl = makeRow(node.children, top.rows.concat(node.id), node, echoOf(node, top));
     levels.push(lvl);
     showLevel();
-    if (!choice || !choice.enterGroup(lvl, { wrap: true, backStop: true })) { levels.pop().dom.remove(); showLevel(); }
+    if (!choice || !choice.enterGroup(lvl, { wrap: true, backStop: true })) { levels.pop().remove(); showLevel(); }
   }
 
   function stationChoice(node, context) {
@@ -496,7 +549,6 @@
     applyLook();
     BB.save.onChange(applyLook);
     if (sm()) sm().subscribe(() => { if (ctx === 'card') refreshCard(); });
-    $('crumb').addEventListener('click', onCrumb);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);

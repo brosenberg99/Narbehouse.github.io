@@ -41,7 +41,9 @@ test('One stage off is 0.7 per side; every check stays within 0.4 and 1', () => 
   bad.checks.forEach(c => assert.ok(c.v >= 0.4 && c.v <= 1, JSON.stringify(c)));
   assert.ok(bad.stars >= 1);
   const ids = bad.silly.map(x => x.id);
-  assert.ok(ids.includes('upsideDown') && ids.includes('cherryBurger'), ids.join());
+  assert.ok(ids.includes('cherryBurger'), ids.join());
+  // With one bun at both ends, a stack built backwards is scored on its order, not called upside down.
+  assert.ok(bad.checks.some(c => c.id === 'order' && c.v < 1));
 });
 
 test('Favourites only add: Dale scores extra-crispy rings higher, never lower', () => {

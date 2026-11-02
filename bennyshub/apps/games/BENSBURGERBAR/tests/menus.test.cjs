@@ -72,10 +72,10 @@ test('after a choice the scan stays in its row: on the same item, or on the Back
 
   // A bin at the root stays lit after it is used (a second slice of cheese is one select).
   go(s, 'board');
-  const bun = K.actions(s).find(a => a.bin === 'bunBottom');
+  const bun = K.actions(s).find(a => a.bin === 'bun');
   const bunIds = leafFor(s, bun).ids;
   K.apply(s, bun);
-  assert.deepEqual(M.resume(M.station(s, 'board', {}), bunIds), { rows: [], land: 'bin:bunBottom' });
+  assert.deepEqual(M.resume(M.station(s, 'board', {}), bunIds), { rows: [], land: 'bin:bun' });
 });
 
 test('the screens enter every row with enterGroup({wrap:true, backStop:true}) and nothing else', () => {
@@ -84,4 +84,19 @@ test('the screens enter every row with enterGroup({wrap:true, backStop:true}) an
   assert.ok(calls.length >= 2, 'rows are entered');
   for (const c of calls) assert.match(c, /wrap: true, backStop: true/, c);
   assert.ok(!/\.open\(|createChoiceScan/.test(src), 'only the adapter drives the scanner');
+});
+
+test('one Bun bin: the bun is named by where it sits, so a triple decker has a middle bun', () => {
+  const { W } = require('./helpers.cjs');
+  const s = kitchenWith(DINER, [normalSpec(DINER, 'cheeseburger')], { cooking: 'pick' });
+  go(s, 'board');
+  const add = bin => K.apply(s, K.actions(s).find(a => a.bin === bin));
+  add('bun');
+  const plate = () => s.stations.board.slots.b1;
+  assert.match(W.thing(DINER, plate()), /bottom bun/);
+  add('cheese'); add('bun'); add('cheese'); add('bun');
+  const names = plate().parts.map((p, i) => W.layer(DINER, plate(), i));
+  assert.deepEqual(names, ['bottom', null, 'middle', null, 'top']);
+  assert.match(W.thing(DINER, plate()), /bottom bun, cheese, middle bun, cheese, top bun/);
+  assert.ok(!DINER.stations.board.bins.some(b => /bun(Top|Bottom)/.test(b.id)), 'one Bun bin');
 });

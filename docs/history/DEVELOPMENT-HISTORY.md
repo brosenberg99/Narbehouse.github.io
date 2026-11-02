@@ -2,6 +2,24 @@
 
 Detailed implementation and verification records for Benny’s Hub and the NARBE House website. This file was formerly SCAN-UPGRADE-CHANGES.md; its scope now covers all development. Historical entries retain the names and status recorded at the time. Start with [the documentation index](../README.md) for maintained guidance.
 
+## 2026-11-02 — Ben's Burger Bar: the kitchen as the menu, and one Bun bin
+
+Scope: two changes Bryan asked for after trying the M1 greybox. Electron port: **NO**. Branch `burger-bar`. No catalog or `games.json` change.
+
+The station's choices moved from a side column onto the 3D scene. Every bin is labelled on its front and visibly holds what it gives (small models of the ingredient, or a squeeze bottle for a sauce). At a station's root the scan moves over those labels and the labels on the food. A bin that cannot be used right now keeps a greyed label. A thing's row (Flip, Cook Until…, Send to…) hangs beside it as a cluster of plates; Ticket, Go To and Pause sit in a small rail, bottom right. Labels of things at other stations hide instead of clinging to the screen edge. The board's Bottom Bun and Top Bun bins became one Bun bin: `words.layer()` names each bun by where it sits (lowest bottom, highest top, any between them middle), and the renderer shapes it the same way, so a triple decker needs no extra bin. Recipes now list `bun` at both ends. The upside-down-burger silly rule was removed; a backwards stack is still scored on its order.
+
+Changed files (all web scope, Electron port: NO):
+- bennyshub/apps/games/BENSBURGERBAR/index.html, css/bb.css, js/ui.js, js/world.js — the scene-pinned scan: bin labels, food labels, row clusters, the rail.
+- bennyshub/apps/games/BENSBURGERBAR/packs/diner/pack.js — one `bun` ingredient with layer names; one Bun bin; recipes use it; upside-down rule removed.
+- bennyshub/apps/games/BENSBURGERBAR/js/core/words.js — `layer()` and `layerName()`.
+- bennyshub/apps/games/BENSBURGERBAR/tests/menus.test.cjs, verbs.test.cjs, scoring.test.cjs — the bun test; bin and silly-rule updates.
+- bennyshub/apps/games/BENSBURGERBAR/tools/check-browser.cjs — a screenshot of the board's bins.
+- bennyshub/apps/games/BENSBURGERBAR/DESIGN.md — the board, how the 3D works, M1 notes, the press-count flag.
+- bennyshub/offline-manifest.json — regenerated.
+- docs/history/DEVELOPMENT-HISTORY.md — this entry.
+
+Verification: `node --test bennyshub/apps/games/BENSBURGERBAR/tests/*.test.cjs` passes 40 tests. `tools/check-browser.cjs` passes in headless Chrome: the two-burger order is still 54 selects, matching the bot, now with 150 Space moves (128 before, because the one Bun bin is first in the scan and the top bun comes last); with Auto Scan at 1 s, a plain hamburger took 28 selects in 82 s (71 s before). Not yet tried by a player.
+
 ## 2026-11-02 — Ben's Burger Bar M1 greybox
 
 Scope: milestone M1 of the cooking game: a playable greybox page with the grill, the board and the counter, built on the M0 rules. Electron port: **NO**. Branch `burger-bar`. No catalog or `games.json` change; the page is reachable only by its direct link, and the game stays unlisted.

@@ -56,7 +56,7 @@ offers **Continue Shift** when one is in progress.
 | Station | What the player does |
 |---|---|
 | Grill | New patty or bacon → Cook → Flip → cook the other side → Send to Board |
-| Board | Bottom bun → patty → cheese → lettuce, tomato, pickles, onion → ketchup, mustard, mayo → top bun. The order of the stack counts |
+| Board | Bun → patty → cheese → lettuce, tomato, pickles, onion → ketchup, mustard, mayo → bun. The order of the stack counts. There is one Bun bin: the lowest bun is the bottom bun, the highest the top bun, and any between them a middle bun, so a triple decker needs no extra bin |
 | Fryer | Fries or onion rings → Fry → Shake the basket → Salt → Send to Tray |
 | Griddle | Pour batter → Cook → Flip → Stack → Butter, syrup. Also grilled cheese: bread, cheese, bread, cook, flip |
 | Shake Bar | Flavour → Scoops (1 / 2 / 3) → Milk → Blend → Pour → Whipped cream, cherry, sprinkles |
@@ -274,7 +274,6 @@ Odd food never scores below 1 star, and gets its own line. Some examples:
 
 | What happened | Reaction |
 |---|---|
-| Burger stacked upside down | "An upside-down burger. Bold. I respect it." |
 | Every side extra crispy | Dale: "Now *that* is how you cook a burger." Everyone else: "…crunchy." |
 | Cherry on a burger | "Is that a cherry? On a burger?" |
 | No bun | "So it's a… patty salad." |
@@ -341,9 +340,13 @@ close, and parking gives a natural one-switch rhythm: park while the patty cooks
 
 - Each station has a fixed, close-up camera with big, chunky food. Moving between
   stations glides the camera; with Motion Reduced it cuts.
-- The scan highlight is a thick bracket frame around the real 3D object, at least 64 px
-  on screen, with its choices on large plates beside it (the Sphere Splash
-  `worldui` pattern).
+- **The kitchen is the menu.** Every bin is labelled on its front and visibly holds what
+  it gives (buns, cheese slices, a squeeze bottle of ketchup); every thing at a station
+  has a label on it. At a station's root the scan moves over those labels, in the
+  bracket frame (at least 64 px on screen). A bin that cannot be used right now keeps a
+  greyed label. A thing's actions hang beside it as a cluster of large plates (the
+  Sphere Splash `worldui` pattern). Only what has no place in the kitchen (Ticket, Go
+  To, Pause, what is held) sits in a small rail, bottom right.
 - Doneness, sauces and flavours always show a **word plus a shape or mark**: grill lines
   and char flecks for doneness, pip counts for amounts, a printed label on each sauce
   bottle and shake cup. Colour is never the only signal.
@@ -713,8 +716,10 @@ licence, the same file Sphere Splash uses.
   Customers say their order with text to speech, with a caption. Each serve opens a card
   with the customer's reaction, the stars and the tip (Next Customer); the last one leads
   to the shift's results. The per-check order card is M2.
-- **The scan:** each station's tree from `menus.station()` is shown as big plates on the
-  right, with a bracket frame on the 3D thing the lit plate is about. Rows are entered
+- **The scan:** each station's tree from `menus.station()` is drawn on the kitchen: labels
+  on the bins and food at the root, a cluster of plates beside a thing for its row, and a
+  rail for Ticket, Go To and Pause (Bryan, 2026-11-02: use the scene, not a side menu).
+  The bracket frame marks the 3D thing the lit choice is about. Rows are entered
   with `enterGroup(children, {wrap:true, backStop:true})`. After a choice the scan goes
   back into the same row, on the same item or on the row's Back stop when the item is
   gone; `menus.resume()` holds that rule, and the planner counts presses by it. Ticket
@@ -735,6 +740,13 @@ licence, the same file Sphere Splash uses.
   ten bins, Ticket, Go To, Pause), which is where most of the moves go. That is the main
   thing to watch in the playtest. With one switch (Auto Scan at 1 s), a plain
   hamburger took 28 selects and 71 seconds; at the default 2 s it would be about twice that.
+- **One Bun bin** (Bryan, 2026-11-02): the board has nine bins, not ten. Selects are the
+  same (54), but Space moves rose from 128 to 150 (and one switch at 1 s from 71 to 82 s
+  for a plain hamburger), because the Bun bin is first in the
+  list and the top bun comes last in a build, so the scan goes all the way round for
+  it. Where the Bun bin sits in the scan order is a cheap thing to tune after the
+  playtest. The upside-down-burger joke went with the two buns: with one bun at both
+  ends, a stack built backwards is scored on its order, with no special line.
 - **Not in M1:** shift saves, Time It Yourself, Hold to Pour, more than one customer at
   once, Mitch, recorded voices, the Graphics Quality setting (the renderer already
   follows the Hub's choice), High Contrast and every station but these three.
@@ -761,6 +773,11 @@ release focuses on the core features and a good prototype.
 1. **For Ari:** Mitch's "that doesn't match the ticket" line moves behind a new Mistake
    Warnings setting, off by default (Bryan, 2026-11-02). Each serve also gains an order
    card, one extra press per order. OK?
+2. **Flagged, for later (Bryan, 2026-11-02, after trying M1):** there are a lot of presses
+   for one order, and for one item. Measured in M1: 54 selects and 128 Space moves for a
+   two-burger order with two switches; 28 selects and 71 s for a plain hamburger with one
+   switch at 1 s. Nothing changes yet: the playtest numbers come first. The options
+   already listed under [How many presses](#how-many-presses) are the starting point.
 
 ## Decided
 
