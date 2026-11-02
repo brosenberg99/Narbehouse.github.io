@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "2055e07686fcff82137c6357d8170f4cf4cffbcf701207614cbdbf9f4d83342f",
-  "totalBytes": 537381941,
+  "version": "3a5916a36817e47c44093c7ebc6a8e4bb64b845e8801dcdbb1d0ac78cc3d712b",
+  "totalBytes": 537382025,
   "assets": [
     {
       "url": "./apps/games/BENNYSAYS/index.html",
@@ -16120,8 +16120,8 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/savefmt.js",
-      "revision": "7669430a59862ba4e5286437d4366507e036a3785f62585233a021dd27549e5a",
-      "bytes": 4523
+      "revision": "899a3d796a992ccd2a65458e4e1de60a53633460bb99bcc99eaff1e78da8b1e4",
+      "bytes": 4607
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/schema.js",

@@ -38,8 +38,14 @@ under [Decided](#decided).
 2. The player goes from station to station and makes each item.
 3. **Serve.** The customer reacts with a voiced line and an animation. The order earns
    1 to 3 stars and a tip. There is no zero and no fail: it is always food, and odd
-   food gets a funny line instead of a penalty.
-4. After a set number of customers (Shift Length), a results card shows the tips and the
+   food gets a funny line instead of a penalty. A mistake is served as made, and the
+   score shows it.
+4. **How it went.** After the reaction, an order card shows the stars, the tip and each
+   item checked against the ticket, in words: "Patty: asked for medium, served well
+   done", "Pickles: held, as asked". This is where the player finds out what went wrong,
+   for next time; nothing before the serve says so. The card's items are Next Customer
+   (or Results, after the last one) and Hear It Again.
+5. After a set number of customers (Shift Length), a results card shows the tips and the
    best orders. The player can then go to My Diner or start another shift.
 
 A shift can be left at any time from Pause. It is saved as it goes, and Start Shift
@@ -55,7 +61,7 @@ offers **Continue Shift** when one is in progress.
 | Griddle | Pour batter → Cook → Flip → Stack → Butter, syrup. Also grilled cheese: bread, cheese, bread, cook, flip |
 | Shake Bar | Flavour → Scoops (1 / 2 / 3) → Milk → Blend → Pour → Whipped cream, cherry, sprinkles |
 | Drinks | Cup (Small / Medium / Large) → Ice → Flavour → Fill |
-| Counter | Check the tray (spoken list of what is on it) → Serve |
+| Counter | Check the Tray (optional: a spoken list of what is on it) → Serve |
 
 How Cook works depends on the Cooking setting ([Cooking modes](#cooking-modes)). Sauces,
 syrup, batter, milk, ice and drink fills are pours, set by the Pouring setting
@@ -131,6 +137,46 @@ first shift.
 
 Every recipe is plain data in the pack, so new ones need no code. An order is one to
 three items, chosen from unlocked recipes to match the **Orders** setting.
+
+### Working on an order
+
+The ticket the player is working on is always named: on screen ("Working on: Marge"),
+in the Ticket item's speech, and in what things are called. Anything started while
+Marge's ticket is active is hers ("Marge's burger, bottom bun, patty medium"), and
+stays hers if the player switches.
+
+- **One tray per order.** Send to Counter puts a thing on its own order's tray. Nothing
+  is ever sorted by guesswork, so a serve can only give a customer their own food.
+- **Switching orders** (Customers at Once above 1): the Tickets row lists every order,
+  the active one first and marked. Selecting one makes it the active ticket and reads it
+  out. The player can grill Marge's patty, switch to Gus and pour his shake while it
+  cooks, then switch back.
+- **Checking and remaking.** Time is never scored, so the player can stop and look.
+  Check the Tray at the Counter reads what is on that order's tray. Any thing can be
+  taken off a tray, fixed where it can be (a missing topping added at the Board) or
+  binned and made again. Remaking costs only presses. Serve is always a separate choice,
+  and a tray that is not full can still be served.
+- **Food that belongs to no order** (Free Cook, or something made while no order was
+  active) sits in a spare spot at the Counter, so nothing is lost.
+
+### What the game tells the player
+
+The rule: **reminders of what the customer wants, and plain descriptions of the food,
+are always given. Saying that something does not match the ticket is not, unless the
+player turns on Mistake Warnings.** Comparing the food with the ticket is the challenge,
+so it stays the player's job; the order card after the serve shows the answer.
+
+| Always given | Only with Mistake Warnings on |
+|---|---|
+| The ticket, read out at any time from Ticket or Tickets | "Vernon asked for medium. That's well done." |
+| What each thing is, as it is now: "Patty 1, top medium, bottom well done" | A badge on food that does not match its order |
+| What an order still needs: "Marge still needs a drink" (Assistant Manager on) | Check the Tray marking a wrong item |
+| Mitch's heads-ups that food is near a stage the ticket names, with Time It Yourself | |
+| First-time station tips | |
+
+What an order still needs is a reminder, not a verdict: it names items not yet made or
+not yet on the tray, never whether made ones are right. Next-Step Star stays a separate
+opt-in helper.
 
 ## Customers
 
@@ -249,16 +295,18 @@ scan target.
 | When | Example |
 |---|---|
 | A shift starts | "Doors are open. Try not to set anything on fire." |
-| Food is one stage from what the ticket asked for (Time It Yourself) | "Patty 1's nearly medium. Marge's favourite stage, I'm told." |
+| Food is one stage from a stage the ticket names (Time It Yourself) | "Patty 1's nearly medium. Marge's favourite stage, I'm told." |
 | Food is one stage from Extra Crispy, or from Burnt (Time It Yourself) | "That bacon is heading for crispy. Dale would be proud. Marge, less so." |
 | Food reaches Extra Crispy | "Extra crispy. I'll tell Dale." |
-| Food sent on that doesn't match the ticket (Pick the Doneness) | "Vernon asked for medium. That's well done. Bold move." |
-| Something is missing at the counter | "Hold up, Gus wanted two shakes. I count one." |
+| Food sent on that doesn't match the ticket (only with Mistake Warnings on) | "Vernon asked for medium. That's well done. Bold move." |
+| Something on the order is not made yet | "Hold up, Gus wanted two shakes. I count one so far." |
 | The first time each station is used | One short tip, once per save: "Flip it when the bottom looks right. Patties have two sides. Shocking, I know." |
 | A customer reacts | Sometimes a one-liner after the customer, never instead of them |
 
-His hints say what is happening and what the ticket wanted. They never make the choice
-for the player, and they never stop or block anything.
+His hints say what is happening and what the ticket wants. They never make the choice
+for the player, never say a thing is wrong unless Mistake Warnings is on (see [What the
+game tells the player](#what-the-game-tells-the-player)), and never stop or block
+anything.
 
 **Rules for when he talks** (these protect the scan, ACCESSIBILITY §4):
 
@@ -329,7 +377,9 @@ The grill, for example:
    Send to Board · Take · Bin It
 3. New Patty · New Bacon
 4. Put Down (only while holding something)
-5. Ticket: speaks the order again. The highlight stays on Ticket
+5. Ticket: speaks the active order again, with whose it is. The highlight stays on
+   Ticket. With more than one customer, Tickets: a row of the orders, the active one
+   first; selecting one switches to it
 6. Go To…: a row of stations, each with a short status ("Fryer, fries golden")
 7. Pause (always last)
 
@@ -467,24 +517,27 @@ Labels say what changes, not who it is for.
 | 8 | Shift Length | 5 / 3 / 8 customers |
 | 9 | Orders | Usual / Simple / Fancy |
 | 10 | Assistant Manager | Hints and Jokes / Hints Only / Off |
-| 11 | Next-Step Star | Off / On |
-| 12 | Character Voices | Voices and Captions / Captions Only / Off |
-| 13 | Colour Profile | Standard / High Contrast |
-| 14 | Motion | Full / Reduced |
-| 15 | Text Size | Normal / Large / Extra Large |
-| 16 | Graphics Quality | Use Hub Setting / High / Standard / Low |
-| 17 | Auto Scan | Off — Two Switches / On — One Switch |
-| 18 | Scan Speed | 1 s to 5 s; default 2 s |
-| 19 | Sound Effects | On / Off |
-| 20 | Music | On / Off |
-| 21 | Reset Progress | two-step confirm |
-| 22 | Back | |
+| 11 | Mistake Warnings | Off / On |
+| 12 | Next-Step Star | Off / On |
+| 13 | Character Voices | Voices and Captions / Captions Only / Off |
+| 14 | Colour Profile | Standard / High Contrast |
+| 15 | Motion | Full / Reduced |
+| 16 | Text Size | Normal / Large / Extra Large |
+| 17 | Graphics Quality | Use Hub Setting / High / Standard / Low |
+| 18 | Auto Scan | Off — Two Switches / On — One Switch |
+| 19 | Scan Speed | 1 s to 5 s; default 2 s |
+| 20 | Sound Effects | On / Off |
+| 21 | Music | On / Off |
+| 22 | Reset Progress | two-step confirm |
+| 23 | Back | |
 
 - **Customers at Once** above 1 turns Ticket into a Tickets row, one item per customer.
   The player sets it themselves. A day that builds from quiet hours to a rush hour is
   planned for later ([Later](#later)).
 - **Assistant Manager:** Hints Only keeps Mitch's heads-ups and hints and drops his jokes.
   Hints also adds what the order still needs to the Ticket item's speech.
+- **Mistake Warnings** lets Mitch, a badge and Check the Tray say when something does not
+  match its order. Off by default: the order card after the serve shows the answer.
 - **Character Voices** controls the recorded voices of customers and Mitch. Scan speech
   always follows Text to Speech.
 
@@ -507,6 +560,10 @@ The order's quality *q* is the average of its checks. Stars: 3 if *q* ≥ 0.9, 2
 *q* ≥ 0.6, otherwise 1. Tip = price × (0.6 + 0.2 × stars), at least 1 coin. A customer's
 hidden favourite (Dale's extra crispy, Coach Bev's extra pickles) can add to *q*, never
 lower it. Time is never part of the score.
+
+Every check becomes one line on the order card, in words: what was asked, what was
+served, and whether it scored in full. A hidden favourite that added to the score is
+named there too ("Dale loves it extra crispy").
 
 ## Saves
 
@@ -559,7 +616,7 @@ Follows `docs/development/GRAPHICS-QUALITY.md`, which is authoritative.
 - Load `shared/platform.js`, then `shared/graphics-quality.js`, before any renderer code.
   Open the game with the stable id `bensburgerbar` and wait for `ready` before creating
   the renderer.
-- The setting is item 16, with the stable id `graphics-quality`, cycling Use Hub
+- The setting is item 17, with the stable id `graphics-quality`, cycling Use Hub
   Setting / High / Standard / Low. High is the Hub default and never lowers itself.
 - **High:** full detail, pixel ratio capped at 2, no automatic lowering.
 - **Standard:** the same as High. This game has no older adaptive behaviour to preserve.
@@ -608,7 +665,7 @@ the repo.
 |---|---|---|
 | M0 | This document; rules modules; the whole diner pack as data; planner bot; test pizzeria pack | Node tests pass: Auto-Fill and Hold to Pour change food through the same rule, food stops at Extra Crispy unless Burning is on, every action has a single-press route, the pack checks out, the planner can finish every recipe, the pizza pack needs no rules changes, press counts per recipe are within budget, a shift saves and restores exactly |
 | M1 | Box-art kitchen; grill, board and counter; one text-to-speech customer; Ticket, Go To, Pause, Settings, Exit | Menu tests (stable ids, -1, `enterGroup` only, Back restores the row); a headless Chrome run that makes a burger with real key events, two-switch and one-switch. **The player tries it:** how many presses per burger and per shift, any signs of fatigue, and is it fun? |
-| M2 | Fryer, griddle, shake bar, drinks; Time It Yourself with its forgiving window, freeze rules and Burning; Hold to Pour with the slow-down near the line; orders, scoring, shifts, saves; Mitch's hints and warnings with text to speech, including while parked, and the parking notice | Scoring, order, shift, save and clock-freeze tests (runs while parked, freezes on cards and blur); Mitch never speaks over a scan label or during a card; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
+| M2 | Fryer, griddle, shake bar, drinks; Time It Yourself with its forgiving window, freeze rules and Burning; Hold to Pour with the slow-down near the line; orders, scoring, shifts, saves; the active ticket, one tray per order, Tickets switching, Check the Tray and the order card; Mitch's hints, reminders and (opt-in) Mistake Warnings with text to speech, including while parked, and the parking notice | Scoring, order, shift, save and clock-freeze tests (runs while parked, freezes on cards and blur); Mitch never speaks over a scan label or during a card; 500 bot shifts per settings combination all finish with every order at 1 star or more. Second playtest |
 | M3 | Cel-shaded diner, chunky food with doneness marks, toon customers, world-pinned badges, camera moves, High Contrast, Motion Reduced, Graphics Quality | Draw-call budget; doneness readable in High Contrast without colour; the new-game checklist in `GRAPHICS-QUALITY.md` (Hub inheritance, override, reset, live change, all four modes readable); frame times measured on a typical player tablet, aiming for a steady 30 FPS or better |
 | M4 | Customer voice lines (orders built from parts) for the ten regulars, Mitch and the walk-in voice pool (including every first name and nickname part), sound effects, music | Voice and audio checks; Wait for Speech waits on recorded lines; a real-play sound check in Firefox as well as Chrome |
 | M5 | My Diner shop, unlocks, decor in the world, upgrades, jukebox, silly reactions, Free Cook, walk-ins, daily special, visitors' book, New Regular naming card with Spell a Name, renaming menu items | Coins never go negative; every unlock is reachable; silly-rule tests; 1,000 generated walk-ins all give valid orders within the Orders setting's press budget |
@@ -663,7 +720,9 @@ release focuses on the core features and a good prototype.
 
 ## Open questions
 
-None at the moment.
+1. **For Ari:** Mitch's "that doesn't match the ticket" line moves behind a new Mistake
+   Warnings setting, off by default (Bryan, 2026-11-02). Each serve also gains an order
+   card, one extra press per order. OK?
 
 ## Decided
 
@@ -685,6 +744,19 @@ None at the moment.
    the game's breathing room), and a notice suggests parking when Auto Scan runs without
    it. Timed cooking stays available with Auto Scan, and parked time counts as cooking
    time.
+
+**Bryan (2026-11-02)**
+
+- **One tray per order.** The player works on one named order at a time and can switch
+  between orders. What they make belongs to the order it was started for and goes on
+  that order's tray.
+- **Help without giving the answer.** Reminders of what the customer wants and hints stay
+  on. Telling the player that something does not match the order is opt-in (Mistake
+  Warnings, off by default). This changes the Mitch Ari approved, whose mismatch line was
+  on by default; Ari to confirm.
+- **Review, remake, then learn.** The player may check a tray and remake anything before
+  serving. A messed-up order is served as made and scores lower. The order card after the
+  serve shows the score and what went wrong.
 
 **Bryan**
 

@@ -29,6 +29,7 @@
     shiftLength: 5,              // 5 | 3 | 8
     orders: 'usual',             // usual | simple | fancy
     mitch: 'hintsJokes',         // hintsJokes | hints | off
+    mistakeWarnings: false,      // say when food does not match its order (opt-in)
     star: false,                 // Next-Step Star
     characterVoices: 'voices',   // voices | captions | off
     theme: 'standard',           // standard | contrast
