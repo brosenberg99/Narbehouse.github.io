@@ -14,7 +14,7 @@ disagree, this file is wrong.
 | Milestone | State |
 |---|---|
 | M0 design doc + rules engine | design reviewed by Bryan and Ari (2026-11-01); rules engine built 2026-11-02, 35 Node tests pass (see [M0 notes](#m0-notes)) |
-| M1 greybox scan flow (grill, board, counter) | not started |
+| M1 greybox scan flow (grill, board, counter) | greybox built 2026-11-02; menu tests and the headless Chrome run pass (see [M1 notes](#m1-notes)); waiting for the player's playtest |
 | M2 every station, greybox | not started |
 | M3 art | not started |
 | M4 voices and sound | not started |
@@ -700,6 +700,44 @@ checks that no rules module names any ingredient, station or recipe.
   separate Pour into a glass, which would add a press for no choice. With two customers
   wanting different amounts, Auto-Fill lists each amount, and Hold to Pour aims its line
   at the item the burger matches so far.
+
+## M1 notes
+
+Built 2026-11-02: `index.html`, `css/bb.css`, and in `js/`: `world.js` (the box-art
+kitchen), `ui.js` (cards, the station scan, switch input), `game.js` (the shift),
+`save.js` (settings) and `main.js`. Three.js r155 is vendored in `js/vendor/` with its
+licence, the same file Sphere Splash uses.
+
+- **What plays:** Start Shift, then a shift of hamburgers and cheeseburgers at the grill,
+  the board and the counter, one customer at a time, with Pick the Doneness and Auto-Fill.
+  Customers say their order with text to speech, with a caption. Each serve opens a card
+  with the customer's reaction, the stars and the tip (Next Customer); the last one leads
+  to the shift's results. The per-check order card is M2.
+- **The scan:** each station's tree from `menus.station()` is shown as big plates on the
+  right, with a bracket frame on the 3D thing the lit plate is about. Rows are entered
+  with `enterGroup(children, {wrap:true, backStop:true})`. After a choice the scan goes
+  back into the same row, on the same item or on the row's Back stop when the item is
+  gone; `menus.resume()` holds that rule, and the planner counts presses by it. Ticket
+  re-reads the order and keeps its highlight. Go To opens the next station fresh on -1.
+- **Pause** is the last item at every station, and holding Enter for 5 seconds also opens
+  it (a ring shows from 2 seconds). Restart Shift, Main Menu and Exit Game each ask
+  first, with Cancel first.
+- **Settings in M1:** Text to Speech, Voice, Shift Length, Orders, Next-Step Star, Motion,
+  Text Size, Auto Scan, Scan Speed, Sound Effects. The rest of the list arrives with the
+  features they change (M2–M5).
+- **Checks:** `tests/menus.test.cjs` (stable ids, Pause last, no Back plates or empty
+  rows, where the scan lands after a choice, rows only entered with `wrap` and
+  `backStop`). `tools/check-browser.cjs` plays the real page in headless Chrome with real
+  key events (see the history entry for what it covers).
+- **Measured in the browser:** the first order of the seed-7 shift (a hamburger and a
+  cheeseburger with changes) took **54 selects**, exactly the bot's count step for step,
+  and **128 Space moves** with two switches. The board's root has 14 stops (the plate,
+  ten bins, Ticket, Go To, Pause), which is where most of the moves go. That is the main
+  thing to watch in the playtest. With one switch (Auto Scan at 1 s), a plain
+  hamburger took 28 selects and 71 seconds; at the default 2 s it would be about twice that.
+- **Not in M1:** shift saves, Time It Yourself, Hold to Pour, more than one customer at
+  once, Mitch, recorded voices, the Graphics Quality setting (the renderer already
+  follows the Hub's choice), High Contrast and every station but these three.
 
 ## Later
 

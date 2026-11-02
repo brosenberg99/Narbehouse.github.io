@@ -12,7 +12,8 @@
 
   const stage = (pack, id) => pack.stageNames[id] || id;
   const name = (pack, id) => (pack.ingredients[id] ? pack.ingredients[id].name : (pack.stations[id] || {}).name || id);
-  const lower = s => s.charAt(0).toLowerCase() + s.slice(1);
+  // Names inside a sentence: "top blue rare", "bottom bun".
+  const lower = s => s.toLowerCase();
   const level = (pack, ingId, lv) => {
     const set = pack.amountSets[I.ing(pack, ingId).amounts];
     return (set.levels.find(L => L.id === lv) || {}).name || lv;
@@ -111,13 +112,18 @@
     look(spec);
     dones.forEach(d => bits.push(lower(stage(pack, d))));
     spec.parts.forEach(p => { if (p.count && p.count !== 1) bits.push(p.count + ' scoops'); });
+    // An added sauce with its amount is said once: "add a line of mustard".
+    const said = [];
     spec.parts.forEach(p => {
-      if (p.amount && p.sayAmount) bits.push(level(pack, p.ing, p.amount) + ' of ' + lower(name(pack, p.ing)));
+      if (!p.amount || !p.sayAmount) return;
+      const add = !spec.with && (spec.adds || []).includes(p.ing);
+      bits.push((add ? 'add ' : '') + level(pack, p.ing, p.amount) + ' of ' + lower(name(pack, p.ing)));
+      if (add) said.push(p.ing);
     });
     if (spec.with) bits.push(spec.with.length ? 'with just ' + list(spec.with.map(h => lower(name(pack, h)))) : 'plain');
     else {
       (spec.holds || []).forEach(h => bits.push('hold the ' + lower(I.ing(pack, h).plural || name(pack, h))));
-      (spec.adds || []).forEach(h => bits.push('add ' + lower(name(pack, h))));
+      (spec.adds || []).filter(h => !said.includes(h)).forEach(h => bits.push('add ' + lower(name(pack, h))));
     }
     return [head].concat(bits).join(', ');
   }

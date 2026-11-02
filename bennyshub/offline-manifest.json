@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "3a5916a36817e47c44093c7ebc6a8e4bb64b845e8801dcdbb1d0ac78cc3d712b",
-  "totalBytes": 537382025,
+  "version": "d349c1ba8f19b85093b927d5b0ec7c7edfae5b8c5b54dc78f90853b766d98221",
+  "totalBytes": 538099805,
   "assets": [
     {
       "url": "./apps/games/BENNYSAYS/index.html",
@@ -16084,6 +16084,16 @@
       "bytes": 79566
     },
     {
+      "url": "./apps/games/BENSBURGERBAR/css/bb.css",
+      "revision": "d560d3d081b063d3b0df2fdd17568a4168c7e73a0d6c4bc07c928d837d968c86",
+      "bytes": 11712
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/index.html",
+      "revision": "e58c01806c3855b8f5aaea47a75d9cda7f190c1989a78365bed8574a1767e8be",
+      "bytes": 3187
+    },
+    {
       "url": "./apps/games/BENSBURGERBAR/js/core/items.js",
       "revision": "7bea18bdf2fb0114891479c45ebd521019be5d5fc48af1ba62d520281a24a431",
       "bytes": 6997
@@ -16095,8 +16105,8 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/menus.js",
-      "revision": "38b7079fe8c983128bd82bef2c81ec73cff51db5e75039d403b6d36ccc853ba2",
-      "bytes": 6188
+      "revision": "8fbd7e2ee09c240b872d4091512992684d0ccd972a74bee4e575979881a3290e",
+      "bytes": 7035
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/orders.js",
@@ -16145,8 +16155,43 @@
     },
     {
       "url": "./apps/games/BENSBURGERBAR/js/core/words.js",
-      "revision": "4282bd94e6bb2bf71dfd958ff17a21facd2ef7b8e1ad0a54b9d518849f4b4759",
-      "bytes": 7827
+      "revision": "095f26be807d01bd3a48583e1352fc7268b5b5eaa61fca4b3d55b877b0f6f89f",
+      "bytes": 8138
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/game.js",
+      "revision": "93fe3ded06bca71bd5e3fe447e9b341d194acbd378c3f0653c642e53c47b3ec6",
+      "bytes": 6270
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/main.js",
+      "revision": "e480e3517a43cfb2cfd761048a62a4fc3d987e65eb1109a68d252f6ef452b4bb",
+      "bytes": 454
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/save.js",
+      "revision": "3f5563e7370be026af53237d46d64b80b2a25c4659e080d83a6ab025cbfe8ff2",
+      "bytes": 1785
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/ui.js",
+      "revision": "ee8f9552b326933368dd1768d80919ca8e941750db63c22d6fbb840201e9c4c6",
+      "bytes": 27972
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/vendor/LICENSE-three.txt",
+      "revision": "7068c198569d1d515e0a9f4b149c58ddb5dd130c782fc27cb08f987f20e1a332",
+      "bytes": 1234
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/vendor/three.min.js",
+      "revision": "350c2e06a9ea25f291ac033e5ab83e98ec0a67f42a57ff940d01cd6261f5a817",
+      "bytes": 644805
+    },
+    {
+      "url": "./apps/games/BENSBURGERBAR/js/world.js",
+      "revision": "44f61eab33dd8898d6a6d8860958d796dbd440cf7c82e6291838ecbaf21bc71c",
+      "bytes": 19203
     },
     {
       "url": "./apps/games/BENSBURGERBAR/packs/diner/pack.js",

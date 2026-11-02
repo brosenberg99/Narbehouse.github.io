@@ -1,0 +1,156 @@
+/* Ben's Burger Bar - the look (M1 greybox).
+   The 3D kitchen fills the window. The station's choices are big plates in a column on
+   the right; the ticket is top left; captions sit along the bottom, clear of every
+   choice. The scan highlight is thick yellow AND a lift and bracket frame - never colour
+   alone. Cards (menus, settings, pause, results) sit over the kitchen. */
+
+:root {
+  --hl: #ffd54f;
+  --hl-ink: #141414;
+  --panel: rgba(28, 20, 16, .86);
+  --panel-hi: rgba(48, 34, 26, .92);
+  --line: rgba(255, 255, 255, .28);
+  --ink: #fff;
+  --soft: rgba(255, 255, 255, .78);
+  --paper: #fff8ec;
+  --paper-ink: #2a1c12;
+  --ketchup: #c8322a;
+  --side: clamp(300px, 30vw, 460px);
+  --ui: 1;
+  font-family: "Arial Rounded MT Bold", "Segoe UI Rounded", "Segoe UI", system-ui, sans-serif;
+}
+body[data-text="large"] { --ui: 1.18; }
+body[data-text="xlarge"] { --ui: 1.36; }
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; background: #3a2a22; color: var(--ink);
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#canvasWrap { position: fixed; inset: 0; z-index: 0; }
+#canvasWrap canvas { display: block; width: 100%; height: 100%; }
+#loading { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center;
+  background: #3a2a22; font-size: 2rem; font-weight: 800; }
+#loading.gone { display: none; }
+
+/* ── labels pinned to the 3D kitchen ─────────────────────────────────── */
+#worldLayer { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.tag { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; padding: 3px 10px;
+  border-radius: 10px; background: rgba(0, 0, 0, .66); border: 2px solid rgba(255, 255, 255, .5);
+  font-size: calc(.95rem * var(--ui)); font-weight: 800; }
+.tag.bin { background: rgba(255, 248, 236, .92); color: var(--paper-ink); border-color: rgba(0, 0, 0, .35); font-size: calc(.8rem * var(--ui)); }
+.tag.who { font-size: calc(1.15rem * var(--ui)); background: var(--panel-hi); }
+.tag.lit { background: var(--hl); color: var(--hl-ink); border-color: var(--hl-ink); }
+
+/* ── the ticket ──────────────────────────────────────────────────────── */
+#ticket { position: fixed; left: 16px; top: 16px; z-index: 10; max-width: min(460px, calc(100vw - var(--side) - 48px));
+  display: none; padding: 12px 16px 14px; border-radius: 16px; background: var(--paper); color: var(--paper-ink);
+  border: 4px solid var(--paper-ink); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+#ticket.on { display: block; }
+#ticket .who { font-size: calc(1rem * var(--ui)); font-weight: 800; opacity: .75; }
+#ticket .who b { opacity: 1; font-size: calc(1.3rem * var(--ui)); }
+#ticket ol { margin: 6px 0 0; padding-left: 1.3em; font-size: calc(1.15rem * var(--ui)); font-weight: 700; line-height: 1.35; }
+#ticket .held { margin-top: 8px; padding-top: 6px; border-top: 2px dashed rgba(0, 0, 0, .25); font-weight: 800; font-size: calc(1rem * var(--ui)); }
+#ticket .meta { margin-top: 6px; font-size: calc(.95rem * var(--ui)); opacity: .8; }
+
+/* ── the choices ─────────────────────────────────────────────────────── */
+#side { position: fixed; right: 0; top: 0; bottom: 0; z-index: 10; width: var(--side); display: none; flex-direction: column;
+  gap: 8px; padding: 14px 14px 88px; background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .35) 18%); }
+#side.on { display: flex; }
+#crumb { min-height: 2.4rem; padding: 6px 14px; border-radius: 12px; background: var(--panel); border: 2px solid var(--line);
+  font-size: calc(1.15rem * var(--ui)); font-weight: 800; display: flex; align-items: center; gap: 8px; }
+#crumb .bk { font-size: 1.4em; line-height: 1; opacity: .8; }
+#crumb.row { cursor: pointer; }
+.choices { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 0 6px; }
+/* A long list (the board's bins) reads down the first column, then down the second. */
+.choices.cols2 { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column; }
+.choices.cols2 .plate { font-size: calc(1.05rem * var(--ui)); padding: 8px 12px; }
+.plate { position: relative; min-height: 64px; padding: 10px 16px; border-radius: 16px; background: var(--panel);
+  border: 3px solid var(--line); display: flex; align-items: center; gap: 12px; cursor: pointer;
+  font-size: calc(1.2rem * var(--ui)); font-weight: 800; line-height: 1.2;
+  transition: transform .12s ease, background .12s ease; }
+.plate .ic { font-size: 1.5em; width: 1.4em; text-align: center; flex: 0 0 auto; }
+.plate .lb { flex: 1 1 auto; min-width: 0; }
+.plate .lb small { display: block; font-size: .72em; font-weight: 700; opacity: .8; margin-top: 2px; }
+.plate .go { font-size: 1.5em; opacity: .7; }
+.plate.star::after { content: "★ next"; position: absolute; right: 10px; top: -10px; padding: 1px 8px; border-radius: 8px;
+  background: #fff; color: #000; font-size: .7em; border: 2px solid #000; }
+.plate.pause { background: rgba(0, 0, 0, .55); }
+.plate.lit { background: var(--hl); color: var(--hl-ink); border: 6px solid var(--hl-ink); transform: scale(1.03);
+  box-shadow: 0 0 0 4px var(--hl), 0 10px 26px rgba(0, 0, 0, .45); }
+.plate.compact { min-height: 56px; padding: 6px 14px; }
+#choiceStatus { position: fixed; right: 18px; bottom: 18px; z-index: 46; min-block-size: 0; padding: 0; pointer-events: none; }
+#choiceStatus .narbe-scan-status-badge, #cardStatus .narbe-scan-status-badge { font: 900 1.5rem/1.2 inherit; padding: .25rem .9rem;
+  border: 4px solid #000; border-radius: .8rem; background: var(--hl); color: #000; }
+.plate[data-narbe-scan-paused], .item[data-narbe-scan-paused] { outline-offset: -9px !important; }
+
+/* The bracket frame on the 3D thing the lit choice is about. */
+#scanFrame { position: fixed; z-index: 6; display: none; pointer-events: none; color: var(--hl);
+  transition: left .16s ease, top .16s ease, width .16s ease, height .16s ease; }
+#scanFrame.on { display: block; }
+#scanFrame i { position: absolute; width: 1.6rem; height: 1.6rem; border: .42rem solid var(--hl);
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .7)); }
+#scanFrame i:nth-child(1) { left: -.42rem; top: -.42rem; border-right: none; border-bottom: none; border-radius: .6rem 0 0 0; }
+#scanFrame i:nth-child(2) { right: -.42rem; top: -.42rem; border-left: none; border-bottom: none; border-radius: 0 .6rem 0 0; }
+#scanFrame i:nth-child(3) { left: -.42rem; bottom: -.42rem; border-right: none; border-top: none; border-radius: 0 0 0 .6rem; }
+#scanFrame i:nth-child(4) { right: -.42rem; bottom: -.42rem; border-left: none; border-top: none; border-radius: 0 0 .6rem 0; }
+@keyframes scanBreathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+#scanFrame.on i { animation: scanBreathe 1.5s ease-in-out infinite; }
+#scanFrame.paused i { animation: none; }
+
+/* ── captions ────────────────────────────────────────────────────────── */
+#caption { position: fixed; left: 16px; right: calc(var(--side) + 16px); bottom: 16px; z-index: 12; display: none;
+  padding: 10px 20px; border-radius: 16px; background: var(--panel-hi); border: 3px solid var(--line);
+  font-size: calc(1.3rem * var(--ui)); font-weight: 800; line-height: 1.3; text-align: center; }
+#caption.on { display: block; }
+#caption b { color: var(--hl); }
+
+/* ── cards ───────────────────────────────────────────────────────────── */
+#overlay { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; padding: 2.4vh 3vw;
+  background: rgba(20, 12, 8, .55); }
+#overlay.on { display: flex; }
+.card { position: relative; width: min(44rem, 92vw); max-height: 100%; padding: 2.2rem 2rem 1.1rem; text-align: center;
+  background: var(--paper); color: var(--paper-ink); border: 5px solid var(--paper-ink); border-radius: 28px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5); display: flex; flex-direction: column; }
+.card h1 { margin: 0 0 .3rem; font-size: calc(2.3rem * var(--ui)); line-height: 1.1; }
+.card .sub { margin: 0 0 1rem; font-size: calc(1.2rem * var(--ui)); font-weight: 700; opacity: .85; }
+.card .stars { font-size: calc(2.6rem * var(--ui)); letter-spacing: .2em; margin: .2rem 0 .6rem; }
+.card .stars .off { opacity: .25; }
+.card .menu { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.card .menu.cols2 { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column; }
+.card .hint { margin: .9rem 0 0; font-size: calc(.95rem * var(--ui)); opacity: .7; }
+.card .hint kbd { padding: 0 .4em; border: 2px solid currentColor; border-radius: 6px; font: inherit; font-weight: 800; }
+#cardStatus { position: absolute; top: .7rem; right: 1rem; min-block-size: 0; padding: 0; }
+.item { min-height: 64px; padding: 10px 18px; border-radius: 16px; border: 3px solid rgba(0, 0, 0, .28); background: #fff;
+  display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  font-size: calc(1.25rem * var(--ui)); font-weight: 800; }
+.item .ic { font-size: 1.4em; width: 1.4em; text-align: center; }
+.item .lb { flex: 1 1 auto; }
+.item .val { padding: 4px 12px; border-radius: 10px; background: rgba(0, 0, 0, .08); font-size: .9em; white-space: nowrap; }
+.item.locked { opacity: .45; }
+.item.lit { background: var(--hl); color: var(--hl-ink); border: 6px solid var(--hl-ink); transform: scale(1.02);
+  box-shadow: 0 0 0 4px var(--hl); }
+.item.lit .val { background: rgba(0, 0, 0, .14); }
+.logo { margin: 0 0 1rem; line-height: 1; }
+.logo .top { display: block; font-size: calc(1.4rem * var(--ui)); font-weight: 800; letter-spacing: .08em; }
+.logo .main { display: block; font-size: calc(3.2rem * var(--ui)); font-weight: 900; color: var(--ketchup);
+  text-shadow: 3px 3px 0 #f2b230; }
+
+/* ── hold Enter to pause ─────────────────────────────────────────────── */
+#holdRing { position: fixed; left: 50%; top: 50%; z-index: 60; transform: translate(-50%, -50%); display: none;
+  flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+#holdRing.on { display: flex; }
+#holdRing i { --p: 0; width: 120px; height: 120px; border-radius: 50%;
+  background: conic-gradient(var(--hl) calc(var(--p) * 360deg), rgba(255, 255, 255, .2) 0);
+  -webkit-mask: radial-gradient(circle, transparent 46px, #000 47px); mask: radial-gradient(circle, transparent 46px, #000 47px); }
+#holdRing span { background: var(--panel); padding: 6px 14px; border-radius: 999px; font-weight: 800; }
+
+body[data-motion="reduced"] .plate, body[data-motion="reduced"] #scanFrame { transition: none; }
+body[data-motion="reduced"] #scanFrame.on i { animation: none; }
+
+/* Narrow or short windows: the choices take the bottom of the screen instead. */
+@media (max-width: 760px) {
+  :root { --side: 100vw; }
+  #side { top: auto; height: 52vh; padding-bottom: 14px; background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .5) 12%); }
+  #ticket { max-width: calc(100vw - 32px); }
+  #caption { right: 16px; bottom: calc(52vh + 8px); }
+}

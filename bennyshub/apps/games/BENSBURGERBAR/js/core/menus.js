@@ -124,5 +124,21 @@
     return all.find(L => K.key(L.item.action) === k) || all.find(L => K.key(L.item.action, true) === loose) || null;
   }
 
-  return { station, star, leaves, find, optId };
+  /** Where the scan goes after a choice (DESIGN.md "A station's scan"), in the redrawn
+   *  tree: back into the same rows, on the same leaf, or on the row's Back stop when the
+   *  leaf is gone. A row that is gone clears to the blank -1. The planner counts presses
+   *  by the same rule. -> { rows: [row ids], land: id | 'back' | null } */
+  function resume(tree, ids) {
+    const rows = ids.slice(0, -1), leafId = ids[ids.length - 1];
+    let list = tree.items;
+    for (const id of rows) {
+      const row = list.find(it => it.id === id);
+      if (!row || !row.children || !row.children.length) return { rows: [], land: null };
+      list = row.children;
+    }
+    if (list.some(it => it.id === leafId)) return { rows, land: leafId };
+    return rows.length ? { rows, land: 'back' } : { rows: [], land: null };
+  }
+
+  return { station, star, leaves, find, optId, resume };
 });

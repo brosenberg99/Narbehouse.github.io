@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ben's Burger Bar</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../../../shared/scan-status-badge.css">
+<link rel="stylesheet" href="css/bb.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../../images/favicon-16.png">
+</head>
+<body>
+<!-- M1 greybox (DESIGN.md "Milestones"): box-art kitchen, grill, board and counter. -->
+<div id="canvasWrap"></div>
+<div id="worldLayer" aria-hidden="true"></div>
+<div id="scanFrame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+<!-- Top left: whose order this is and what it says. Right: the station's choices. -->
+<section id="ticket" aria-label="Ticket"></section>
+<nav id="side" aria-label="Choices">
+  <div id="crumb"></div>
+  <div id="choices" class="choices"></div>
+  <div id="choiceStatus"></div>
+</nav>
+<div id="caption" aria-live="polite"></div>
+<div id="overlay"></div>
+<div id="holdRing" aria-hidden="true"><i></i><span>Keep holding to pause</span></div>
+<div id="loading">Warming up the grill…</div>
+
+<!-- Hub shared modules first, in the hub's order (ACCESSIBILITY.md §5): the platform and the
+     choice scanner before the managers, the adapter before the game. -->
+<script src="../../../shared/safe-audio.js" onerror="console.warn('safe-audio.js missing')"></script>
+<script src="../../../shared/platform.js"></script>
+<script src="../../../shared/graphics-quality.js"></script>
+<script src="../../../shared/scan-status-badge.js"></script>
+<script src="../../../shared/choice-scan.js"></script>
+<script src="../../../shared/voice-manager.js" onerror="console.warn('voice-manager.js missing')"></script>
+<script src="../../../shared/communication-channel.js"></script>
+<script src="../../../shared/communication-speech.js"></script>
+<script src="../../../shared/ios-audio-fix.js" onerror="console.warn('ios-audio-fix.js missing')"></script>
+<script src="../../../shared/scan-manager.js" onerror="console.warn('scan-manager.js missing')"></script>
+<script src="../../../shared/choice-scan-adapter.js"></script>
+
+<script src="js/vendor/three.min.js"></script>
+<!-- The rules: pure, no DOM - the same files the Node tests run. -->
+<script src="js/core/rng.js"></script>
+<script src="js/core/items.js"></script>
+<script src="js/core/verbs.js"></script>
+<script src="js/core/schema.js"></script>
+<script src="js/core/kitchen.js"></script>
+<script src="js/core/words.js"></script>
+<script src="js/core/menus.js"></script>
+<script src="js/core/scoring.js"></script>
+<script src="js/core/planner.js"></script>
+<script src="js/core/orders.js"></script>
+<script src="js/core/progress.js"></script>
+<script src="js/core/savefmt.js"></script>
+<script src="js/core/shift.js"></script>
+<script src="packs/diner/pack.js"></script>
+<!-- The show. -->
+<script src="js/save.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

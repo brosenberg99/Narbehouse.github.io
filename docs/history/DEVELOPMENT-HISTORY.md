@@ -2,6 +2,26 @@
 
 Detailed implementation and verification records for Benny’s Hub and the NARBE House website. This file was formerly SCAN-UPGRADE-CHANGES.md; its scope now covers all development. Historical entries retain the names and status recorded at the time. Start with [the documentation index](../README.md) for maintained guidance.
 
+## 2026-11-02 — Ben's Burger Bar M1 greybox
+
+Scope: milestone M1 of the cooking game: a playable greybox page with the grill, the board and the counter, built on the M0 rules. Electron port: **NO**. Branch `burger-bar`. No catalog or `games.json` change; the page is reachable only by its direct link, and the game stays unlisted.
+
+The page shows a box-art 3D kitchen (Three.js r155, vendored with its licence). Each station's scan tree from `menus.station()` is drawn as large plates on the right, with a bracket frame on the 3D object the lit plate is about. Choices run on the hub's shared choice scanner through `NarbeChoiceScanAdapter`: every card and station opens on the blank -1, rows are entered with `enterGroup(children, {wrap:true, backStop:true})`, and after a choice the scan returns to the same row, on the same item or on its Back stop (`menus.resume()`, the same rule the planner bot counts by). A shift serves hamburgers and cheeseburgers, one customer at a time, with Pick the Doneness and Auto-Fill. Customers speak their orders with text to speech and a caption. Each serve opens a stars-and-tip card, and the shift ends on a results card. Pause is the last item at every station; a 5-second Enter hold also opens it. Restart Shift, Main Menu and Exit Game confirm first, with Cancel first. Exit Game sends `focusBackButton` to the hub. The M1 settings are Text to Speech, Voice, Shift Length, Orders, Next-Step Star, Motion, Text Size, Auto Scan, Scan Speed and Sound Effects. `words.item` now says an added sauce with its amount once ("add a line of mustard").
+
+Changed files (all web scope, Electron port: NO):
+- bennyshub/apps/games/BENSBURGERBAR/index.html, css/bb.css — new page and styles.
+- bennyshub/apps/games/BENSBURGERBAR/js/world.js, ui.js, game.js, save.js, main.js — new presentation code.
+- bennyshub/apps/games/BENSBURGERBAR/js/vendor/three.min.js, LICENSE-three.txt — vendored Three.js r155 (the file Sphere Splash uses) and its MIT licence.
+- bennyshub/apps/games/BENSBURGERBAR/js/core/menus.js — `resume()`: where the scan goes after a choice.
+- bennyshub/apps/games/BENSBURGERBAR/js/core/words.js — an added sauce with its amount is said once.
+- bennyshub/apps/games/BENSBURGERBAR/tests/menus.test.cjs — new menu tests.
+- bennyshub/apps/games/BENSBURGERBAR/tools/check-browser.cjs — new headless Chrome check (not published).
+- bennyshub/apps/games/BENSBURGERBAR/DESIGN.md — M1 status and notes.
+- bennyshub/offline-manifest.json — regenerated (`node scripts/offline-manifest.cjs`); adds the new public files.
+- docs/history/DEVELOPMENT-HISTORY.md — this entry.
+
+Verification: `node --test bennyshub/apps/games/BENSBURGERBAR/tests/*.test.cjs` passes 39 tests. `npm test` passes 443 tests. `node bennyshub/apps/games/BENSBURGERBAR/tools/check-browser.cjs` passes in headless Chrome with real key events. It checks that the page boots with no errors and every card fits at 1920x1008, 1368x840 and 1024x768. It checks the blank -1, act-on-release, hold-Space reverse scan, a row's Back stop and the return to its row, and the Exit confirmation with Cancel first. With two switches it serves a two-burger order in 54 selects, exactly the planner bot's count step for step, with 128 Space moves and 3 stars. It checks that a 5-second Enter hold opens Pause and Continue returns. With Auto Scan at 1 s, Enter alone serves a hamburger order in 28 selects and 71 s. Not yet tested by a player with their own switch setup; that is the M1 playtest.
+
 ## 2026-11-02 — Ben's Burger Bar M0 rules engine
 
 Scope: milestone M0 of the new cooking game: the rules modules, the whole diner as data, a planner bot and a test-only pizzeria pack, with Node tests. Electron port: **NO**. Branch `burger-bar`. No page, presentation code, catalog or `games.json` change; nothing is playable yet and the game stays unlisted.
